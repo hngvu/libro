@@ -20,7 +20,7 @@ public class Book {
     @Column(nullable = false)
     private String title;
 
-    @Column(unique = true, nullable = false, updatable = false)
+    @Column(unique = true, nullable = false, updatable = false, columnDefinition = "CHAR(8)")
     private String handle;
 
     @Column(nullable = false)
@@ -32,8 +32,27 @@ public class Book {
     @Column(name = "publication_year")
     private Integer publicationYear;
 
+    private String cover;
+
+    private String edition;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private Format format;
+
+    @Column(columnDefinition = "CHAR(8)")
+    private String work; // first book edition handle for grouping
+
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "total_copies", nullable = false)
+    @Builder.Default
+    private Integer totalCopies = 0;
+
+    @Column(name = "available_copies", nullable = false)
+    @Builder.Default
+    private Integer availableCopies = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "publisher_id")
@@ -57,4 +76,13 @@ public class Book {
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookCopy> copies;
+
+    public enum Format {
+        HARDCOVER,
+        PAPERBACK,
+        MASS_MARKET_PAPERBACK,
+        EBOOK,
+        AUDIOBOOK,
+        OTHER
+    }
 }

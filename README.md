@@ -5,7 +5,7 @@
 ___
 
 <p align="center">
-  <strong>The modern library management system — organize, track, and discover books with ease</strong>
+  <strong>Discover great reads, track your loans, and connect with fellow book lovers</strong>
 </p>
 
 <p align="center">
