@@ -7,7 +7,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import soqe.libro.server.dto.ErrorResponseDto;
+import soqe.libro.server.dto.ErrorResponse;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,16 +15,16 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 1. Lỗi Validation (khi dùng @Valid ở Controller)
+    // 1. Lá»—i Validation (khi dÃ¹ng @Valid á»Ÿ Controller)
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponseDto> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
         Map<String, String> errors = new HashMap<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
         }
 
-        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
-                .message("Dữ liệu đầu vào không hợp lệ")
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .message("Dá»¯ liá»‡u Ä‘áº§u vÃ o khÃ´ng há»£p lá»‡")
                 .path(request.getRequestURI())
                 .validationErrors(errors)
                 .build();
@@ -32,10 +32,10 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
-    // 2. Lỗi không tìm thấy tài nguyên (404)
+    // 2. Lá»—i khÃ´ng tÃ¬m tháº¥y tÃ i nguyÃªn (404)
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponseDto> handleResourceNotFoundException(ResourceNotFoundException ex, HttpServletRequest request) {
-        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex, HttpServletRequest request) {
+        ErrorResponse errorResponse = ErrorResponse.builder()
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
                 .build();
@@ -43,10 +43,10 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
 
-    // 3. Lỗi trùng lặp dữ liệu (409 Conflict)
+    // 3. Lá»—i trÃ¹ng láº·p dá»¯ liá»‡u (409 Conflict)
     @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<ErrorResponseDto> handleDuplicateResourceException(DuplicateResourceException ex, HttpServletRequest request) {
-        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
+    public ResponseEntity<ErrorResponse> handleDuplicateResourceException(DuplicateResourceException ex, HttpServletRequest request) {
+        ErrorResponse errorResponse = ErrorResponse.builder()
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
                 .build();
@@ -54,10 +54,10 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
     }
 
-    // 4. Lỗi Request chung chung (400)
+    // 4. Lá»—i Request chung chung (400)
     @ExceptionHandler({BadRequestException.class, IllegalArgumentException.class})
-    public ResponseEntity<ErrorResponseDto> handleBadRequestException(RuntimeException ex, HttpServletRequest request) {
-        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
+    public ResponseEntity<ErrorResponse> handleBadRequestException(RuntimeException ex, HttpServletRequest request) {
+        ErrorResponse errorResponse = ErrorResponse.builder()
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
                 .build();
@@ -65,14 +65,14 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
     
-    // 5. Catch-all: Lỗi hệ thống bất ngờ (500)
+    // 5. Catch-all: Lá»—i há»‡ thá»‘ng báº¥t ngá» (500)
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponseDto> handleGlobalException(Exception ex, HttpServletRequest request) {
-        // In log ra console để dev debug
+    public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, HttpServletRequest request) {
+        // In log ra console Ä‘á»ƒ dev debug
         ex.printStackTrace(); 
         
-        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
-                .message("Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.")
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .message("ÄÃ£ xáº£y ra lá»—i há»‡ thá»‘ng. Vui lÃ²ng thá»­ láº¡i sau.")
                 .path(request.getRequestURI())
                 .build();
                 

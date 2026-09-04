@@ -6,7 +6,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
-import soqe.libro.server.dto.ErrorResponseDto;
+import soqe.libro.server.dto.ErrorResponse;
 
 import java.io.IOException;
 
@@ -24,8 +24,8 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
-        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
-                .message("Xác thực thất bại. Token không hợp lệ, không có hoặc đã hết hạn.")
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .message("XÃ¡c thá»±c tháº¥t báº¡i. Token khÃ´ng há»£p lá»‡, khÃ´ng cÃ³ hoáº·c Ä‘Ã£ háº¿t háº¡n.")
                 .path(request.getRequestURI())
                 .build();
 

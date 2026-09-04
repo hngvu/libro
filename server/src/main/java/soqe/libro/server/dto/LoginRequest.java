@@ -3,7 +3,7 @@ package soqe.libro.server.dto;
 import lombok.Builder;
 
 @Builder
-public record LoginRequestDto(
+public record LoginRequest(
     String email,
     String password
 ) {}

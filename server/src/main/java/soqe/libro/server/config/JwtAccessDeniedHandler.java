@@ -6,7 +6,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
-import soqe.libro.server.dto.ErrorResponseDto;
+import soqe.libro.server.dto.ErrorResponse;
 
 import java.io.IOException;
 
@@ -24,8 +24,8 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
 
-        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
-                .message("Từ chối truy cập. Bạn không có quyền thực hiện hành động này.")
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .message("Tá»« chá»‘i truy cáº­p. Báº¡n khÃ´ng cÃ³ quyá»n thá»±c hiá»‡n hÃ nh Ä‘á»™ng nÃ y.")
                 .path(request.getRequestURI())
                 .build();
 

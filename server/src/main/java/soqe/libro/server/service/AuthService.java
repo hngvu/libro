@@ -15,7 +15,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
-import soqe.libro.server.dto.RegisterRequestDto;
+import soqe.libro.server.dto.RegisterRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +25,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtEncoder jwtEncoder;
 
-    public String register(RegisterRequestDto request) {
+    public void register(RegisterRequest request) {
         User user = User.builder()
                 .username(request.username())
                 .email(request.email())
@@ -35,7 +35,6 @@ public class AuthService {
                 .build();
         
         userService.save(user);
-        return "User registered successfully";
     }
 
     public String login(String email, String password) {

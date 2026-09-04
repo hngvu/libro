@@ -10,7 +10,7 @@ import java.util.Map;
 @Getter
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class ErrorResponseDto {
+public class ErrorResponse {
     @Builder.Default
     private boolean success = false;
     @Builder.Default
@@ -19,7 +19,7 @@ public class ErrorResponseDto {
     private String message;
     private String path;
     
-    // Bỏ qua status/error name vì trùng lặp với HTTP status code
-    // Lưu các lỗi validation cụ thể (Ví dụ: {"email": "Không đúng định dạng"})
+    // Bá» qua status/error name vÃ¬ trÃ¹ng láº·p vá»›i HTTP status code
+    // LÆ°u cÃ¡c lá»—i validation cá»¥ thá»ƒ (VÃ­ dá»¥: {"email": "KhÃ´ng Ä‘Ãºng Ä‘á»‹nh dáº¡ng"})
     private Map<String, String> validationErrors;
 }
