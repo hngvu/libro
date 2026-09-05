@@ -43,12 +43,23 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
 
-    // 3. Lá»—i trÃ¹ng láº·p dá»¯ liá»‡u (409 Conflict)
+    // 3. Lá»—i trÃ¹ng láº·p dá»¯ liá»‡u hoáº·c quy táº¯c nghiá»‡p vá»¥ (409 Conflict)
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateResourceException(DuplicateResourceException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
+                .build();
+                
+        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(BusinessValidationException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessValidationException(BusinessValidationException ex, HttpServletRequest request) {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .validationErrors(ex.getErrors())
                 .build();
                 
         return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
@@ -77,5 +88,25 @@ public class GlobalExceptionHandler {
                 .build();
                 
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // 6. Lỗi xác thực (401 Unauthorized) từ Spring Security Filter
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<soqe.libro.server.dto.ErrorResponse> handleAuthenticationException(org.springframework.security.core.AuthenticationException ex, HttpServletRequest request) {
+        soqe.libro.server.dto.ErrorResponse errorResponse = soqe.libro.server.dto.ErrorResponse.builder()
+                .message("Xác thực thất bại. Token không hợp lệ, không có hoặc đã hết hạn.")
+                .path(request.getRequestURI())
+                .build();
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    }
+
+    // 7. Lỗi phân quyền (403 Forbidden) từ Spring Security Filter
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<soqe.libro.server.dto.ErrorResponse> handleAccessDeniedException(org.springframework.security.access.AccessDeniedException ex, HttpServletRequest request) {
+        soqe.libro.server.dto.ErrorResponse errorResponse = soqe.libro.server.dto.ErrorResponse.builder()
+                .message("Từ chối truy cập. Bạn không có quyền thực hiện hành động này.")
+                .path(request.getRequestURI())
+                .build();
+        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
     }
 }

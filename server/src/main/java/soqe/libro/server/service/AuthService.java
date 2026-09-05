@@ -17,32 +17,45 @@ import java.util.UUID;
 
 import soqe.libro.server.dto.RegisterRequest;
 
+import soqe.libro.server.exception.ResourceNotFoundException;
+import soqe.libro.server.exception.BadRequestException;
+import soqe.libro.server.exception.DuplicateResourceException;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
+    private final UserRepository userRepository;
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final JwtEncoder jwtEncoder;
 
     public void register(RegisterRequest request) {
+        userService.validateUniqueConstraints(request.username(), request.email());
+
         User user = User.builder()
                 .username(request.username())
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
                 .fullName(request.fullName())
                 .phone(request.phone())
+                .role(User.Role.MEMBER)
+                .status(User.Status.ACTIVE)
                 .build();
         
-        userService.save(user);
+        userRepository.save(user);
     }
 
     public String login(String email, String password) {
-        User user = userService.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
                 
         if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
+            throw new org.springframework.security.authentication.BadCredentialsException("Invalid credentials");
+        }
+        
+        if (user.getStatus() != User.Status.ACTIVE) {
+            throw new org.springframework.security.authentication.DisabledException("Account is not active");
         }
         
         return generateToken(user);

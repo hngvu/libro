@@ -21,19 +21,22 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import javax.crypto.spec.SecretKeySpec;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationEntryPoint authenticationEntryPoint;
-    private final JwtAccessDeniedHandler accessDeniedHandler;
+    private final HandlerExceptionResolver resolver;
+    private final String jwtSecret;
 
-
-    @Value("${jwt.secret}")
-    private String jwtSecret;
+    public SecurityConfig(
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver,
+            @Value("${jwt.secret}") String jwtSecret) {
+        this.resolver = resolver;
+        this.jwtSecret = jwtSecret;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
@@ -49,12 +52,14 @@ public class SecurityConfig {
                 .jwtAuthenticationConverter(jwtAuthenticationConverter())));
 
         httpSecurity.csrf(AbstractHttpConfigurer::disable);
-        httpSecurity.exceptionHandling(exceptions -> exceptions
-                .authenticationEntryPoint(authenticationEntryPoint)
-                .accessDeniedHandler(accessDeniedHandler)
-        );
-
         httpSecurity.cors(AbstractHttpConfigurer::disable);
+        
+        httpSecurity.exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, authException) -> 
+                        resolver.resolveException(request, response, null, authException))
+                .accessDeniedHandler((request, response, accessDeniedException) -> 
+                        resolver.resolveException(request, response, null, accessDeniedException))
+        );
 
         return httpSecurity.build();
     }
@@ -84,8 +89,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // Tham số 12 là độ mạnh (strength / log rounds) của thuật toán.
-        // Mặc định của Spring là 10. Tăng lên 12 hoặc cao hơn sẽ an toàn hơn (nhưng chậm hơn khi hash).
         return new BCryptPasswordEncoder(12);
     }
 }

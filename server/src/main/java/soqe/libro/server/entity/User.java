@@ -35,12 +35,19 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Status status;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        if (status == null) {
+            status = Status.ACTIVE;
+        }
     }
 
     @OneToMany(mappedBy = "user")
@@ -48,5 +55,9 @@ public class User {
     
     public enum Role {
         MEMBER, LIBRARIAN, ADMIN
+    }
+
+    public enum Status {
+        ACTIVE, INACTIVE, BANNED
     }
 }

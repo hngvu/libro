@@ -77,12 +77,22 @@ public class Book {
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookCopy> copies;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private Status status = Status.ACTIVE;
+
     public enum Format {
         HARDCOVER,
         PAPERBACK,
-        MASS_MARKET_PAPERBACK,
         EBOOK,
         AUDIOBOOK,
         OTHER
+    }
+
+    public enum Status {
+        ACTIVE,
+        ARCHIVED,
+        HIDDEN
     }
 }

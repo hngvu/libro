@@ -1,45 +1,31 @@
 package soqe.libro.server.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import soqe.libro.server.service.BookService;
+import soqe.libro.server.dto.BookPublicResponse;
 import soqe.libro.server.entity.Book;
-
-import java.util.List;
+import soqe.libro.server.service.BookService;
 
 @RestController
 @RequestMapping("/books")
 @RequiredArgsConstructor
 public class BookController {
-    
-    private final BookService service;
+
+    private final BookService bookService;
 
     @GetMapping
-    public ResponseEntity<List<Book>> getAll() {
-        return ResponseEntity.ok(service.findAll());
+    public ResponseEntity<Page<BookPublicResponse>> searchBooks(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Book.Format format,
+            Pageable pageable) {
+        return ResponseEntity.ok(bookService.searchBooks(keyword, format, pageable));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Book> getById(@PathVariable Long id) {
-        return service.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    @PostMapping
-    public ResponseEntity<Book> create(@RequestBody Book entity) {
-        return ResponseEntity.ok(service.save(entity));
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<Book> update(@PathVariable Long id, @RequestBody Book entity) {
-        return ResponseEntity.ok(service.update(id, entity));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.deleteById(id);
-        return ResponseEntity.noContent().build();
+    @GetMapping("/{handle}")
+    public ResponseEntity<BookPublicResponse> getBookByHandle(@PathVariable String handle) {
+        return ResponseEntity.ok(bookService.getBookByHandle(handle));
     }
 }
