@@ -43,3 +43,7 @@ This project strictly adheres to the following backend development standards to 
 - **No Hard Deletes**: Never call `repository.deleteById()`. 
 - **Soft Deletes**: Always use a `status` Enum (e.g., `INACTIVE`, `ARCHIVED`, `BANNED`, `HIDDEN`) on the entity.
 - End-user APIs must explicitly filter out non-active records (e.g., `.filter(b -> b.getStatus() == Status.ACTIVE)`). Admin APIs may retrieve all statuses.
+
+### 7. Data Auditing
+- **BaseEntity**: All entities MUST extend `BaseEntity`. This provides out-of-the-box JPA auditing with four standard fields: `createdAt`, `updatedAt`, `createdBy`, and `updatedBy`.
+- **Automatic Population**: Do NOT set these fields manually. Spring Data JPA `@EnableJpaAuditing` and the configured `SecurityAuditorAware` bean will automatically extract the current user from the `SecurityContext` and timestamp the records during INSERT and UPDATE operations.

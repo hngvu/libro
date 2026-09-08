@@ -10,7 +10,7 @@ import java.util.List;
 
 public class BookSpecification {
 
-    public static Specification<Book> filter(String keyword, Book.Format format, Book.Status status) {
+    public static Specification<Book> filter(String keyword, Book.Format format, Book.Status status, String genreHandle) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -29,6 +29,11 @@ public class BookSpecification {
 
             if (status != null) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), status));
+            }
+
+            if (StringUtils.hasText(genreHandle)) {
+                jakarta.persistence.criteria.Join<Object, Object> genreJoin = root.join("genres");
+                predicates.add(criteriaBuilder.equal(genreJoin.get("handle"), genreHandle));
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));

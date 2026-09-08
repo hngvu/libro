@@ -19,7 +19,5 @@ public class ErrorResponse {
     private String message;
     private String path;
     
-    // Bá» qua status/error name vÃ¬ trÃ¹ng láº·p vá»›i HTTP status code
-    // LÆ°u cÃ¡c lá»—i validation cá»¥ thá»ƒ (VÃ­ dá»¥: {"email": "KhÃ´ng Ä‘Ãºng Ä‘á»‹nh dáº¡ng"})
     private Map<String, String> validationErrors;
 }

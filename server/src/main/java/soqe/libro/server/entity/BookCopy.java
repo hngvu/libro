@@ -11,11 +11,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BookCopy {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+public class BookCopy extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String barcode;
 
@@ -31,6 +27,6 @@ public class BookCopy {
     private List<Loan> loans;
 
     public enum Status {
-        AVAILABLE, LOANED, LOST, DAMAGED
+        AVAILABLE, LOANED, LOST, DAMAGED, ARCHIVED
     }
 }

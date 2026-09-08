@@ -44,6 +44,9 @@ public class SecurityConfig {
                 requests
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/h2-console/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/books/**", "/genres/**", "/authors/**", "/publishers/**").permitAll()
+                        .requestMatchers("/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .anyRequest().authenticated()
         );
 
@@ -52,7 +55,8 @@ public class SecurityConfig {
                 .jwtAuthenticationConverter(jwtAuthenticationConverter())));
 
         httpSecurity.csrf(AbstractHttpConfigurer::disable);
-        httpSecurity.cors(AbstractHttpConfigurer::disable);
+        httpSecurity.cors(cors -> cors.configurationSource(corsConfigurationSource()));
+        httpSecurity.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()));
         
         httpSecurity.exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, authException) -> 
@@ -62,6 +66,20 @@ public class SecurityConfig {
         );
 
         return httpSecurity.build();
+    }
+
+    @Bean
+    public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
+        org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
+        configuration.setAllowedOriginPatterns(java.util.List.of("http://localhost:*", "http://127.0.0.1:*"));
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        configuration.setAllowedHeaders(java.util.List.of("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        org.springframework.web.cors.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean

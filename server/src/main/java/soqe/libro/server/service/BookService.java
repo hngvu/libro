@@ -28,16 +28,44 @@ public class BookService {
     // ==========================================
 
     @Transactional(readOnly = true)
-    public Page<BookResponse> searchBooksForAdmin(String keyword, Book.Format format, Book.Status status, Pageable pageable) {
-        return repository.findAll(BookSpecification.filter(keyword, format, status), pageable)
-                .map(BookResponse::from);
+    public Page<BookResponse> searchBooksForAdmin(String keyword, Book.Format format, Book.Status status, String genreHandle, Pageable pageable) {
+        return repository.findAll(BookSpecification.filter(keyword, format, status, genreHandle), pageable)
+                .map(book -> BookResponse.builder()
+                        .id(book.getId())
+                        .title(book.getTitle())
+                        .handle(book.getHandle())
+                        .slug(book.getSlug())
+                        .isbn(book.getIsbn())
+                        .publicationYear(book.getPublicationYear())
+                        .cover(book.getCover())
+                        .edition(book.getEdition())
+                        .format(book.getFormat() != null ? book.getFormat().name() : null)
+                        .description(book.getDescription())
+                        .totalCopies(book.getTotalCopies())
+                        .availableCopies(book.getAvailableCopies())
+                        .status(book.getStatus() != null ? book.getStatus().name() : null)
+                        .build());
     }
 
     @Transactional(readOnly = true)
     public BookResponse getBookForAdmin(Long id) {
         Book book = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
-        return BookResponse.from(book);
+        return BookResponse.builder()
+                .id(book.getId())
+                .title(book.getTitle())
+                .handle(book.getHandle())
+                .slug(book.getSlug())
+                .isbn(book.getIsbn())
+                .publicationYear(book.getPublicationYear())
+                .cover(book.getCover())
+                .edition(book.getEdition())
+                .format(book.getFormat() != null ? book.getFormat().name() : null)
+                .description(book.getDescription())
+                .totalCopies(book.getTotalCopies())
+                .availableCopies(book.getAvailableCopies())
+                .status(book.getStatus() != null ? book.getStatus().name() : null)
+                .build();
     }
 
     @Transactional
@@ -60,7 +88,22 @@ public class BookService {
                 .availableCopies(0)
                 .build();
 
-        return BookResponse.from(repository.save(book));
+        book = repository.save(book);
+        return BookResponse.builder()
+                .id(book.getId())
+                .title(book.getTitle())
+                .handle(book.getHandle())
+                .slug(book.getSlug())
+                .isbn(book.getIsbn())
+                .publicationYear(book.getPublicationYear())
+                .cover(book.getCover())
+                .edition(book.getEdition())
+                .format(book.getFormat() != null ? book.getFormat().name() : null)
+                .description(book.getDescription())
+                .totalCopies(book.getTotalCopies())
+                .availableCopies(book.getAvailableCopies())
+                .status(book.getStatus() != null ? book.getStatus().name() : null)
+                .build();
     }
 
     @Transactional
@@ -82,7 +125,22 @@ public class BookService {
         
         if (request.status() != null) book.setStatus(request.status());
 
-        return BookResponse.from(repository.save(book));
+        book = repository.save(book);
+        return BookResponse.builder()
+                .id(book.getId())
+                .title(book.getTitle())
+                .handle(book.getHandle())
+                .slug(book.getSlug())
+                .isbn(book.getIsbn())
+                .publicationYear(book.getPublicationYear())
+                .cover(book.getCover())
+                .edition(book.getEdition())
+                .format(book.getFormat() != null ? book.getFormat().name() : null)
+                .description(book.getDescription())
+                .totalCopies(book.getTotalCopies())
+                .availableCopies(book.getAvailableCopies())
+                .status(book.getStatus() != null ? book.getStatus().name() : null)
+                .build();
     }
 
     @Transactional
@@ -98,10 +156,22 @@ public class BookService {
     // ==========================================
 
     @Transactional(readOnly = true)
-    public Page<soqe.libro.server.dto.BookPublicResponse> searchBooks(String keyword, Book.Format format, Pageable pageable) {
+    public Page<soqe.libro.server.dto.BookPublicResponse> searchBooks(String keyword, Book.Format format, String genreHandle, Pageable pageable) {
         // Users can only search for ACTIVE books
-        return repository.findAll(BookSpecification.filter(keyword, format, Book.Status.ACTIVE), pageable)
-                .map(soqe.libro.server.dto.BookPublicResponse::from);
+        return repository.findAll(BookSpecification.filter(keyword, format, Book.Status.ACTIVE, genreHandle), pageable)
+                .map(book -> soqe.libro.server.dto.BookPublicResponse.builder()
+                        .title(book.getTitle())
+                        .handle(book.getHandle())
+                        .slug(book.getSlug())
+                        .isbn(book.getIsbn())
+                        .publicationYear(book.getPublicationYear())
+                        .cover(book.getCover())
+                        .edition(book.getEdition())
+                        .format(book.getFormat() != null ? book.getFormat().name() : null)
+                        .description(book.getDescription())
+                        .totalCopies(book.getTotalCopies())
+                        .availableCopies(book.getAvailableCopies())
+                        .build());
     }
 
     @Transactional(readOnly = true)
@@ -109,7 +179,19 @@ public class BookService {
         Book book = repository.findByHandle(handle)
                 .filter(b -> b.getStatus() == Book.Status.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found or is not active with handle: " + handle));
-        return soqe.libro.server.dto.BookPublicResponse.from(book);
+        return soqe.libro.server.dto.BookPublicResponse.builder()
+                .title(book.getTitle())
+                .handle(book.getHandle())
+                .slug(book.getSlug())
+                .isbn(book.getIsbn())
+                .publicationYear(book.getPublicationYear())
+                .cover(book.getCover())
+                .edition(book.getEdition())
+                .format(book.getFormat() != null ? book.getFormat().name() : null)
+                .description(book.getDescription())
+                .totalCopies(book.getTotalCopies())
+                .availableCopies(book.getAvailableCopies())
+                .build();
     }
 
     // ==========================================

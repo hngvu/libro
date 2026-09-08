@@ -16,20 +16,4 @@ public record BookPublicResponse(
         String description,
         Integer totalCopies,
         Integer availableCopies
-) {
-    public static BookPublicResponse from(Book book) {
-        return BookPublicResponse.builder()
-                .title(book.getTitle())
-                .handle(book.getHandle())
-                .slug(book.getSlug())
-                .isbn(book.getIsbn())
-                .publicationYear(book.getPublicationYear())
-                .cover(book.getCover())
-                .edition(book.getEdition())
-                .format(book.getFormat() != null ? book.getFormat().name() : null)
-                .description(book.getDescription())
-                .totalCopies(book.getTotalCopies())
-                .availableCopies(book.getAvailableCopies())
-                .build();
-    }
-}
+) {}

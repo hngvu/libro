@@ -11,19 +11,24 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Genre {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+public class Genre extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String name;
 
     @Column(unique = true, nullable = false, updatable = false)
-    private String slug;
+    private String handle;
 
     private String description;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private Status status = Status.ACTIVE;
+
     @ManyToMany(mappedBy = "genres")
     private Set<Book> books;
+
+    public enum Status {
+        ACTIVE, INACTIVE
+    }
 }

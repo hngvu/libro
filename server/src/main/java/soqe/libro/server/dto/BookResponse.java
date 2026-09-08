@@ -18,22 +18,4 @@ public record BookResponse(
         Integer totalCopies,
         Integer availableCopies,
         String status
-) {
-    public static BookResponse from(Book book) {
-        return BookResponse.builder()
-                .id(book.getId())
-                .title(book.getTitle())
-                .handle(book.getHandle())
-                .slug(book.getSlug())
-                .isbn(book.getIsbn())
-                .publicationYear(book.getPublicationYear())
-                .cover(book.getCover())
-                .edition(book.getEdition())
-                .format(book.getFormat() != null ? book.getFormat().name() : null)
-                .description(book.getDescription())
-                .totalCopies(book.getTotalCopies())
-                .availableCopies(book.getAvailableCopies())
-                .status(book.getStatus() != null ? book.getStatus().name() : null)
-                .build();
-    }
-}
+) {}

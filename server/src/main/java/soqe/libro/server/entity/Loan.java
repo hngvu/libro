@@ -11,10 +11,10 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Loan {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Loan extends BaseEntity {
+
+    @Column(name = "loan_code", unique = true, nullable = false, updatable = false, length = 32)
+    private String loanCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -34,10 +34,10 @@ public class Loan {
     private LocalDate returnDate;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private LoanStatus status;
 
     public enum LoanStatus {
-        ONGOING, RETURNED, OVERDUE
+        ONGOING, RETURNED, OVERDUE, CANCELLED
     }
 }

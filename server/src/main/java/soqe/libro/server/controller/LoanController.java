@@ -1,45 +1,37 @@
 package soqe.libro.server.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import soqe.libro.server.service.LoanService;
+import soqe.libro.server.dto.LoanPublicResponse;
 import soqe.libro.server.entity.Loan;
+import soqe.libro.server.service.LoanService;
 
-import java.util.List;
+import java.security.Principal;
 
 @RestController
 @RequestMapping("/loans")
 @RequiredArgsConstructor
 public class LoanController {
-    
-    private final LoanService service;
 
-    @GetMapping
-    public ResponseEntity<List<Loan>> getAll() {
-        return ResponseEntity.ok(service.findAll());
+    private final LoanService loanService;
+
+    @GetMapping("/my-loans")
+    public ResponseEntity<Page<LoanPublicResponse>> getMyLoans(
+            Principal principal,
+            @RequestParam(required = false) Loan.LoanStatus status,
+            Pageable pageable) {
+        String username = (principal != null) ? principal.getName() : "test_user";
+        return ResponseEntity.ok(loanService.getMyLoans(username, status, pageable));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Loan> getById(@PathVariable Long id) {
-        return service.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    @PostMapping
-    public ResponseEntity<Loan> create(@RequestBody Loan entity) {
-        return ResponseEntity.ok(service.save(entity));
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<Loan> update(@PathVariable Long id, @RequestBody Loan entity) {
-        return ResponseEntity.ok(service.update(id, entity));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.deleteById(id);
-        return ResponseEntity.noContent().build();
+    @GetMapping("/{loanCode}")
+    public ResponseEntity<LoanPublicResponse> getMyLoanDetail(
+            Principal principal,
+            @PathVariable String loanCode) {
+        String username = (principal != null) ? principal.getName() : "test_user";
+        return ResponseEntity.ok(loanService.getMyLoanDetail(username, loanCode));
     }
 }

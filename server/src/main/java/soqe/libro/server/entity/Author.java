@@ -11,20 +11,26 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Author {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Author extends BaseEntity {
 
     @Column(nullable = false)
     private String name;
 
     @Column(unique = true, nullable = false, updatable = false)
-    private String slug;
+    private String handle;
 
     @Column(columnDefinition = "TEXT")
     private String biography;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private Status status = Status.ACTIVE;
+
     @ManyToMany(mappedBy = "authors")
     private Set<Book> books;
+
+    public enum Status {
+        ACTIVE, INACTIVE
+    }
 }

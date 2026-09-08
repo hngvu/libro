@@ -24,8 +24,9 @@ public class AdminBookController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Book.Format format,
             @RequestParam(required = false) Book.Status status,
+            @RequestParam(required = false, name = "genre") String genreHandle,
             Pageable pageable) {
-        return ResponseEntity.ok(bookService.searchBooksForAdmin(keyword, format, status, pageable));
+        return ResponseEntity.ok(bookService.searchBooksForAdmin(keyword, format, status, genreHandle, pageable));
     }
 
     @GetMapping("/{id}")
