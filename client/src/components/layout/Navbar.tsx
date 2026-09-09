@@ -224,7 +224,9 @@ export function Navbar({
               onFocus={() => {
                 if (suggestions.length > 0) setShowDropdown(true)
               }}
-              className="w-full h-9.5 pl-3.5 pr-10 text-xs sm:text-sm bg-white dark:bg-[#252c28] border border-[#c8d0b7] dark:border-[#3d4b3e] rounded-md shadow-xs focus:outline-none focus:ring-2 focus:ring-[#6f7f64] text-[#1e2320] dark:text-[#f5f3e6] placeholder:text-[#6f7f64]/70 transition-all font-sans"
+              className={`w-full h-10 pl-3.5 pr-11 text-sm bg-white dark:bg-[#252c28] border border-[#d8d8d8] dark:border-[#3d4b3e] focus:outline-none focus:border-[#999999] text-[#181818] dark:text-[#f5f3e6] placeholder:text-[#767676] transition-colors font-sans ${
+                showDropdown && suggestions.length > 0 ? 'rounded-t-sm rounded-b-none border-b-transparent' : 'rounded-sm shadow-xs'
+              }`}
             />
             {searchTerm ? (
               <button
@@ -234,63 +236,59 @@ export function Navbar({
                   onSearch('')
                   setShowDropdown(false)
                 }}
-                className="absolute right-9 p-1 text-[#6f7f64] hover:text-[#1e2320] cursor-pointer"
+                className="absolute right-10 p-1 text-[#767676] hover:text-[#181818] cursor-pointer"
               >
-                <IconX size={14} />
+                <IconX size={15} />
               </button>
             ) : null}
             <button
               type="submit"
-              className="absolute right-1 top-1 bottom-1 px-2 text-[#6f7f64] hover:text-[#3d4b3e] dark:hover:text-[#f5f3e6] flex items-center justify-center cursor-pointer transition-colors"
+              className="absolute right-0 top-0 bottom-0 px-3 text-[#333333] dark:text-[#c8d0b7] hover:text-black dark:hover:text-white flex items-center justify-center cursor-pointer transition-colors"
               title="Search"
             >
-              <IconSearch size={17} />
+              {searchLoading ? (
+                <div className="w-4 h-4 border-2 border-[#00635d] border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <IconSearch size={19} stroke={1.75} />
+              )}
             </button>
           </form>
 
           {/* Real-time Goodreads Autocomplete Dropdown */}
           {showDropdown && suggestions.length > 0 && (
-            <div className="absolute left-0 right-0 mt-1.5 bg-white dark:bg-[#252c28] border border-[#c8d0b7] dark:border-[#3d4b3e] rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-98">
-              <div className="p-2 border-b border-[#c8d0b7]/40 text-[11px] font-semibold text-[#6f7f64] flex justify-between items-center bg-[#faf9f4] dark:bg-[#1e2320]/60">
-                <span>Matching Titles</span>
-                {searchLoading && <span className="animate-pulse">Searching...</span>}
-              </div>
-              <div className="max-h-80 overflow-y-auto divide-y divide-[#c8d0b7]/30">
+            <div className="absolute left-0 right-0 top-full mt-0 bg-white dark:bg-[#252c28] border border-[#d8d8d8] dark:border-[#3d4b3e] border-t-0 rounded-b-sm shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-99">
+              <div className="max-h-80 overflow-y-auto divide-y divide-[#e8e8e8] dark:divide-[#3d4b3e]">
                 {suggestions.map((b) => (
                   <div
                     key={b.handle}
                     onClick={() => handleSelectSuggestion(b)}
-                    className="p-2.5 flex items-center gap-3 hover:bg-[#c8d0b7]/20 dark:hover:bg-[#3d4b3e]/30 cursor-pointer transition-colors"
+                    className="px-3.5 py-2.5 flex items-center gap-3.5 hover:bg-[#f4f1ea]/60 dark:hover:bg-[#333d36] cursor-pointer transition-colors"
                   >
-                    <div className="w-9 h-13 bg-[#c8d0b7]/30 rounded-xs book-shadow overflow-hidden shrink-0 flex items-center justify-center border-l border-black/20">
+                    <div className="w-12 h-12 bg-[#f0ede6] dark:bg-[#1e2320] shrink-0 overflow-hidden flex items-center justify-center">
                       {b.cover ? (
-                        <img src={b.cover} alt="" className="h-full w-full object-cover" />
+                        <img src={b.cover} alt={b.title} className="h-full w-full object-cover object-top" />
                       ) : (
-                        <IconBook size={16} className="text-[#6f7f64]" />
+                        <IconBook size={20} className="text-[#888888]" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-serif font-bold text-xs text-[#1e2320] dark:text-[#f5f3e6] truncate hover:underline">
+                      <p className="font-serif font-bold text-[14.5px] leading-snug text-[#181818] dark:text-[#f5f3e6] truncate">
                         {b.title}
                       </p>
-                      <p className="text-[11px] text-[#6f7f64] dark:text-[#c8d0b7] mt-0.5">
-                        {b.edition || '1st Edition'} • {b.publicationYear || 'N/A'}
+                      <p className="font-serif text-[13.5px] text-[#333333] dark:text-[#c8d0b7] mt-0.5 truncate">
+                        by {b.authors && b.authors.length > 0
+                          ? b.authors.map((a) => a.name).join(', ')
+                          : 'Unknown Author'}
                       </p>
                     </div>
-                    <Badge
-                      variant={b.availableCopies > 0 ? 'success' : 'destructive'}
-                      className="text-[9px] py-0 px-1.5 shrink-0"
-                    >
-                      {b.availableCopies > 0 ? `${b.availableCopies} avail` : 'Out'}
-                    </Badge>
                   </div>
                 ))}
               </div>
               <div
                 onClick={handleSearchSubmit}
-                className="p-2 bg-[#faf9f4] dark:bg-[#1e2320]/80 border-t border-[#c8d0b7]/40 text-center text-xs font-semibold text-[#3d4b3e] dark:text-[#c8d0b7] hover:underline cursor-pointer"
+                className="py-2.5 bg-white dark:bg-[#252c28] border-t border-[#e8e8e8] dark:border-[#3d4b3e] text-center text-[14px] font-medium text-[#00635d] dark:text-[#4db6ac] hover:underline cursor-pointer"
               >
-                Press Enter to view all results for "{searchTerm}"
+                Show all results for "{searchTerm}"
               </div>
             </div>
           )}

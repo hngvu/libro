@@ -19,7 +19,7 @@ class LibroServerApplicationTests {
     @Test
     void testRegisterEndpoint() {
         soqe.libro.server.dto.RegisterRequest req = new soqe.libro.server.dto.RegisterRequest(
-            "empera", "empera@castle.org", "password123", "Hoang Vu", null
+            "empera@castle.org", "password123", "Hoang Vu", null
         );
         authController.register(req);
     }
@@ -30,16 +30,10 @@ class LibroServerApplicationTests {
         org.junit.jupiter.api.Assertions.assertNotNull(loginRes.getBody());
         org.junit.jupiter.api.Assertions.assertNotNull(loginRes.getBody().getData());
 
-        // Test getCurrentUser with username
-        var userRes = userController.getCurrentUser(() -> "admin");
-        org.junit.jupiter.api.Assertions.assertNotNull(userRes.getBody());
-        org.junit.jupiter.api.Assertions.assertEquals("admin", userRes.getBody().username());
-        org.junit.jupiter.api.Assertions.assertEquals("admin@libro.com", userRes.getBody().email());
-
         // Test getCurrentUser with email
         var userResByEmail = userController.getCurrentUser(() -> "admin@libro.com");
         org.junit.jupiter.api.Assertions.assertNotNull(userResByEmail.getBody());
-        org.junit.jupiter.api.Assertions.assertEquals("admin", userResByEmail.getBody().username());
+        org.junit.jupiter.api.Assertions.assertEquals("admin@libro.com", userResByEmail.getBody().email());
     }
 
 }
