@@ -72,9 +72,16 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   if (!response.ok) {
     let errorMsg = 'An error occurred'
     if (json) {
-      if (json.message) errorMsg = json.message
-      else if (json.error) errorMsg = json.error
-      else if (json.errors) errorMsg = Object.values(json.errors).join(', ')
+      if (json.validationErrors && typeof json.validationErrors === 'object') {
+        const fieldErrors = Object.values(json.validationErrors).filter(Boolean).join(', ')
+        errorMsg = fieldErrors || json.message || errorMsg
+      } else if (json.message) {
+        errorMsg = json.message
+      } else if (json.error) {
+        errorMsg = json.error
+      } else if (json.errors) {
+        errorMsg = Array.isArray(json.errors) ? json.errors.join(', ') : Object.values(json.errors).join(', ')
+      }
     }
     throw new Error(errorMsg)
   }
@@ -96,10 +103,10 @@ export const api = {
   },
 
   async register(data: {
-    username: string
     email: string
     password: string
     fullName: string
+    username?: string
     phone?: string
   }): Promise<ApiResponse<void>> {
     return request<ApiResponse<void>>('/auth/register', {

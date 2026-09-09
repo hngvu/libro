@@ -23,15 +23,19 @@ public class LoanController {
             Principal principal,
             @RequestParam(required = false) Loan.LoanStatus status,
             Pageable pageable) {
-        String username = (principal != null) ? principal.getName() : "test_user";
-        return ResponseEntity.ok(loanService.getMyLoans(username, status, pageable));
+        if (principal == null) {
+            throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("Not authenticated");
+        }
+        return ResponseEntity.ok(loanService.getMyLoans(principal.getName(), status, pageable));
     }
 
     @GetMapping("/{loanCode}")
     public ResponseEntity<LoanPublicResponse> getMyLoanDetail(
             Principal principal,
             @PathVariable String loanCode) {
-        String username = (principal != null) ? principal.getName() : "test_user";
-        return ResponseEntity.ok(loanService.getMyLoanDetail(username, loanCode));
+        if (principal == null) {
+            throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("Not authenticated");
+        }
+        return ResponseEntity.ok(loanService.getMyLoanDetail(principal.getName(), loanCode));
     }
 }

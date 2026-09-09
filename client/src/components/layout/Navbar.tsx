@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { api } from '@/services/api'
 import type { BookPublicResponse, GenrePublicResponse } from '@/types/api'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   IconSearch,
@@ -10,8 +9,6 @@ import {
   IconDashboard,
   IconUser,
   IconLogout,
-  IconLogin,
-  IconUserPlus,
   IconChevronDown,
   IconX,
   IconBook,
@@ -19,8 +16,8 @@ import {
 } from '@tabler/icons-react'
 
 interface NavbarProps {
-  currentView: 'catalog' | 'loans' | 'admin'
-  onViewChange: (view: 'catalog' | 'loans' | 'admin') => void
+  currentView: 'catalog' | 'loans' | 'admin' | 'book-detail'
+  onViewChange: (view: 'catalog' | 'loans' | 'admin' | 'book-detail') => void
   onOpenAuth: (mode?: 'login' | 'register') => void
   onOpenProfile: () => void
   onSearch: (keyword: string) => void
@@ -119,45 +116,29 @@ export function Navbar({
   }
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#f5f3e6] dark:bg-[#1e2320] shadow-xs transition-colors">
+    <header className="sticky top-0 z-40 w-full border-b border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#fafafa] dark:bg-[#1e2320] shadow-xs transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3 sm:gap-6">
-        {/* Left: Goodreads Typography Logo & Navigation Links */}
+        {/* Left: Logo & Navigation Links */}
         <div className="flex items-center gap-4 sm:gap-6 shrink-0">
-          {/* Authentic Goodreads-style lowercase serif logo */}
+          {/* Logo only */}
           <div
             onClick={() => {
               onSearch('')
               onSelectGenre('')
               onViewChange('catalog')
             }}
-            className="flex items-baseline gap-1 cursor-pointer select-none group"
-            title="Libro - Discover & Read Books"
+            className="flex items-center cursor-pointer select-none group"
+            title="Libro"
           >
-            <span className="font-serif font-bold text-2xl tracking-tighter text-[#382110] dark:text-[#f5f3e6] group-hover:text-[#3d4b3e] transition-colors">
-              libro
-            </span>
-            <span className="font-serif font-light text-xs text-[#6f7f64] dark:text-[#c8d0b7] tracking-tight">
-              reads
-            </span>
+            <img
+              src="/favicon.svg"
+              alt="Libro logo"
+              className="w-9 h-9 rounded-lg object-contain shadow-xs group-hover:scale-105 transition-transform"
+            />
           </div>
 
           {/* Goodreads Main Nav Links */}
           <nav className="hidden lg:flex items-center gap-1 text-sm font-medium">
-            <button
-              onClick={() => {
-                onSearch('')
-                onSelectGenre('')
-                onViewChange('catalog')
-              }}
-              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
-                currentView === 'catalog' && !searchKeyword
-                  ? 'bg-[#3d4b3e] text-[#f5f3e6] font-semibold'
-                  : 'text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40'
-              }`}
-            >
-              Home
-            </button>
-
             {user && (
               <button
                 onClick={() => onViewChange('loans')}
@@ -234,7 +215,7 @@ export function Navbar({
           <form onSubmit={handleSearchSubmit} className="relative flex items-center">
             <input
               type="text"
-              placeholder="Search books by title, author, or ISBN"
+              placeholder="Search books"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value)
@@ -421,22 +402,14 @@ export function Navbar({
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onOpenAuth('login')}
-                className="gap-1 text-xs font-semibold px-2 sm:px-3"
-              >
-                <IconLogin size={15} /> Sign In
-              </Button>
-              <Button
-                size="sm"
+            <div className="flex items-center">
+              <button
+                type="button"
                 onClick={() => onOpenAuth('register')}
-                className="gap-1 text-xs font-semibold px-2 sm:px-3"
+                className="text-sm sm:text-base font-semibold text-[#1e2320] dark:text-[#f5f3e6] hover:text-[#3d4b3e] dark:hover:text-[#c8d0b7] hover:underline underline-offset-4 transition-colors cursor-pointer select-none px-2 py-1"
               >
-                <IconUserPlus size={15} /> Join
-              </Button>
+                Join
+              </button>
             </div>
           )}
         </div>

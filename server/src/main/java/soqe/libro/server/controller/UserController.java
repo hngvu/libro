@@ -18,17 +18,19 @@ public class UserController {
 
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser(Principal principal) {
-        // Fallback for testing if security context is not fully set up
-        String username = (principal != null) ? principal.getName() : "test_user";
-        return ResponseEntity.ok(userService.getCurrentUser(username));
+        if (principal == null) {
+            throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("Not authenticated");
+        }
+        return ResponseEntity.ok(userService.getCurrentUser(principal.getName()));
     }
 
     @PutMapping("/me")
     public ResponseEntity<UserResponse> updateCurrentUser(
             Principal principal,
             @jakarta.validation.Valid @RequestBody UserUpdateRequest request) {
-        // Fallback for testing if security context is not fully set up
-        String username = (principal != null) ? principal.getName() : "test_user";
-        return ResponseEntity.ok(userService.updateCurrentUser(username, request));
+        if (principal == null) {
+            throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("Not authenticated");
+        }
+        return ResponseEntity.ok(userService.updateCurrentUser(principal.getName(), request));
     }
 }

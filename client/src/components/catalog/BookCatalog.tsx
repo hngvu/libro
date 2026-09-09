@@ -21,7 +21,6 @@ interface BookCatalogProps {
   selectedGenre: string
   onGenreChange: (genre: string) => void
   onSelectBook: (book: BookPublicResponse) => void
-  onDetailOpenChange: (open: boolean) => void
 }
 
 export function BookCatalog({
@@ -30,7 +29,6 @@ export function BookCatalog({
   selectedGenre,
   onGenreChange,
   onSelectBook,
-  onDetailOpenChange,
 }: BookCatalogProps) {
   const [books, setBooks] = useState<BookPublicResponse[]>([])
   const [genres, setGenres] = useState<GenrePublicResponse[]>([])
@@ -252,10 +250,7 @@ export function BookCatalog({
                 <BookCard
                   key={book.handle}
                   book={book}
-                  onSelect={(b) => {
-                    onSelectBook(b)
-                    onDetailOpenChange(true)
-                  }}
+                  onSelect={(b) => onSelectBook(b)}
                 />
               ))}
             </div>

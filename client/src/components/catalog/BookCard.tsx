@@ -55,7 +55,12 @@ export function BookCard({ book, onSelect }: BookCardProps) {
 
             {/* Author / Edition */}
             <p className="text-xs text-[#6f7f64] dark:text-[#c8d0b7] mt-1 truncate">
-              {book.edition ? `${book.edition}` : 'Library Edition'} • {book.publicationYear || 'N/A'}
+              {book.authors && book.authors.length > 0
+                ? book.authors.map((a) => a.name).join(', ')
+                : book.edition
+                ? book.edition
+                : 'Library Edition'}{' '}
+              • {book.publicationYear || 'N/A'}
             </p>
 
             {/* Goodreads Star Rating */}

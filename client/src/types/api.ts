@@ -35,6 +35,9 @@ export interface BookPublicResponse {
   description: string | null
   totalCopies: number
   availableCopies: number
+  authors?: AuthorPublicResponse[]
+  genres?: GenrePublicResponse[]
+  publisher?: PublisherPublicResponse | null
 }
 
 export interface BookResponse {
@@ -51,6 +54,9 @@ export interface BookResponse {
   totalCopies: number
   availableCopies: number
   status: BookStatus
+  authors?: AuthorResponse[]
+  genres?: GenreResponse[]
+  publisher?: PublisherResponse | null
 }
 
 export interface BookCopyPublicResponse {
@@ -129,11 +135,28 @@ export interface AuthorPublicResponse {
   biography: string | null
 }
 
+export interface AuthorResponse {
+  id: number
+  name: string
+  handle: string
+  biography: string | null
+  status: string
+}
+
 export interface PublisherPublicResponse {
   name: string
   handle: string
   address: string | null
   website: string | null
+}
+
+export interface PublisherResponse {
+  id: number
+  name: string
+  handle: string
+  address: string | null
+  website: string | null
+  status: string
 }
 
 // Request types

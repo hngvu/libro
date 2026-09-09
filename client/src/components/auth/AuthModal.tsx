@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,6 @@ import {
   IconLock,
   IconMail,
   IconUser,
-  IconPhone,
   IconSparkles,
   IconAlertCircle,
   IconCheck,
@@ -29,16 +28,24 @@ export function AuthModal({ open, onOpenChange, defaultMode = 'login' }: AuthMod
   const { login, register } = useAuth()
   const [mode, setMode] = useState<'login' | 'register'>(defaultMode)
 
+  useEffect(() => {
+    if (open) {
+      setMode(defaultMode)
+      setError(null)
+      setSuccessMsg(null)
+      setRegConfirmPassword('')
+    }
+  }, [open, defaultMode])
+
   // Login form states
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
 
   // Register form states
-  const [regUsername, setRegUsername] = useState('')
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
+  const [regConfirmPassword, setRegConfirmPassword] = useState('')
   const [regFullName, setRegFullName] = useState('')
-  const [regPhone, setRegPhone] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -75,19 +82,29 @@ export function AuthModal({ open, onOpenChange, defaultMode = 'login' }: AuthMod
     e.preventDefault()
     setError(null)
     setSuccessMsg(null)
+
+    if (regPassword !== regConfirmPassword) {
+      setError('Passwords do not match. Please verify your password.')
+      return
+    }
+
+    if (regPassword.length < 6) {
+      setError('Password must be at least 6 characters.')
+      return
+    }
+
     setLoading(true)
     try {
       await register({
-        username: regUsername,
         email: regEmail,
         password: regPassword,
         fullName: regFullName,
-        phone: regPhone || undefined,
       })
       setSuccessMsg('Account registered successfully! Please sign in.')
       setMode('login')
       setLoginEmail(regEmail)
       setLoginPassword(regPassword)
+      setRegConfirmPassword('')
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please check input.')
     } finally {
@@ -221,31 +238,16 @@ export function AuthModal({ open, onOpenChange, defaultMode = 'login' }: AuthMod
           </form>
         ) : (
           <form onSubmit={handleRegisterSubmit} className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
-                  Username
-                </label>
-                <div className="relative">
-                  <IconUser className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
-                  <Input
-                    required
-                    placeholder="john_reader"
-                    className="pl-9 text-xs"
-                    value={regUsername}
-                    onChange={(e) => setRegUsername(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
-                  Full Name
-                </label>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
+                Full Name
+              </label>
+              <div className="relative">
+                <IconUser className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
                 <Input
                   required
                   placeholder="John Doe"
-                  className="text-xs"
+                  className="pl-9 text-xs"
                   value={regFullName}
                   onChange={(e) => setRegFullName(e.target.value)}
                 />
@@ -269,37 +271,37 @@ export function AuthModal({ open, onOpenChange, defaultMode = 'login' }: AuthMod
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
-                  Password
-                </label>
-                <div className="relative">
-                  <IconLock className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
-                  <Input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    className="pl-9 text-xs"
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                  />
-                </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
+                Password
+              </label>
+              <div className="relative">
+                <IconLock className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
+                <Input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  className="pl-9 text-xs"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                />
               </div>
+            </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
-                  Phone Number
-                </label>
-                <div className="relative">
-                  <IconPhone className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
-                  <Input
-                    placeholder="+1 (555) 000-0000"
-                    className="pl-9 text-xs"
-                    value={regPhone}
-                    onChange={(e) => setRegPhone(e.target.value)}
-                  />
-                </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <IconLock className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
+                <Input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  className="pl-9 text-xs"
+                  value={regConfirmPassword}
+                  onChange={(e) => setRegConfirmPassword(e.target.value)}
+                />
               </div>
             </div>
 

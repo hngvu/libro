@@ -17,7 +17,6 @@ public class UserSpecification {
             if (StringUtils.hasText(keyword)) {
                 String likePattern = "%" + keyword.toLowerCase() + "%";
                 predicates.add(criteriaBuilder.or(
-                        criteriaBuilder.like(criteriaBuilder.lower(root.get("username")), likePattern),
                         criteriaBuilder.like(criteriaBuilder.lower(root.get("email")), likePattern),
                         criteriaBuilder.like(criteriaBuilder.lower(root.get("fullName")), likePattern)
                 ));

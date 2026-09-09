@@ -1,7 +1,7 @@
 package soqe.libro.server.dto;
 
 import lombok.Builder;
-import soqe.libro.server.entity.Book;
+import java.util.Set;
 
 @Builder
 public record BookPublicResponse(
@@ -15,5 +15,9 @@ public record BookPublicResponse(
         String format,
         String description,
         Integer totalCopies,
-        Integer availableCopies
+        Integer availableCopies,
+        Set<AuthorPublicResponse> authors,
+        Set<GenrePublicResponse> genres,
+        PublisherPublicResponse publisher
 ) {}
+

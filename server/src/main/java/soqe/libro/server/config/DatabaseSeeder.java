@@ -37,7 +37,7 @@ public class DatabaseSeeder implements CommandLineRunner {
 
         // 1. Users
         User admin = User.builder()
-                .username("admin")
+
                 .email("admin@libro.com")
                 .password(passwordEncoder.encode("admin123"))
                 .fullName("System Administrator")
@@ -47,7 +47,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .build();
 
         User librarian = User.builder()
-                .username("lucia")
+
                 .email("lucia@libro.com")
                 .password(passwordEncoder.encode("lucia123"))
                 .fullName("Lucia Lilia")
@@ -57,7 +57,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .build();
 
         User member = User.builder()
-                .username("bin")
+
                 .email("bin@libro.com")
                 .password(passwordEncoder.encode("chubin123"))
                 .fullName("Bin Chu")

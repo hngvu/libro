@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { LoanPublicResponse, LoanStatus } from '@/types/api'
 import { api } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
@@ -32,6 +33,7 @@ interface MyLoansViewProps {
 }
 
 export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [loans, setLoans] = useState<LoanPublicResponse[]>([])
   const [loading, setLoading] = useState(false)
@@ -223,8 +225,11 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                   {loan.loanCode}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-10 w-7 bg-[#c8d0b7]/30 rounded-xs book-shadow overflow-hidden shrink-0 flex items-center justify-center">
+                  <div
+                    onClick={() => navigate(`/book/${loan.bookHandle}`)}
+                    className="flex items-center gap-2.5 cursor-pointer group"
+                  >
+                    <div className="h-10 w-7 bg-[#c8d0b7]/30 rounded-xs book-shadow overflow-hidden shrink-0 flex items-center justify-center group-hover:-translate-y-0.5 transition-transform">
                       {loan.bookCover ? (
                         <img src={loan.bookCover} alt="" className="h-full w-full object-cover" />
                       ) : (
@@ -232,7 +237,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                       )}
                     </div>
                     <div>
-                      <span className="font-serif font-bold text-[#1e2320] dark:text-[#f5f3e6] block text-xs hover:underline cursor-pointer">
+                      <span className="font-serif font-bold text-[#1e2320] dark:text-[#f5f3e6] block text-xs group-hover:underline">
                         {loan.bookTitle}
                       </span>
                       <span className="text-[11px] text-[#6f7f64] font-mono">

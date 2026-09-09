@@ -55,7 +55,7 @@ public class LoanService {
                         .id(loan.getId())
                         .loanCode(loan.getLoanCode())
                         .userId(loan.getUser() != null ? loan.getUser().getId() : null)
-                        .username(loan.getUser() != null ? loan.getUser().getUsername() : null)
+                        .userEmail(loan.getUser() != null ? loan.getUser().getEmail() : null)
                         .userFullName(loan.getUser() != null ? loan.getUser().getFullName() : null)
                         .bookCopyId(loan.getBookCopy() != null ? loan.getBookCopy().getId() : null)
                         .barcode(loan.getBookCopy() != null ? loan.getBookCopy().getBarcode() : null)
@@ -82,7 +82,7 @@ public class LoanService {
                 .id(loan.getId())
                 .loanCode(loan.getLoanCode())
                 .userId(loan.getUser() != null ? loan.getUser().getId() : null)
-                .username(loan.getUser() != null ? loan.getUser().getUsername() : null)
+                .userEmail(loan.getUser() != null ? loan.getUser().getEmail() : null)
                 .userFullName(loan.getUser() != null ? loan.getUser().getFullName() : null)
                 .bookCopyId(loan.getBookCopy() != null ? loan.getBookCopy().getId() : null)
                 .barcode(loan.getBookCopy() != null ? loan.getBookCopy().getBarcode() : null)
@@ -162,7 +162,7 @@ public class LoanService {
                 .id(loan.getId())
                 .loanCode(loan.getLoanCode())
                 .userId(user.getId())
-                .username(user.getUsername())
+                .userEmail(user.getEmail())
                 .userFullName(user.getFullName())
                 .bookCopyId(copy.getId())
                 .barcode(copy.getBarcode())
@@ -214,7 +214,7 @@ public class LoanService {
                 .id(loan.getId())
                 .loanCode(loan.getLoanCode())
                 .userId(loan.getUser() != null ? loan.getUser().getId() : null)
-                .username(loan.getUser() != null ? loan.getUser().getUsername() : null)
+                .userEmail(loan.getUser() != null ? loan.getUser().getEmail() : null)
                 .userFullName(loan.getUser() != null ? loan.getUser().getFullName() : null)
                 .bookCopyId(loan.getBookCopy() != null ? loan.getBookCopy().getId() : null)
                 .barcode(loan.getBookCopy() != null ? loan.getBookCopy().getBarcode() : null)
@@ -257,7 +257,7 @@ public class LoanService {
                 .id(loan.getId())
                 .loanCode(loan.getLoanCode())
                 .userId(loan.getUser() != null ? loan.getUser().getId() : null)
-                .username(loan.getUser() != null ? loan.getUser().getUsername() : null)
+                .userEmail(loan.getUser() != null ? loan.getUser().getEmail() : null)
                 .userFullName(loan.getUser() != null ? loan.getUser().getFullName() : null)
                 .bookCopyId(loan.getBookCopy() != null ? loan.getBookCopy().getId() : null)
                 .barcode(loan.getBookCopy() != null ? loan.getBookCopy().getBarcode() : null)
@@ -306,8 +306,8 @@ public class LoanService {
     // ==========================================
 
     @Transactional(readOnly = true)
-    public Page<LoanPublicResponse> getMyLoans(String username, Loan.LoanStatus status, Pageable pageable) {
-        User user = userRepository.findByUsername(username)
+    public Page<LoanPublicResponse> getMyLoans(String email, Loan.LoanStatus status, Pageable pageable) {
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Page<Loan> page = (status != null)
@@ -328,8 +328,8 @@ public class LoanService {
     }
 
     @Transactional(readOnly = true)
-    public LoanPublicResponse getMyLoanDetail(String username, String loanCode) {
-        User user = userRepository.findByUsername(username)
+    public LoanPublicResponse getMyLoanDetail(String email, String loanCode) {
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Loan loan = repository.findByLoanCodeAndUser(loanCode, user)

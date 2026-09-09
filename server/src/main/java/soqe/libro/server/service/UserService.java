@@ -34,7 +34,6 @@ public class UserService {
     public Page<UserResponse> searchUsers(String keyword, User.Role role, User.Status status, Pageable pageable) {
         return repository.findAll(UserSpecification.filter(keyword, role, status), pageable)
                 .map(user -> UserResponse.builder()
-                        .username(user.getUsername())
                         .email(user.getEmail())
                         .fullName(user.getFullName())
                         .phone(user.getPhone())
@@ -48,7 +47,6 @@ public class UserService {
         User user = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
         return UserResponse.builder()
-                .username(user.getUsername())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .phone(user.getPhone())
@@ -59,10 +57,9 @@ public class UserService {
 
     @Transactional
     public UserResponse createUserByAdmin(UserCreateRequest request) {
-        validateUniqueConstraints(request.username(), request.email());
+        validateEmailUnique(request.email());
 
         User user = User.builder()
-                .username(request.username())
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
                 .fullName(request.fullName())
@@ -73,7 +70,6 @@ public class UserService {
 
         user = repository.save(user);
         return UserResponse.builder()
-                .username(user.getUsername())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .phone(user.getPhone())
@@ -100,7 +96,6 @@ public class UserService {
 
         user = repository.save(user);
         return UserResponse.builder()
-                .username(user.getUsername())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .phone(user.getPhone())
@@ -122,11 +117,10 @@ public class UserService {
     // ==========================================
 
     @Transactional(readOnly = true)
-    public UserResponse getCurrentUser(String username) {
-        User user = repository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
+    public UserResponse getCurrentUser(String email) {
+        User user = repository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
         return UserResponse.builder()
-                .username(user.getUsername())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .phone(user.getPhone())
@@ -136,9 +130,9 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponse updateCurrentUser(String username, UserUpdateRequest request) {
-        User user = repository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
+    public UserResponse updateCurrentUser(String email, UserUpdateRequest request) {
+        User user = repository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
         if (!user.getEmail().equals(request.email())) {
             validateEmailUnique(request.email());
@@ -151,7 +145,6 @@ public class UserService {
 
         user = repository.save(user);
         return UserResponse.builder()
-                .username(user.getUsername())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .phone(user.getPhone())
@@ -163,22 +156,6 @@ public class UserService {
     // ==========================================
     // HELPER METHODS
     // ==========================================
-
-    public void validateUniqueConstraints(String username, String email) {
-        Map<String, String> errors = new HashMap<>();
-        
-        if (repository.findByUsername(username).isPresent()) {
-            errors.put("username", "Username is already taken");
-        }
-        
-        if (repository.findByEmail(email).isPresent()) {
-            errors.put("email", "Email is already taken");
-        }
-        
-        if (!errors.isEmpty()) {
-            throw new BusinessValidationException("Validation failed", errors);
-        }
-    }
 
     public void validateEmailUnique(String email) {
         if (repository.findByEmail(email).isPresent()) {

@@ -8,10 +8,10 @@ interface AuthContextType {
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (data: {
-    username: string
     email: string
     password: string
     fullName: string
+    username?: string
     phone?: string
   }) => Promise<void>
   logout: () => void
@@ -56,10 +56,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const register = async (data: {
-    username: string
     email: string
     password: string
     fullName: string
+    username?: string
     phone?: string
   }) => {
     await api.register(data)

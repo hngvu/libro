@@ -18,6 +18,6 @@ public class SecurityAuditorAware implements AuditorAware<String> {
             return Optional.of("system");
         }
 
-        return Optional.of(authentication.getName()); // Returns username
+        return Optional.of(authentication.getName()); // Returns email
     }
 }

@@ -10,7 +10,7 @@ public record LoanResponse(
         Long id,
         String loanCode,
         Long userId,
-        String username,
+        String userEmail,
         String userFullName,
         Long bookCopyId,
         String barcode,

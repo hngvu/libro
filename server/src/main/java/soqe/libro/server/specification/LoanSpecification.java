@@ -33,7 +33,7 @@ public class LoanSpecification {
 
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("loanCode")), like),
-                        cb.like(cb.lower(userJoin.get("username")), like),
+                        cb.like(cb.lower(userJoin.get("email")), like),
                         cb.like(cb.lower(userJoin.get("fullName")), like),
                         cb.like(cb.lower(copyJoin.get("barcode")), like),
                         cb.like(cb.lower(bookJoin.get("title")), like)

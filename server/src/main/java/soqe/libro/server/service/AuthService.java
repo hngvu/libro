@@ -18,8 +18,6 @@ import java.util.UUID;
 import soqe.libro.server.dto.RegisterRequest;
 
 import soqe.libro.server.exception.ResourceNotFoundException;
-import soqe.libro.server.exception.BadRequestException;
-import soqe.libro.server.exception.DuplicateResourceException;
 
 @Service
 @RequiredArgsConstructor
@@ -31,10 +29,9 @@ public class AuthService {
     private final JwtEncoder jwtEncoder;
 
     public void register(RegisterRequest request) {
-        userService.validateUniqueConstraints(request.username(), request.email());
+        userService.validateEmailUnique(request.email());
 
         User user = User.builder()
-                .username(request.username())
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
                 .fullName(request.fullName())

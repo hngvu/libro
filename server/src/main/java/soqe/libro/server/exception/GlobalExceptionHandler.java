@@ -15,7 +15,7 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 1. Lá»—i Validation (khi dÃ¹ng @Valid á»Ÿ Controller)
+    // 1. Lỗi Validation (khi dùng @Valid ở Controller)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
         Map<String, String> errors = new HashMap<>();
@@ -24,7 +24,7 @@ public class GlobalExceptionHandler {
         }
 
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .message("Dá»¯ liá»‡u Ä‘áº§u vÃ o khÃ´ng há»£p lá»‡")
+                .message("Dữ liệu đầu vào không hợp lệ")
                 .path(request.getRequestURI())
                 .validationErrors(errors)
                 .build();
@@ -32,7 +32,7 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
-    // 2. Lá»—i khÃ´ng tÃ¬m tháº¥y tÃ i nguyÃªn (404)
+    // 2. Lỗi không tìm thấy tài nguyên (404)
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = ErrorResponse.builder()
@@ -43,7 +43,7 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
 
-    // 3. Lá»—i trÃ¹ng láº·p dá»¯ liá»‡u hoáº·c quy táº¯c nghiá»‡p vá»¥ (409 Conflict)
+    // 3. Lỗi trùng lặp dữ liệu hoặc quy tắc nghiệp vụ (409 Conflict)
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateResourceException(DuplicateResourceException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = ErrorResponse.builder()
@@ -65,7 +65,7 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
     }
 
-    // 4. Lá»—i Request chung chung (400)
+    // 4. Lỗi Request chung chung (400)
     @ExceptionHandler({BadRequestException.class, IllegalArgumentException.class})
     public ResponseEntity<ErrorResponse> handleBadRequestException(RuntimeException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = ErrorResponse.builder()
@@ -76,14 +76,14 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
     
-    // 5. Catch-all: Lá»—i há»‡ thá»‘ng báº¥t ngá» (500)
+    // 5. Catch-all: Lỗi hệ thống bất ngờ (500)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, HttpServletRequest request) {
-        // In log ra console Ä‘á»ƒ dev debug
+        // In log ra console để dev debug
         ex.printStackTrace(); 
         
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .message("ÄÃ£ xáº£y ra lá»—i há»‡ thá»‘ng. Vui lÃ²ng thá»­ láº¡i sau.")
+                .message("Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.")
                 .path(request.getRequestURI())
                 .build();
                 

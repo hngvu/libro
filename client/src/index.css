@@ -5,24 +5,27 @@
   --color-sage-800: #3d4b3e;
   --color-sage-600: #6f7f64;
   --color-sage-300: #c8d0b7;
-  --color-parchment: #f5f3e6;
-  --color-parchment-light: #faf9f3;
-  --font-serif: 'Merriweather', Georgia, Cambria, 'Times New Roman', Times, serif;
+  --color-parchment: #fafafa;
+  --color-parchment-light: #ffffff;
+  --font-serif: 'Literata', 'Lora', 'Merriweather', Georgia, Cambria, 'Times New Roman', Times, serif;
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 :root {
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-serif: 'Merriweather', Georgia, Cambria, serif;
+  --font-serif: 'Literata', 'Lora', 'Merriweather', Georgia, Cambria, serif;
   color-scheme: light dark;
 }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background-color: #f5f3e6;
+  background-color: #fafafa;
   color: #1e2320;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,6 +37,7 @@ body {
 
 .font-serif {
   font-family: var(--font-serif);
+  font-optical-sizing: auto;
 }
 
 /* Goodreads Book Shadow */
