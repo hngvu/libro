@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import type { BookPublicResponse, BookFormat, GenrePublicResponse } from '@/types/api'
 import { api } from '@/services/api'
 import { BookCard } from '@/components/catalog/BookCard'
-import { BookDetailModal } from '@/components/catalog/BookDetailModal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,25 +16,31 @@ import {
 } from '@tabler/icons-react'
 
 interface BookCatalogProps {
-  onNavigateToLoan?: () => void
+  keyword: string
+  onKeywordChange: (kw: string) => void
+  selectedGenre: string
+  onGenreChange: (genre: string) => void
+  onSelectBook: (book: BookPublicResponse) => void
+  onDetailOpenChange: (open: boolean) => void
 }
 
-export function BookCatalog({ onNavigateToLoan }: BookCatalogProps) {
+export function BookCatalog({
+  keyword,
+  onKeywordChange,
+  selectedGenre,
+  onGenreChange,
+  onSelectBook,
+  onDetailOpenChange,
+}: BookCatalogProps) {
   const [books, setBooks] = useState<BookPublicResponse[]>([])
   const [genres, setGenres] = useState<GenrePublicResponse[]>([])
   const [loading, setLoading] = useState(true)
 
   // Filters & Pagination
-  const [keyword, setKeyword] = useState('')
   const [selectedFormat, setSelectedFormat] = useState<BookFormat | ''>('')
-  const [selectedGenre, setSelectedGenre] = useState<string>('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
-
-  // Selected Book for Detail Modal
-  const [selectedBook, setSelectedBook] = useState<BookPublicResponse | null>(null)
-  const [detailOpen, setDetailOpen] = useState(false)
 
   // Fetch Genres once
   useEffect(() => {
@@ -76,9 +81,9 @@ export function BookCatalog({ onNavigateToLoan }: BookCatalogProps) {
   }
 
   const handleResetFilters = () => {
-    setKeyword('')
+    onKeywordChange('')
     setSelectedFormat('')
-    setSelectedGenre('')
+    onGenreChange('')
     setPage(1)
   }
 
@@ -95,8 +100,8 @@ export function BookCatalog({ onNavigateToLoan }: BookCatalogProps) {
           </p>
         </div>
 
-        {/* Goodreads Search Bar */}
-        <form onSubmit={handleSearchSubmit} className="flex gap-2 w-full md:w-96">
+        {/* Catalog quick filter / search */}
+        <form onSubmit={handleSearchSubmit} className="flex gap-2 w-full md:w-80">
           <div className="relative flex-1">
             <IconSearch className="absolute left-3 top-2.5 text-[#6f7f64]" size={17} />
             <Input
@@ -104,7 +109,7 @@ export function BookCatalog({ onNavigateToLoan }: BookCatalogProps) {
               placeholder="Search title, author, or ISBN..."
               className="pl-9 h-10 bg-white dark:bg-[#252c28] border-[#c8d0b7] dark:border-[#3d4b3e] text-xs shadow-xs focus-visible:ring-[#6f7f64]"
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              onChange={(e) => onKeywordChange(e.target.value)}
             />
           </div>
           <Button type="submit" className="h-10 px-4 text-xs font-semibold">
@@ -126,7 +131,7 @@ export function BookCatalog({ onNavigateToLoan }: BookCatalogProps) {
             <div className="space-y-1">
               <button
                 onClick={() => {
-                  setSelectedGenre('')
+                  onGenreChange('')
                   setPage(1)
                 }}
                 className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer flex items-center justify-between ${
@@ -143,7 +148,7 @@ export function BookCatalog({ onNavigateToLoan }: BookCatalogProps) {
                 <button
                   key={g.handle}
                   onClick={() => {
-                    setSelectedGenre(g.handle)
+                    onGenreChange(g.handle)
                     setPage(1)
                   }}
                   className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer flex items-center justify-between ${
@@ -248,8 +253,8 @@ export function BookCatalog({ onNavigateToLoan }: BookCatalogProps) {
                   key={book.handle}
                   book={book}
                   onSelect={(b) => {
-                    setSelectedBook(b)
-                    setDetailOpen(true)
+                    onSelectBook(b)
+                    onDetailOpenChange(true)
                   }}
                 />
               ))}
@@ -286,14 +291,6 @@ export function BookCatalog({ onNavigateToLoan }: BookCatalogProps) {
           )}
         </main>
       </div>
-
-      {/* Book Detail Modal */}
-      <BookDetailModal
-        book={selectedBook}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        onNavigateToLoan={onNavigateToLoan}
-      />
     </div>
   )
 }

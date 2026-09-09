@@ -6,6 +6,8 @@ import { MyLoansView } from '@/components/loans/MyLoansView'
 import { AdminDashboard } from '@/components/admin/AdminDashboard'
 import { AuthModal } from '@/components/auth/AuthModal'
 import { UserProfileModal } from '@/components/profile/UserProfileModal'
+import { BookDetailModal } from '@/components/catalog/BookDetailModal'
+import type { BookPublicResponse } from '@/types/api'
 import { IconBooks, IconHeart } from '@tabler/icons-react'
 
 function AppContent() {
@@ -14,9 +16,30 @@ function AppContent() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   const [profileModalOpen, setProfileModalOpen] = useState(false)
 
+  // Search & Navigation state
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [selectedGenre, setSelectedGenre] = useState('')
+  const [selectedBook, setSelectedBook] = useState<BookPublicResponse | null>(null)
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
+
   const handleOpenAuth = (mode: 'login' | 'register' = 'login') => {
     setAuthMode(mode)
     setAuthModalOpen(true)
+  }
+
+  const handleSearch = (kw: string) => {
+    setSearchKeyword(kw)
+    setCurrentView('catalog')
+  }
+
+  const handleSelectBook = (book: BookPublicResponse) => {
+    setSelectedBook(book)
+    setDetailModalOpen(true)
+  }
+
+  const handleSelectGenre = (genreHandle: string) => {
+    setSelectedGenre(genreHandle)
+    setCurrentView('catalog')
   }
 
   return (
@@ -27,12 +50,23 @@ function AppContent() {
         onViewChange={setCurrentView}
         onOpenAuth={handleOpenAuth}
         onOpenProfile={() => setProfileModalOpen(true)}
+        onSearch={handleSearch}
+        onSelectBook={handleSelectBook}
+        onSelectGenre={handleSelectGenre}
+        searchKeyword={searchKeyword}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {currentView === 'catalog' && (
-          <BookCatalog onNavigateToLoan={() => setCurrentView('loans')} />
+          <BookCatalog
+            keyword={searchKeyword}
+            onKeywordChange={setSearchKeyword}
+            selectedGenre={selectedGenre}
+            onGenreChange={setSelectedGenre}
+            onSelectBook={handleSelectBook}
+            onDetailOpenChange={setDetailModalOpen}
+          />
         )}
 
         {currentView === 'loans' && (
@@ -69,6 +103,13 @@ function AppContent() {
       <UserProfileModal
         open={profileModalOpen}
         onOpenChange={setProfileModalOpen}
+      />
+
+      <BookDetailModal
+        book={selectedBook}
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        onNavigateToLoan={() => setCurrentView('loans')}
       />
     </div>
   )
