@@ -103,22 +103,32 @@ function AppContent() {
     }
   }
 
+  const isAdminView = currentView === 'admin'
+
   return (
     <div className="min-h-screen flex flex-col bg-[#fafafa] dark:bg-[#1e2320] text-[#1e2320] dark:text-[#f5f3e6] transition-colors">
-      {/* Top Navigation */}
-      <Navbar
-        currentView={currentView}
-        onViewChange={handleViewChange}
-        onOpenAuth={handleOpenAuth}
-        onOpenProfile={() => setProfileModalOpen(true)}
-        onSearch={handleSearch}
-        onSelectBook={handleSelectBook}
-        onSelectGenre={handleSelectGenre}
-        searchKeyword={searchParams.get('keyword') || ''}
-      />
+      {/* Top Navigation: Shown on public reader views only */}
+      {!isAdminView && (
+        <Navbar
+          currentView={currentView}
+          onViewChange={handleViewChange}
+          onOpenAuth={handleOpenAuth}
+          onOpenProfile={() => setProfileModalOpen(true)}
+          onSearch={handleSearch}
+          onSelectBook={handleSelectBook}
+          onSelectGenre={handleSelectGenre}
+          searchKeyword={searchParams.get('keyword') || ''}
+        />
+      )}
 
       {/* Main Content Area Routing */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <main
+        className={
+          isAdminView
+            ? 'flex-1 w-full min-h-screen'
+            : 'flex-1 max-w-[1060px] w-full mx-auto px-4 sm:px-8 py-6 sm:py-8'
+        }
+      >
         <Routes>
           <Route
             path="/"

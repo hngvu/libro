@@ -6,7 +6,7 @@ interface AuthContextType {
   user: UserResponse | null
   token: string | null
   loading: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<UserResponse | null>
   register: (data: {
     email: string
     password: string
@@ -15,7 +15,7 @@ interface AuthContextType {
     phone?: string
   }) => Promise<void>
   logout: () => void
-  refreshUser: () => Promise<void>
+  refreshUser: () => Promise<UserResponse | null>
   isAdmin: boolean
   isLibrarian: boolean
   canAccessAdmin: boolean
@@ -28,18 +28,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setTokenState] = useState<string | null>(getToken())
   const [loading, setLoading] = useState(true)
 
-  const refreshUser = async () => {
+  const refreshUser = async (): Promise<UserResponse | null> => {
     try {
       if (getToken()) {
         const u = await api.getCurrentUser()
         setUser(u)
+        return u
       } else {
         setUser(null)
+        return null
       }
     } catch {
       setUser(null)
       api.logout()
       setTokenState(null)
+      return null
     } finally {
       setLoading(false)
     }
@@ -49,10 +52,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser()
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<UserResponse | null> => {
     await api.login(email, password)
     setTokenState(getToken())
-    await refreshUser()
+    return await refreshUser()
   }
 
   const register = async (data: {

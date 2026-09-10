@@ -11,7 +11,6 @@ import {
   IconClock,
   IconChevronDown,
   IconChevronUp,
-  IconBook2,
 } from '@tabler/icons-react'
 
 interface BookDetailProps {
@@ -60,6 +59,18 @@ export function BookDetail({
     }
   }, [book?.handle, handle])
 
+  // Set document title to "book title | Libro"
+  useEffect(() => {
+    if (book?.title) {
+      document.title = `${book.title} | Libro`
+    } else {
+      document.title = 'Libro | Discover Books & Library Catalog'
+    }
+    return () => {
+      document.title = 'Libro | Discover Books & Library Catalog'
+    }
+  }, [book?.title])
+
   if (loadingBook) {
     return (
       <div className="py-24 text-center max-w-lg mx-auto space-y-4">
@@ -91,9 +102,9 @@ export function BookDetail({
 
   return (
     <div className="w-full animate-in fade-in duration-150">
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-10 items-start">
         {/* ===== LEFT STICKY COLUMN (Book Cover & Actions) ===== */}
-        <div className="md:col-span-4 lg:col-span-3 md:sticky md:top-6 flex flex-col items-stretch gap-3 w-full">
+        <div className="md:col-span-4 lg:col-span-4 md:sticky md:top-6 flex flex-col items-stretch gap-3 w-full max-w-[280px] mx-auto md:max-w-none">
           {/* Cover with realistic shadow & archive framing */}
           <div className="relative w-full aspect-[2/3] rounded-sm bg-[#f7f5ee] shadow-[0_4px_16px_rgba(0,0,0,0.16)] border border-[#d6d2c4] overflow-hidden flex items-center justify-center shrink-0 before:absolute before:inset-y-0 before:left-0 before:w-[10px] before:bg-gradient-to-r before:from-black/25 before:to-transparent before:z-10">
             {book.cover ? (
@@ -113,10 +124,16 @@ export function BookDetail({
               <div className="flex h-[42px] rounded-md bg-[#3d4b3e] hover:bg-[#2e3a2f] text-white shadow-xs transition-colors overflow-hidden font-sans">
                 <button
                   type="button"
-                  onClick={() => navigate('/loans')}
-                  className="flex-1 px-4 text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer select-none"
+                  onClick={() => {
+                    if (!user) {
+                      onOpenAuth('login')
+                      return
+                    }
+                    navigate('/loans')
+                  }}
+                  className="flex-1 px-4 text-[14px] font-semibold flex items-center justify-center cursor-pointer select-none"
                 >
-                  <IconBook2 size={17} /> Borrow
+                  Borrow
                 </button>
                 <button
                   type="button"
@@ -130,8 +147,17 @@ export function BookDetail({
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setBorrowDropdownOpen(false)} />
                   <div className="absolute left-0 right-0 mt-1 rounded-md border border-[#c8d0b7] bg-white shadow-lg py-1 z-50 text-[13px]">
-                    <button onClick={() => { setBorrowDropdownOpen(false); navigate('/loans') }}
-                      className="w-full text-left px-3.5 py-2 hover:bg-[#f0f4f1] text-[#3d4b3e] font-medium">
+                    <button
+                      onClick={() => {
+                        setBorrowDropdownOpen(false)
+                        if (!user) {
+                          onOpenAuth('login')
+                          return
+                        }
+                        navigate('/loans')
+                      }}
+                      className="w-full text-left px-3.5 py-2 hover:bg-[#f0f4f1] text-[#3d4b3e] font-medium"
+                    >
                       My Library Loans
                     </button>
                     <button onClick={() => { setBorrowDropdownOpen(false); window.open(`https://www.amazon.com/s?k=${encodeURIComponent(book.title)}`, '_blank') }}
@@ -186,29 +212,29 @@ export function BookDetail({
         </div>
 
         {/* ===== RIGHT MAIN COLUMN ===== */}
-        <div className="md:col-span-8 lg:col-span-9 w-full">
+        <div className="md:col-span-8 lg:col-span-8 w-full">
           {/* Title - Bold Serif matching reference samples */}
           <h1 className="font-serif font-bold text-[34px] sm:text-[38px] md:text-[40px] text-[#181818] leading-[1.12] tracking-tight mb-2">
             {book.title}
           </h1>
 
-          {/* Author line - Serif normal weight for contrast */}
-          <div className="font-serif text-[18px] sm:text-[19px] text-[#181818] mb-5 leading-normal">
+          {/* Author line - Goodreads thin serif style */}
+          <div className="font-serif text-[16px] sm:text-[17px] text-[#333333] dark:text-[#c8d0b7] mb-5 flex items-center gap-1.5 flex-wrap">
             {authorsList.length > 0 ? (
               authorsList.map((a, idx) => (
-                <span key={a.handle || idx}>
+                <span key={a.handle || idx} className="inline-flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => navigate(`/?keyword=${encodeURIComponent(a.name)}`)}
-                    className="text-[#181818] hover:underline hover:text-[#2e7d56] transition-colors cursor-pointer font-serif"
+                    className="font-light text-[#181818] dark:text-[#f5f3e6] hover:underline hover:text-[#00635d] dark:hover:text-[#4db6ac] transition-colors cursor-pointer"
                   >
                     {a.name}
                   </button>
-                  {idx < authorsList.length - 1 && <span className="text-[#666]">, </span>}
+                  {idx < authorsList.length - 1 && <span className="text-[#767676]">,</span>}
                 </span>
               ))
             ) : (
-              <span className="text-[#777] italic">Unknown Author</span>
+              <span className="text-[#767676] font-light italic">Unknown Author</span>
             )}
           </div>
 
@@ -272,37 +298,42 @@ export function BookDetail({
             </button>
 
             {bookDetailsExpanded && (
-              <div className="mt-3 p-4 bg-[#faf9f5] border border-[#e0ddd2] rounded-md text-[13px] space-y-3 animate-in fade-in duration-150">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-                  <div className="flex gap-2">
-                    <span className="text-[#777] min-w-[90px]">Format:</span>
-                    <span className="font-medium text-[#222]">{bookFormat} ({estimatedPages} pages)</span>
+              <div className="mt-4 pt-4 border-t border-[#e8e8e8] dark:border-[#38423a] space-y-4 animate-in fade-in duration-150 font-sans">
+                <h3 className="font-serif font-bold text-[18px] text-[#181818] dark:text-[#f5f3e6]">
+                  This edition
+                </h3>
+                <div className="space-y-2.5 text-[14px]">
+                  <div className="flex items-baseline">
+                    <span className="w-32 sm:w-36 shrink-0 text-[#767676] dark:text-[#999999]">Format</span>
+                    <span className="text-[#181818] dark:text-[#f5f3e6]">{estimatedPages} pages, {book.edition || bookFormat}</span>
                   </div>
-                  <div className="flex gap-2">
-                    <span className="text-[#777] min-w-[90px]">Published:</span>
-                    <span className="font-medium text-[#222]">{pubYear} {publisherName ? `by ${publisherName}` : ''}</span>
+                  <div className="flex items-baseline">
+                    <span className="w-32 sm:w-36 shrink-0 text-[#767676] dark:text-[#999999]">Published</span>
+                    <span className="text-[#181818] dark:text-[#f5f3e6]">
+                      {pubYear ? `${pubYear}` : '2007'}{publisherName ? ` by ${publisherName}` : ''}
+                    </span>
                   </div>
-                  <div className="flex gap-2">
-                    <span className="text-[#777] min-w-[90px]">ISBN:</span>
-                    <span className="font-mono text-[#222]">{book.isbn || 'N/A'}</span>
+                  <div className="flex items-baseline">
+                    <span className="w-32 sm:w-36 shrink-0 text-[#767676] dark:text-[#999999]">ISBN</span>
+                    <span className="text-[#181818] dark:text-[#f5f3e6] font-mono text-[13.5px]">{book.isbn || 'N/A'}</span>
                   </div>
-                  <div className="flex gap-2">
-                    <span className="text-[#777] min-w-[90px]">Edition ID:</span>
-                    <span className="font-mono text-[#3d4b3e]">{book.handle}</span>
+                  <div className="flex items-baseline">
+                    <span className="w-32 sm:w-36 shrink-0 text-[#767676] dark:text-[#999999]">Language</span>
+                    <span className="text-[#181818] dark:text-[#f5f3e6]">English</span>
                   </div>
                 </div>
 
                 {/* Physical Copies / Barcodes */}
                 {copies.length > 0 && (
-                  <div className="pt-3 border-t border-[#e0ddd2]">
-                    <div className="flex items-center gap-1 text-xs font-bold text-[#666] uppercase tracking-wider mb-2">
+                  <div className="pt-3 border-t border-[#e8e8e8] dark:border-[#38423a]">
+                    <div className="flex items-center gap-1 text-xs font-bold text-[#767676] uppercase tracking-wider mb-2">
                       <IconBarcode size={14} /> Shelf Barcodes ({copies.length})
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {copies.map((c) => (
                         <span
                           key={c.barcode}
-                          className="px-2.5 py-1 rounded bg-white border border-[#d8d4c7] font-mono text-xs flex items-center gap-1.5 shadow-2xs"
+                          className="px-2.5 py-1 rounded bg-[#faf9f4] dark:bg-[#252c28] border border-[#d8d4c7] dark:border-[#3d4b3e] font-mono text-xs flex items-center gap-1.5 shadow-2xs text-[#181818] dark:text-[#f5f3e6]"
                         >
                           <span>{c.barcode}</span>
                           <span
