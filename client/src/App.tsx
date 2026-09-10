@@ -17,7 +17,6 @@ import { AdminDashboard } from '@/components/admin/AdminDashboard'
 import { AuthModal } from '@/components/auth/AuthModal'
 import { UserProfileModal } from '@/components/profile/UserProfileModal'
 import type { BookPublicResponse } from '@/types/api'
-import { IconBooks, IconHeart } from '@tabler/icons-react'
 
 function CatalogRouteWrapper({
   onSelectBook,
@@ -119,7 +118,7 @@ function AppContent() {
       />
 
       {/* Main Content Area Routing */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         <Routes>
           <Route
             path="/"
@@ -141,25 +140,6 @@ function AppContent() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#fafafa] dark:bg-[#1e2320] py-6 mt-12 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#6f7f64] dark:text-[#c8d0b7]">
-          <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded-md bg-[#3d4b3e] flex items-center justify-center text-[#f5f3e6]">
-              <IconBooks size={14} />
-            </div>
-            <span className="font-serif font-bold text-[#1e2320] dark:text-[#f5f3e6]">
-              Libro Community Library
-            </span>
-            <span>&copy; 2026 Libro, Inc. All rights reserved.</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span>Goodreads-inspired reader catalog in Scholarly Sage</span>
-            <IconHeart size={14} className="text-[#6f7f64] fill-[#6f7f64] ml-1" />
-          </div>
-        </div>
-      </footer>
 
       {/* Global Modals */}
       <AuthModal

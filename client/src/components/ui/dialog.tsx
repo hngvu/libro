@@ -35,7 +35,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
         onClick={() => onOpenChange(false)}
       />
       {/* Dialog container */}
-      <div className="relative z-50 max-h-[90vh] overflow-y-auto">
+      <div className="relative z-50 w-full max-w-lg max-h-[90vh] overflow-y-auto flex items-center justify-center">
         {children}
       </div>
     </div>

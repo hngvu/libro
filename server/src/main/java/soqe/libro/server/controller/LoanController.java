@@ -38,4 +38,14 @@ public class LoanController {
         }
         return ResponseEntity.ok(loanService.getMyLoanDetail(principal.getName(), loanCode));
     }
+
+    @PostMapping("/{loanCode}/renew")
+    public ResponseEntity<LoanPublicResponse> renewMyLoan(
+            Principal principal,
+            @PathVariable String loanCode) {
+        if (principal == null) {
+            throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("Not authenticated");
+        }
+        return ResponseEntity.ok(loanService.renewMyLoan(principal.getName(), loanCode));
+    }
 }

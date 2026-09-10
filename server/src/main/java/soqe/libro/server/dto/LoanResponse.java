@@ -21,6 +21,7 @@ public record LoanResponse(
         LocalDate dueDate,
         LocalDate returnDate,
         String status,
+        Integer renewalCount,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         String createdBy,

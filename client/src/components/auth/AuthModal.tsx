@@ -4,16 +4,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/context/AuthContext'
 import {
-  IconLock,
-  IconMail,
-  IconUser,
-  IconSparkles,
   IconAlertCircle,
   IconCheck,
 } from '@tabler/icons-react'
@@ -114,216 +109,187 @@ export function AuthModal({ open, onOpenChange, defaultMode = 'login' }: AuthMod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onClose={() => onOpenChange(false)} className="sm:max-w-md">
-        <DialogHeader>
-          <div className="flex justify-center mb-2">
-            <div className="h-12 w-12 rounded-2xl bg-[#c8d0b7]/40 dark:bg-[#3d4b3e]/60 flex items-center justify-center text-[#3d4b3e] dark:text-[#f5f3e6]">
-              <IconSparkles size={24} />
-            </div>
-          </div>
-          <DialogTitle className="font-serif text-center text-xl text-[#1e2320] dark:text-[#f5f3e6]">
-            {mode === 'login' ? 'Welcome to Libro' : 'Join the Libro Community'}
+      <DialogContent onClose={() => onOpenChange(false)} className="w-full max-w-[460px] p-7 sm:p-8">
+        <DialogHeader className="mb-2 text-center sm:text-center">
+          <DialogTitle className="font-serif text-2xl font-bold text-[#181818] dark:text-[#f5f3e6] tracking-tight">
+            {mode === 'login' ? 'Sign In' : 'Create Account'}
           </DialogTitle>
-          <DialogDescription className="text-center text-[#6f7f64] dark:text-[#c8d0b7]">
-            {mode === 'login'
-              ? 'Sign in to discover books, borrow titles, and manage your library shelves'
-              : 'Create your free library account in under 30 seconds'}
-          </DialogDescription>
         </DialogHeader>
 
+        {/* Clean Segmented Tab Switcher */}
+        <div className="flex p-1 bg-[#edeae1] dark:bg-[#1a201c] rounded-lg mb-6">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('login')
+              setError(null)
+              setSuccessMsg(null)
+            }}
+            className={`flex-1 py-2 text-[13px] font-semibold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              mode === 'login'
+                ? 'bg-white dark:bg-[#252c28] text-[#181818] dark:text-[#f5f3e6] shadow-xs'
+                : 'text-[#767676] dark:text-[#888] hover:text-[#181818] dark:hover:text-[#f5f3e6]'
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('register')
+              setError(null)
+              setSuccessMsg(null)
+            }}
+            className={`flex-1 py-2 text-[13px] font-semibold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              mode === 'register'
+                ? 'bg-white dark:bg-[#252c28] text-[#181818] dark:text-[#f5f3e6] shadow-xs'
+                : 'text-[#767676] dark:text-[#888] hover:text-[#181818] dark:hover:text-[#f5f3e6]'
+            }`}
+          >
+            Create Account
+          </button>
+        </div>
+
         {error && (
-          <div className="mb-4 flex items-center gap-2 p-3 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg">
-            <IconAlertCircle size={18} className="shrink-0" />
+          <div className="mb-4 flex items-center gap-2.5 p-3 text-[13px] text-rose-800 bg-rose-50 border border-rose-200 rounded-lg animate-in fade-in">
+            <IconAlertCircle size={17} className="shrink-0 text-rose-600" />
             <span>{error}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="mb-4 flex items-center gap-2 p-3 text-sm text-[#3d4b3e] bg-[#c8d0b7]/30 border border-[#c8d0b7] rounded-lg">
-            <IconCheck size={18} className="shrink-0 text-[#6f7f64]" />
+          <div className="mb-4 flex items-center gap-2.5 p-3 text-[13px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg animate-in fade-in">
+            <IconCheck size={17} className="shrink-0 text-emerald-600" />
             <span>{successMsg}</span>
           </div>
         )}
 
-        {/* Demo Fast Buttons */}
-        {mode === 'login' && (
-          <div className="mb-4 p-3 bg-[#c8d0b7]/25 dark:bg-[#1e2320]/60 rounded-xl border border-[#c8d0b7]/80 dark:border-[#3d4b3e]">
-            <p className="text-xs font-semibold text-[#3d4b3e] dark:text-[#c8d0b7] uppercase tracking-wider mb-2">
-              Quick Sign-In (Demo Profiles):
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('admin@libro.com', 'admin123')}
-                disabled={loading}
-                className="px-2 py-1.5 text-xs font-medium bg-white dark:bg-[#252c28] hover:bg-[#c8d0b7]/50 border border-[#c8d0b7] dark:border-[#3d4b3e] rounded-lg text-[#3d4b3e] dark:text-[#f5f3e6] transition-colors cursor-pointer"
-              >
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('lucia@libro.com', 'lucia123')}
-                disabled={loading}
-                className="px-2 py-1.5 text-xs font-medium bg-white dark:bg-[#252c28] hover:bg-[#c8d0b7]/50 border border-[#c8d0b7] dark:border-[#3d4b3e] rounded-lg text-[#3d4b3e] dark:text-[#f5f3e6] transition-colors cursor-pointer"
-              >
-                Librarian
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('bin@libro.com', 'chubin123')}
-                disabled={loading}
-                className="px-2 py-1.5 text-xs font-medium bg-white dark:bg-[#252c28] hover:bg-[#c8d0b7]/50 border border-[#c8d0b7] dark:border-[#3d4b3e] rounded-lg text-[#6f7f64] dark:text-[#c8d0b7] transition-colors cursor-pointer"
-              >
-                Reader Bin
-              </button>
-            </div>
-          </div>
-        )}
-
         {mode === 'login' ? (
-          <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+          <form onSubmit={handleLoginSubmit} autoComplete="off" className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
-                Email Address
+              <label className="text-[13px] font-medium text-[#222] dark:text-[#e0e0e0]">
+                Email
               </label>
-              <div className="relative">
-                <IconMail className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
-                <Input
-                  type="email"
-                  required
-                  placeholder="name@example.com"
-                  className="pl-9"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                />
-              </div>
+              <Input
+                type="email"
+                required
+                className="h-10 text-[13px]"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+              />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
+              <label className="text-[13px] font-medium text-[#222] dark:text-[#e0e0e0]">
                 Password
               </label>
-              <div className="relative">
-                <IconLock className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
-                <Input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  className="pl-9"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                />
-              </div>
+              <Input
+                type="password"
+                required
+                className="h-10 text-[13px]"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+              />
             </div>
 
-            <Button type="submit" className="w-full mt-2" disabled={loading}>
-              {loading ? 'Authenticating...' : 'Sign In'}
+            <Button
+              type="submit"
+              className="w-full h-10 mt-2 bg-[#409D69] hover:bg-[#38875c] text-white text-[14px] font-semibold transition-colors cursor-pointer rounded-md shadow-xs"
+              disabled={loading}
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
             </Button>
 
-            <div className="text-center pt-2">
-              <p className="text-xs text-[#6f7f64] dark:text-[#c8d0b7]">
-                Don't have an account?{' '}
+            {/* Quick Demo Logins */}
+            <div className="pt-4 mt-4 border-t border-[#e8e5dc] dark:border-[#3d4b3e]/60 text-center">
+              <div className="flex items-center justify-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setError(null)
-                    setMode('register')
-                  }}
-                  className="text-[#3d4b3e] dark:text-[#f5f3e6] font-semibold hover:underline cursor-pointer"
+                  onClick={() => handleQuickLogin('admin@libro.com', 'admin123')}
+                  disabled={loading}
+                  className="px-3.5 py-1 text-[12px] font-medium rounded-full border border-[#d8d5ce] dark:border-[#3d4b3e] bg-white dark:bg-[#1a201c] hover:bg-black/5 text-[#444] dark:text-[#ccc] transition-colors cursor-pointer"
                 >
-                  Join Libro free
+                  Admin
                 </button>
-              </p>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('lucia@libro.com', 'lucia123')}
+                  disabled={loading}
+                  className="px-3.5 py-1 text-[12px] font-medium rounded-full border border-[#d8d5ce] dark:border-[#3d4b3e] bg-white dark:bg-[#1a201c] hover:bg-black/5 text-[#444] dark:text-[#ccc] transition-colors cursor-pointer"
+                >
+                  Librarian
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('bin@libro.com', 'chubin123')}
+                  disabled={loading}
+                  className="px-3.5 py-1 text-[12px] font-medium rounded-full border border-[#d8d5ce] dark:border-[#3d4b3e] bg-white dark:bg-[#1a201c] hover:bg-black/5 text-[#444] dark:text-[#ccc] transition-colors cursor-pointer"
+                >
+                  Reader
+                </button>
+              </div>
             </div>
           </form>
         ) : (
-          <form onSubmit={handleRegisterSubmit} className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
-                Full Name
+          <form onSubmit={handleRegisterSubmit} autoComplete="off" className="space-y-3.5">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium text-[#222] dark:text-[#e0e0e0]">
+                Full name
               </label>
-              <div className="relative">
-                <IconUser className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
-                <Input
-                  required
-                  placeholder="John Doe"
-                  className="pl-9 text-xs"
-                  value={regFullName}
-                  onChange={(e) => setRegFullName(e.target.value)}
-                />
-              </div>
+              <Input
+                required
+                className="h-10 text-[13px]"
+                value={regFullName}
+                onChange={(e) => setRegFullName(e.target.value)}
+              />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
-                Email Address
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium text-[#222] dark:text-[#e0e0e0]">
+                Email
               </label>
-              <div className="relative">
-                <IconMail className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
-                <Input
-                  type="email"
-                  required
-                  placeholder="john@example.com"
-                  className="pl-9 text-xs"
-                  value={regEmail}
-                  onChange={(e) => setRegEmail(e.target.value)}
-                />
-              </div>
+              <Input
+                type="email"
+                required
+                className="h-10 text-[13px]"
+                value={regEmail}
+                onChange={(e) => setRegEmail(e.target.value)}
+              />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium text-[#222] dark:text-[#e0e0e0]">
                 Password
               </label>
-              <div className="relative">
-                <IconLock className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
-                <Input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  className="pl-9 text-xs"
-                  value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                />
-              </div>
+              <Input
+                type="password"
+                required
+                className="h-10 text-[13px]"
+                value={regPassword}
+                onChange={(e) => setRegPassword(e.target.value)}
+              />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-[#1e2320] dark:text-[#f5f3e6]">
-                Confirm Password
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium text-[#222] dark:text-[#e0e0e0]">
+                Confirm password
               </label>
-              <div className="relative">
-                <IconLock className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
-                <Input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  className="pl-9 text-xs"
-                  value={regConfirmPassword}
-                  onChange={(e) => setRegConfirmPassword(e.target.value)}
-                />
-              </div>
+              <Input
+                type="password"
+                required
+                className="h-10 text-[13px]"
+                value={regConfirmPassword}
+                onChange={(e) => setRegConfirmPassword(e.target.value)}
+              />
             </div>
 
-            <Button type="submit" className="w-full mt-2" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full h-10 mt-2 bg-[#409D69] hover:bg-[#38875c] text-white text-[14px] font-semibold transition-colors cursor-pointer rounded-md shadow-xs"
+              disabled={loading}
+            >
               {loading ? 'Creating account...' : 'Create Account'}
             </Button>
-
-            <div className="text-center pt-2">
-              <p className="text-xs text-[#6f7f64] dark:text-[#c8d0b7]">
-                Already have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null)
-                    setMode('login')
-                  }}
-                  className="text-[#3d4b3e] dark:text-[#f5f3e6] font-semibold hover:underline cursor-pointer"
-                >
-                  Sign In
-                </button>
-              </p>
-            </div>
           </form>
         )}
       </DialogContent>

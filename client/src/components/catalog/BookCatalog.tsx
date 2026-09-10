@@ -223,12 +223,13 @@ export function BookCatalog({
 
           {/* Book Cards Grid */}
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[...Array(6)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-44 rounded-xl bg-[#c8d0b7]/20 dark:bg-[#3d4b3e]/30 animate-pulse border border-[#c8d0b7]/40 dark:border-[#3d4b3e]"
-                />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 sm:gap-5">
+              {[...Array(10)].map((_, i) => (
+                <div key={i} className="space-y-2 animate-pulse">
+                  <div className="aspect-[2/3] w-full rounded-r-[11px] rounded-l-[3px] bg-[#c8d0b7]/30 dark:bg-[#3d4b3e]/30 border border-[#c8d0b7]/40 dark:border-[#3d4b3e]" />
+                  <div className="h-3.5 bg-[#c8d0b7]/40 dark:bg-[#3d4b3e]/40 rounded w-3/4" />
+                  <div className="h-3 bg-[#c8d0b7]/30 dark:bg-[#3d4b3e]/30 rounded w-1/2" />
+                </div>
               ))}
             </div>
           ) : books.length === 0 ? (
@@ -245,7 +246,7 @@ export function BookCatalog({
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 sm:gap-5">
               {books.map((book) => (
                 <BookCard
                   key={book.handle}

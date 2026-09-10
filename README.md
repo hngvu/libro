@@ -47,3 +47,36 @@ This project strictly adheres to the following backend development standards to 
 ### 7. Data Auditing
 - **BaseEntity**: All entities MUST extend `BaseEntity`. This provides out-of-the-box JPA auditing with four standard fields: `createdAt`, `updatedAt`, `createdBy`, and `updatedBy`.
 - **Automatic Population**: Do NOT set these fields manually. Spring Data JPA `@EnableJpaAuditing` and the configured `SecurityAuditorAware` bean will automatically extract the current user from the `SecurityContext` and timestamp the records during INSERT and UPDATE operations.
+
+---
+
+## Future Roadmap & Planned Modules
+
+### 1. Reservation System (Hệ thống Đặt trước sách)
+- **Eligibility**: Only allowed when a book has 0 available physical copies (`availableCopies == 0`).
+- **Queue Mechanism**: First-In, First-Out (FIFO) queue per book title.
+- **Constraints**:
+  - Maximum concurrent active reservations per user (e.g., max 3 books).
+  - A user cannot place a reservation if they are already borrowing or currently reserving a copy of the same book.
+- **Hold Shelf & Auto-Assignment**:
+  - When a loaned copy is returned, if there are pending reservations, the copy is marked `RESERVED` / `ON_HOLD` (not `AVAILABLE`) and assigned to the top user in the queue.
+  - The user has a pickup window (e.g., 3 days) to collect the book.
+  - If expired, status transitions to `EXPIRED` and the copy is automatically offered to the next user in the queue. If queue is empty, the copy reverts to `AVAILABLE`.
+
+### 2. Fine & Penalty Management (Quản lý Phạt & Bồi thường)
+- **Overdue Fines**: Automatically calculate fines based on days overdue (e.g., fixed rate per day).
+- **Fine Cap**: Fine cannot exceed 100% of the book's replacement value to avoid unbounded accumulation.
+- **Lost / Damaged Handling**: Dedicated workflow for users/librarians to report lost or damaged books, recording compensation charges and transitioning `BookCopy` to `LOST` or `DAMAGED`.
+- **Account Restriction**: Users with unpaid fines above a threshold are blocked from borrowing or renewing books.
+
+### 3. Dynamic System Settings (Cài đặt Hệ thống Động)
+- **Purpose**: Allow Admins/Librarians to configure business parameters via the Admin UI without modifying code or restarting the server.
+- **Data Structure**: Key-Value table (`system_settings`) with fields `key` (PK), `value`, `description`, and audit fields (`updatedAt`, `updatedBy`).
+- **Core Configs**:
+  - `LOAN_MAX_ACTIVE_BOOKS`: Maximum active loans per user (default: 5).
+  - `LOAN_MAX_RENEWALS`: Maximum renewals allowed per loan (default: 2).
+  - `LOAN_STANDARD_DAYS`: Standard loan duration in days (default: 14).
+  - `LOAN_RENEWAL_DAYS`: Standard extension duration in days (default: 14).
+  - `RESERVATION_MAX_ACTIVE`: Maximum concurrent active reservations per user (default: 3).
+  - `RESERVATION_HOLD_DAYS`: Hold shelf pickup window in days (default: 3).
+- **Performance Strategy**: Cached in memory (via Spring Cache / `ConcurrentHashMap`) with automatic cache invalidation on admin update + safe hardcoded fallback values if key is missing.

@@ -7,13 +7,13 @@
   --color-sage-300: #c8d0b7;
   --color-parchment: #fafafa;
   --color-parchment-light: #ffffff;
-  --font-serif: 'Literata', 'Lora', 'Merriweather', Georgia, Cambria, 'Times New Roman', Times, serif;
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Merriweather', Georgia, Cambria, 'Times New Roman', Times, serif;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 :root {
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-serif: 'Literata', 'Lora', 'Merriweather', Georgia, Cambria, serif;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Merriweather', Georgia, Cambria, serif;
   color-scheme: light dark;
 }
 

@@ -37,6 +37,10 @@ public class Loan extends BaseEntity {
     @Column(nullable = false, length = 20)
     private LoanStatus status;
 
+    @Column(name = "renewal_count", nullable = false)
+    @Builder.Default
+    private Integer renewalCount = 0;
+
     public enum LoanStatus {
         ONGOING, RETURNED, OVERDUE, CANCELLED
     }

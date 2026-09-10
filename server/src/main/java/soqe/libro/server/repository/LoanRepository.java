@@ -17,4 +17,8 @@ public interface LoanRepository extends JpaRepository<Loan, Long>, JpaSpecificat
     Page<Loan> findByUser(User user, Pageable pageable);
     Page<Loan> findByUserAndStatus(User user, Loan.LoanStatus status, Pageable pageable);
     long countByUserAndStatus(User user, Loan.LoanStatus status);
+    boolean existsByUserAndBookCopy_BookAndStatus(User user, soqe.libro.server.entity.Book book, Loan.LoanStatus status);
+    boolean existsByUserAndBookCopy_Book_WorkAndStatus(User user, String work, Loan.LoanStatus status);
+    boolean existsByUserAndStatus(User user, Loan.LoanStatus status);
+    boolean existsByUserAndStatusAndDueDateBefore(User user, Loan.LoanStatus status, java.time.LocalDate date);
 }

@@ -14,5 +14,6 @@ public record LoanPublicResponse(
         LocalDate borrowDate,
         LocalDate dueDate,
         LocalDate returnDate,
-        String status
+        String status,
+        Integer renewalCount
 ) {}
