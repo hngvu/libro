@@ -134,6 +134,7 @@ export interface GenreResponse {
   handle: string
   description: string | null
   status: string
+  bookCount?: number
 }
 
 export interface AuthorPublicResponse {
@@ -148,6 +149,7 @@ export interface AuthorResponse {
   handle: string
   biography: string | null
   status: string
+  bookCount?: number
 }
 
 export interface PublisherPublicResponse {
@@ -169,7 +171,15 @@ export interface PublisherResponse {
 // Request types
 export interface AuthorCreateRequest {
   name: string
+  handle?: string
   biography?: string
+}
+
+export interface AuthorUpdateRequest {
+  name: string
+  handle: string
+  biography?: string
+  status?: string
 }
 
 export interface PublisherCreateRequest {
@@ -180,7 +190,15 @@ export interface PublisherCreateRequest {
 
 export interface GenreCreateRequest {
   name: string
+  handle?: string
   description?: string
+}
+
+export interface GenreUpdateRequest {
+  name: string
+  handle: string
+  description?: string
+  status?: string
 }
 
 export interface BookCreateRequest {

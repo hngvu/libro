@@ -38,8 +38,8 @@ public class BookService {
     // ==========================================
 
     @Transactional(readOnly = true)
-    public Page<BookResponse> searchBooksForAdmin(String keyword, Book.Format format, Book.Status status, String genreHandle, Pageable pageable) {
-        return repository.findAll(BookSpecification.filter(keyword, format, status, genreHandle), pageable)
+    public Page<BookResponse> searchBooksForAdmin(String keyword, Book.Format format, Book.Status status, String genreHandle, Long authorId, Long genreId, Pageable pageable) {
+        return repository.findAll(BookSpecification.filter(keyword, format, status, genreHandle, authorId, genreId, null), pageable)
                 .map(this::mapToAdminResponse);
     }
 
@@ -138,9 +138,9 @@ public class BookService {
     // ==========================================
 
     @Transactional(readOnly = true)
-    public Page<BookPublicResponse> searchBooks(String keyword, Book.Format format, String genreHandle, Pageable pageable) {
+    public Page<BookPublicResponse> searchBooks(String keyword, Book.Format format, String genreHandle, String authorHandle, Pageable pageable) {
         // Users can only search for ACTIVE books
-        return repository.findAll(BookSpecification.filter(keyword, format, Book.Status.ACTIVE, genreHandle), pageable)
+        return repository.findAll(BookSpecification.filter(keyword, format, Book.Status.ACTIVE, genreHandle, null, null, authorHandle), pageable)
                 .map(this::mapToPublicResponse);
     }
 

@@ -51,6 +51,24 @@ export function BookCopiesPage() {
     location: '',
   })
 
+  const getStatusBadge = (status: BookCopyStatus) => {
+    switch (status) {
+      case 'AVAILABLE':
+        return t.statusActive
+      case 'BORROWED':
+        return t.statusBorrowed
+      case 'LOST':
+        return t.statusOverdue
+      case 'RESERVED':
+        return isDark
+          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+          : 'bg-blue-50 text-blue-700 border border-blue-300'
+      case 'MAINTENANCE':
+      default:
+        return t.statusMuted
+    }
+  }
+
   const fetchCopies = useCallback(async () => {
     setLoading(true)
     try {
@@ -310,17 +328,11 @@ export function BookCopiesPage() {
                 <th className={`py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
                   Book Title
                 </th>
-                <th className={`py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider w-28 ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                  Book ID
-                </th>
                 <th className={`py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
                   Location
                 </th>
                 <th className={`py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
                   Last Borrowed
-                </th>
-                <th className={`py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider w-40 text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                  Status
                 </th>
               </tr>
             </thead>
@@ -355,23 +367,25 @@ export function BookCopiesPage() {
                       />
                     </td>
 
-                    {/* Barcode */}
+                    {/* Barcode & Status Badge */}
                     <td className="py-2.5 px-4">
-                      <span className={`font-mono text-xs font-semibold ${t.titleColor}`}>
-                        {c.barcode}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-mono text-xs font-semibold ${t.titleColor}`}>
+                          {c.barcode}
+                        </span>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded font-medium shrink-0 uppercase tracking-wide ${getStatusBadge(
+                            c.status
+                          )}`}
+                        >
+                          {c.status}
+                        </span>
+                      </div>
                     </td>
 
                     {/* Book Title */}
-                    <td className="py-2.5 px-4">
-                      <span className={`text-xs font-medium transition-colors ${t.titleColor} ${isDark ? 'group-hover:text-white' : 'group-hover:text-[#066fd1]'}`}>
-                        {c.bookTitle || `Book ID #${c.bookId}`}
-                      </span>
-                    </td>
-
-                    {/* Book ID */}
-                    <td className={`py-2.5 px-4 text-xs font-mono ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                      #{c.bookId}
+                    <td className={`py-2.5 px-4 text-xs font-medium max-w-[280px] truncate ${t.titleColor}`}>
+                      {c.bookTitle || (c.bookId ? `Book #${c.bookId}` : '—')}
                     </td>
 
                     {/* Location */}
@@ -383,19 +397,12 @@ export function BookCopiesPage() {
                     <td className={`py-2.5 px-4 text-xs font-mono ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
                       {c.lastLoanDate || '—'}
                     </td>
-
-                    {/* Status Plain Text */}
-                    <td className="py-2.5 px-4 text-right">
-                      <span className={`text-xs font-mono font-normal ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                        {c.status}
-                      </span>
-                    </td>
                   </tr>
                 )
               })}
               {copies.length === 0 && (
                 <tr>
-                  <td colSpan={6} className={`py-8 text-center text-xs ${t.subTextColor}`}>
+                  <td colSpan={5} className={`py-8 text-center text-xs ${t.subTextColor}`}>
                     No physical copies registered matching your filter.
                   </td>
                 </tr>

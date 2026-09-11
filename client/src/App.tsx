@@ -19,7 +19,12 @@ import { BookCatalogPage } from '@/pages/admin/BookCatalogPage'
 import { BookDetailPage } from '@/pages/admin/BookDetailPage'
 import { BookItemCopiesPage } from '@/pages/admin/BookItemCopiesPage'
 import { BookCopiesPage } from '@/pages/admin/BookCopiesPage'
-import { BookTaxonomyPage } from '@/pages/admin/BookTaxonomyPage'
+import { AdminAuthorsPage } from '@/pages/admin/AdminAuthorsPage'
+import { AdminAuthorDetailPage } from '@/pages/admin/AdminAuthorDetailPage'
+import { AdminGenresPage } from '@/pages/admin/AdminGenresPage'
+import { AdminGenreDetailPage } from '@/pages/admin/AdminGenreDetailPage'
+import { AuthorDetailPage } from '@/pages/catalog/AuthorDetailPage'
+import { GenreDetailPage } from '@/pages/catalog/GenreDetailPage'
 import { CirculationDeskPage } from '@/pages/admin/CirculationDeskPage'
 import { OverduePage } from '@/pages/admin/OverduePage'
 import { ReservationsPage } from '@/pages/admin/ReservationsPage'
@@ -167,6 +172,8 @@ function AppContent() {
             path="/loans"
             element={<MyLoansView onOpenAuth={() => handleOpenAuth('login')} />}
           />
+          <Route path="/author/:handle" element={<AuthorDetailPage />} />
+          <Route path="/genre/:handle" element={<GenreDetailPage />} />
 
           {/* Admin Nested Sub-routes with AdminLayout */}
           <Route path="/admin" element={<AdminLayout />}>
@@ -175,7 +182,11 @@ function AppContent() {
             <Route path="books/:id" element={<BookDetailPage />} />
             <Route path="books/:id/copies" element={<BookItemCopiesPage />} />
             <Route path="copies" element={<BookCopiesPage />} />
-            <Route path="taxonomy" element={<BookTaxonomyPage />} />
+            <Route path="authors" element={<AdminAuthorsPage />} />
+            <Route path="authors/:id" element={<AdminAuthorDetailPage />} />
+            <Route path="genres" element={<AdminGenresPage />} />
+            <Route path="genres/:id" element={<AdminGenreDetailPage />} />
+            <Route path="taxonomy" element={<Navigate to="/admin/genres" replace />} />
             <Route path="circulation" element={<CirculationDeskPage />} />
             <Route path="overdue" element={<OverduePage />} />
             <Route path="reservations" element={<ReservationsPage />} />

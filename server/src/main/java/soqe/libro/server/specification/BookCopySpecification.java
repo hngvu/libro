@@ -12,7 +12,11 @@ public class BookCopySpecification {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (StringUtils.hasText(keyword)) {
-                predicates.add(cb.like(cb.lower(root.get("barcode")), "%" + keyword.toLowerCase() + "%"));
+                String kw = "%" + keyword.toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("barcode")), kw),
+                        cb.like(cb.lower(root.get("book").get("title")), kw)
+                ));
             }
             if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));

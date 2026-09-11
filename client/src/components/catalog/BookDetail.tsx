@@ -226,7 +226,11 @@ export function BookDetail({
                 <span key={a.handle || idx} className="inline-flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => navigate(`/?keyword=${encodeURIComponent(a.name)}`)}
+                    onClick={() =>
+                      a.handle
+                        ? navigate(`/author/${a.handle}`)
+                        : navigate(`/?keyword=${encodeURIComponent(a.name)}`)
+                    }
                     className="font-light text-[#181818] dark:text-[#f5f3e6] hover:underline hover:text-[#00635d] dark:hover:text-[#4db6ac] transition-colors cursor-pointer"
                   >
                     {a.name}
@@ -263,7 +267,11 @@ export function BookDetail({
                 <button
                   key={g.handle || g.name}
                   type="button"
-                  onClick={() => navigate(`/?genre=${encodeURIComponent(g.handle)}`)}
+                  onClick={() =>
+                    g.handle
+                      ? navigate(`/genre/${g.handle}`)
+                      : navigate(`/?genre=${encodeURIComponent(g.name)}`)
+                  }
                   className="text-[#181818] font-medium underline underline-offset-4 decoration-[#2e7d56] decoration-[1.5px] hover:text-[#2e7d56] transition-colors cursor-pointer"
                 >
                   {g.name}

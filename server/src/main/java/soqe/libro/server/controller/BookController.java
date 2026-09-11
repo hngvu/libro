@@ -21,8 +21,9 @@ public class BookController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Book.Format format,
             @RequestParam(required = false, name = "genre") String genreHandle,
+            @RequestParam(required = false, name = "author") String authorHandle,
             Pageable pageable) {
-        return ResponseEntity.ok(bookService.searchBooks(keyword, format, genreHandle, pageable));
+        return ResponseEntity.ok(bookService.searchBooks(keyword, format, genreHandle, authorHandle, pageable));
     }
 
     @GetMapping("/{handle}")

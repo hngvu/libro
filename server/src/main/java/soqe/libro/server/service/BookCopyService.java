@@ -97,6 +97,7 @@ public class BookCopyService {
                 .status(c.getStatus() != null ? c.getStatus().name() : null)
                 .location(c.getLocation())
                 .bookId(c.getBook() != null ? c.getBook().getId() : null)
+                .bookTitle(c.getBook() != null ? c.getBook().getTitle() : null)
                 .lastLoanDate(lastDate)
                 .build();
     }

@@ -9,5 +9,6 @@ public record BookCopyResponse(
         String status,
         String location,
         Long bookId,
+        String bookTitle,
         LocalDate lastLoanDate
 ) {}

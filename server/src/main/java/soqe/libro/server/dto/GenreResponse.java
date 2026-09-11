@@ -6,5 +6,6 @@ public record GenreResponse(
         String name,
         String handle,
         String description,
-        String status
+        String status,
+        Integer bookCount
 ) {}

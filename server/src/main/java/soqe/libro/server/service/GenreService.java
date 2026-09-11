@@ -30,6 +30,7 @@ public class GenreService {
                         .handle(g.getHandle())
                         .description(g.getDescription())
                         .status(g.getStatus() != null ? g.getStatus().name() : null)
+                        .bookCount(g.getBooks() != null ? g.getBooks().size() : 0)
                         .build());
     }
 
@@ -42,6 +43,7 @@ public class GenreService {
                 .handle(g.getHandle())
                 .description(g.getDescription())
                 .status(g.getStatus() != null ? g.getStatus().name() : null)
+                .bookCount(g.getBooks() != null ? g.getBooks().size() : 0)
                 .build();
     }
 
@@ -55,7 +57,7 @@ public class GenreService {
                 .status(Genre.Status.ACTIVE)
                 .build();
         g = repository.save(g);
-        return GenreResponse.builder().id(g.getId()).name(g.getName()).handle(g.getHandle()).description(g.getDescription()).status(g.getStatus().name()).build();
+        return GenreResponse.builder().id(g.getId()).name(g.getName()).handle(g.getHandle()).description(g.getDescription()).status(g.getStatus().name()).bookCount(0).build();
     }
 
     @Transactional
@@ -67,7 +69,7 @@ public class GenreService {
         g.setDescription(req.description());
         if (req.status() != null) g.setStatus(req.status());
         g = repository.save(g);
-        return GenreResponse.builder().id(g.getId()).name(g.getName()).handle(g.getHandle()).description(g.getDescription()).status(g.getStatus().name()).build();
+        return GenreResponse.builder().id(g.getId()).name(g.getName()).handle(g.getHandle()).description(g.getDescription()).status(g.getStatus().name()).bookCount(g.getBooks() != null ? g.getBooks().size() : 0).build();
     }
 
     @Transactional

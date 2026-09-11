@@ -4,12 +4,13 @@ import {
   IconBooks,
   IconBook2,
   IconStack2,
-  IconTags,
   IconArrowsExchange,
   IconTransferOut,
   IconClockExclamation,
   IconCalendarEvent,
   IconUsers,
+  IconUserStar,
+  IconLabel,
   IconReceipt2,
   IconReportAnalytics,
   IconSettings,
@@ -54,9 +55,15 @@ export function SidebarNav() {
           isSubItem={true}
         />
         <SidebarNavItem
-          to="/admin/taxonomy"
-          icon={<IconTags size={15} />}
-          label="Taxonomy"
+          to="/admin/authors"
+          icon={<IconUserStar size={15} />}
+          label="Authors"
+          isSubItem={true}
+        />
+        <SidebarNavItem
+          to="/admin/genres"
+          icon={<IconLabel size={15} />}
+          label="Genres"
           isSubItem={true}
         />
       </SidebarNavGroup>

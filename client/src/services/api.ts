@@ -11,8 +11,11 @@ import type {
   GenrePublicResponse,
   GenreResponse,
   GenreCreateRequest,
+  GenreUpdateRequest,
+  AuthorPublicResponse,
   AuthorResponse,
   AuthorCreateRequest,
+  AuthorUpdateRequest,
   PublisherResponse,
   PublisherCreateRequest,
   BookCreateRequest,
@@ -105,6 +108,18 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   return json as T
 }
 
+function slugify(text: string): string {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 export const api = {
   // Auth
   async login(email: string, password: string): Promise<ApiResponse<string>> {
@@ -152,6 +167,7 @@ export const api = {
     keyword?: string
     format?: BookFormat
     genre?: string
+    author?: string
     page?: number
     size?: number
   } = {}): Promise<Page<BookPublicResponse>> {
@@ -159,6 +175,7 @@ export const api = {
     if (params.keyword) search.set('keyword', params.keyword)
     if (params.format) search.set('format', params.format)
     if (params.genre) search.set('genre', params.genre)
+    if (params.author) search.set('author', params.author)
     if (params.page !== undefined) search.set('page', String(params.page))
     if (params.size !== undefined) search.set('size', String(params.size))
 
@@ -168,6 +185,14 @@ export const api = {
 
   async getBookByHandle(handle: string): Promise<BookPublicResponse> {
     return request<BookPublicResponse>(`/books/${handle}`)
+  },
+
+  async getAuthorByHandle(handle: string): Promise<AuthorPublicResponse> {
+    return request<AuthorPublicResponse>(`/authors/${handle}`)
+  },
+
+  async getGenreByHandle(handle: string): Promise<GenrePublicResponse> {
+    return request<GenrePublicResponse>(`/genres/${handle}`)
   },
 
   async getBookCopies(bookHandle: string): Promise<Page<BookCopyPublicResponse>> {
@@ -203,6 +228,8 @@ export const api = {
     format?: BookFormat
     status?: BookStatus
     genre?: string
+    authorId?: number
+    genreId?: number
     page?: number
     size?: number
   } = {}): Promise<Page<BookResponse>> {
@@ -211,6 +238,8 @@ export const api = {
     if (params.format) search.set('format', params.format)
     if (params.status) search.set('status', params.status)
     if (params.genre) search.set('genre', params.genre)
+    if (params.authorId !== undefined) search.set('authorId', String(params.authorId))
+    if (params.genreId !== undefined) search.set('genreId', String(params.genreId))
     if (params.page !== undefined) search.set('page', String(params.page))
     if (params.size !== undefined) search.set('size', String(params.size))
 
@@ -384,10 +413,31 @@ export const api = {
     return request<Page<AuthorResponse>>(`/admin/authors${q ? `?${q}` : ''}`)
   },
 
+  async adminGetAuthor(id: number): Promise<AuthorResponse> {
+    return request<AuthorResponse>(`/admin/authors/${id}`)
+  },
+
   async adminCreateAuthor(data: AuthorCreateRequest): Promise<AuthorResponse> {
+    const payload = {
+      ...data,
+      handle: data.handle || slugify(data.name) || `author-${Date.now()}`,
+    }
     return request<AuthorResponse>('/admin/authors', {
       method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+
+  async adminUpdateAuthor(id: number, data: AuthorUpdateRequest): Promise<AuthorResponse> {
+    return request<AuthorResponse>(`/admin/authors/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(data),
+    })
+  },
+
+  async adminDeleteAuthor(id: number): Promise<void> {
+    return request<void>(`/admin/authors/${id}`, {
+      method: 'DELETE',
     })
   },
 
@@ -428,10 +478,31 @@ export const api = {
     return request<Page<GenreResponse>>(`/admin/genres${q ? `?${q}` : ''}`)
   },
 
+  async adminGetGenre(id: number): Promise<GenreResponse> {
+    return request<GenreResponse>(`/admin/genres/${id}`)
+  },
+
   async adminCreateGenre(data: GenreCreateRequest): Promise<GenreResponse> {
+    const payload = {
+      ...data,
+      handle: data.handle || slugify(data.name) || `genre-${Date.now()}`,
+    }
     return request<GenreResponse>('/admin/genres', {
       method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+
+  async adminUpdateGenre(id: number, data: GenreUpdateRequest): Promise<GenreResponse> {
+    return request<GenreResponse>(`/admin/genres/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(data),
+    })
+  },
+
+  async adminDeleteGenre(id: number): Promise<void> {
+    return request<void>(`/admin/genres/${id}`, {
+      method: 'DELETE',
     })
   },
 }
