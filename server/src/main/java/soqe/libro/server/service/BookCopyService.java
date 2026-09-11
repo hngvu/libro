@@ -27,25 +27,25 @@ public class BookCopyService {
     @Transactional(readOnly = true)
     public Page<BookCopyResponse> searchForAdmin(String keyword, BookCopy.Status status, Long bookId, Pageable pageable) {
         return repository.findAll(BookCopySpecification.filter(keyword, status, bookId, null), pageable)
-                .map(c -> BookCopyResponse.builder()
-                        .id(c.getId())
-                        .barcode(c.getBarcode())
-                        .status(c.getStatus() != null ? c.getStatus().name() : null)
-                        .bookId(c.getBook() != null ? c.getBook().getId() : null)
-                        .build());
+                .map(this::toAdminResponse);
     }
 
     @Transactional(readOnly = true)
     public BookCopyResponse getForAdmin(Long id) {
         BookCopy c = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("BookCopy not found"));
-        return BookCopyResponse.builder().id(c.getId()).barcode(c.getBarcode()).status(c.getStatus().name()).bookId(c.getBook().getId()).build();
+        return toAdminResponse(c);
     }
 
     @Transactional
     public BookCopyResponse createByAdmin(BookCopyCreateRequest req) {
         validateUnique(req.barcode(), null);
         Book book = bookRepository.findById(req.bookId()).orElseThrow(() -> new ResourceNotFoundException("Book not found"));
-        BookCopy c = BookCopy.builder().barcode(req.barcode()).book(book).status(BookCopy.Status.AVAILABLE).build();
+        BookCopy c = BookCopy.builder()
+                .barcode(req.barcode())
+                .book(book)
+                .status(BookCopy.Status.AVAILABLE)
+                .location(req.location())
+                .build();
         c = repository.save(c);
         
         // Update book counters
@@ -53,7 +53,7 @@ public class BookCopyService {
         book.setAvailableCopies(book.getAvailableCopies() + 1);
         bookRepository.save(book);
 
-        return BookCopyResponse.builder().id(c.getId()).barcode(c.getBarcode()).status(c.getStatus().name()).bookId(c.getBook().getId()).build();
+        return toAdminResponse(c);
     }
 
     @Transactional
@@ -65,6 +65,7 @@ public class BookCopyService {
         
         c.setBarcode(req.barcode());
         if (req.status() != null) c.setStatus(req.status());
+        if (req.location() != null) c.setLocation(req.location());
         c = repository.save(c);
         
         // Update book counters if status changed between AVAILABLE and non-AVAILABLE
@@ -78,7 +79,26 @@ public class BookCopyService {
             bookRepository.save(book);
         }
 
-        return BookCopyResponse.builder().id(c.getId()).barcode(c.getBarcode()).status(c.getStatus().name()).bookId(c.getBook().getId()).build();
+        return toAdminResponse(c);
+    }
+
+    private BookCopyResponse toAdminResponse(BookCopy c) {
+        java.time.LocalDate lastDate = null;
+        if (c.getLoans() != null && !c.getLoans().isEmpty()) {
+            lastDate = c.getLoans().stream()
+                    .map(soqe.libro.server.entity.Loan::getBorrowDate)
+                    .filter(java.util.Objects::nonNull)
+                    .max(java.util.Comparator.naturalOrder())
+                    .orElse(null);
+        }
+        return BookCopyResponse.builder()
+                .id(c.getId())
+                .barcode(c.getBarcode())
+                .status(c.getStatus() != null ? c.getStatus().name() : null)
+                .location(c.getLocation())
+                .bookId(c.getBook() != null ? c.getBook().getId() : null)
+                .lastLoanDate(lastDate)
+                .build();
     }
 
     @Transactional
@@ -100,7 +120,11 @@ public class BookCopyService {
     public Page<BookCopyPublicResponse> getCopiesForBook(String bookHandle, Pageable pageable) {
         Book book = bookRepository.findByHandle(bookHandle).orElseThrow(() -> new ResourceNotFoundException("Book not found"));
         return repository.findAll(soqe.libro.server.specification.BookCopySpecification.filter(null, null, book.getId(), BookCopy.Status.ARCHIVED), pageable)
-                .map(c -> BookCopyPublicResponse.builder().barcode(c.getBarcode()).status(c.getStatus().name()).build());
+                .map(c -> BookCopyPublicResponse.builder()
+                        .barcode(c.getBarcode())
+                        .status(c.getStatus() != null ? c.getStatus().name() : null)
+                        .location(c.getLocation())
+                        .build());
     }
 
     @Transactional(readOnly = true)
@@ -108,7 +132,11 @@ public class BookCopyService {
         BookCopy c = repository.findByBarcode(barcode)
                 .filter(x -> x.getStatus() != BookCopy.Status.ARCHIVED)
                 .orElseThrow(() -> new ResourceNotFoundException("BookCopy not found"));
-        return BookCopyPublicResponse.builder().barcode(c.getBarcode()).status(c.getStatus().name()).build();
+        return BookCopyPublicResponse.builder()
+                .barcode(c.getBarcode())
+                .status(c.getStatus() != null ? c.getStatus().name() : null)
+                .location(c.getLocation())
+                .build();
     }
 
     private void validateUnique(String barcode, Long excludeId) {

@@ -9,6 +9,12 @@ import type {
   LoanResponse,
   UserResponse,
   GenrePublicResponse,
+  GenreResponse,
+  GenreCreateRequest,
+  AuthorResponse,
+  AuthorCreateRequest,
+  PublisherResponse,
+  PublisherCreateRequest,
   BookCreateRequest,
   BookUpdateRequest,
   BookCopyCreateRequest,
@@ -50,7 +56,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const response = await fetch(endpoint, {
+  const url = endpoint.startsWith('http')
+    ? endpoint
+    : endpoint.startsWith('/api')
+    ? endpoint
+    : `/api${endpoint.startsWith('/') ? '' : '/'}${endpoint}`
+
+  const response = await fetch(url, {
     ...options,
     headers,
   })
@@ -67,6 +79,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     } catch {
       json = text
     }
+  }
+
+  if (response.status === 401) {
+    removeToken()
   }
 
   if (!response.ok) {
@@ -350,6 +366,72 @@ export const api = {
   async adminDeleteUser(id: number): Promise<void> {
     return request<void>(`/admin/users/${id}`, {
       method: 'DELETE',
+    })
+  },
+
+  // Admin: Authors
+  async adminGetAuthors(params: {
+    keyword?: string
+    page?: number
+    size?: number
+  } = {}): Promise<Page<AuthorResponse>> {
+    const search = new URLSearchParams()
+    if (params.keyword) search.set('keyword', params.keyword)
+    if (params.page !== undefined) search.set('page', String(params.page))
+    if (params.size !== undefined) search.set('size', String(params.size))
+
+    const q = search.toString()
+    return request<Page<AuthorResponse>>(`/admin/authors${q ? `?${q}` : ''}`)
+  },
+
+  async adminCreateAuthor(data: AuthorCreateRequest): Promise<AuthorResponse> {
+    return request<AuthorResponse>('/admin/authors', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
+  // Admin: Publishers
+  async adminGetPublishers(params: {
+    keyword?: string
+    page?: number
+    size?: number
+  } = {}): Promise<Page<PublisherResponse>> {
+    const search = new URLSearchParams()
+    if (params.keyword) search.set('keyword', params.keyword)
+    if (params.page !== undefined) search.set('page', String(params.page))
+    if (params.size !== undefined) search.set('size', String(params.size))
+
+    const q = search.toString()
+    return request<Page<PublisherResponse>>(`/admin/publishers${q ? `?${q}` : ''}`)
+  },
+
+  async adminCreatePublisher(data: PublisherCreateRequest): Promise<PublisherResponse> {
+    return request<PublisherResponse>('/admin/publishers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
+  // Admin: Genres
+  async adminGetGenres(params: {
+    keyword?: string
+    page?: number
+    size?: number
+  } = {}): Promise<Page<GenreResponse>> {
+    const search = new URLSearchParams()
+    if (params.keyword) search.set('keyword', params.keyword)
+    if (params.page !== undefined) search.set('page', String(params.page))
+    if (params.size !== undefined) search.set('size', String(params.size))
+
+    const q = search.toString()
+    return request<Page<GenreResponse>>(`/admin/genres${q ? `?${q}` : ''}`)
+  },
+
+  async adminCreateGenre(data: GenreCreateRequest): Promise<GenreResponse> {
+    return request<GenreResponse>('/admin/genres', {
+      method: 'POST',
+      body: JSON.stringify(data),
     })
   },
 }

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-sage-900: #1e2320;
   --color-sage-800: #3d4b3e;
@@ -65,4 +67,16 @@ body {
   ::-webkit-scrollbar-thumb {
     background: #3d4b3e;
   }
+}
+
+/* Hide number input spinner arrows across all browsers */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

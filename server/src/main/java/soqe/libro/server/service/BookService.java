@@ -10,13 +10,17 @@ import soqe.libro.server.entity.Author;
 import soqe.libro.server.entity.Book;
 import soqe.libro.server.entity.Genre;
 import soqe.libro.server.entity.Publisher;
+import soqe.libro.server.repository.AuthorRepository;
 import soqe.libro.server.repository.BookRepository;
+import soqe.libro.server.repository.GenreRepository;
+import soqe.libro.server.repository.PublisherRepository;
 import soqe.libro.server.specification.BookSpecification;
 import soqe.libro.server.exception.BusinessValidationException;
 import soqe.libro.server.exception.ResourceNotFoundException;
 import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -25,6 +29,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BookService {
     private final BookRepository repository;
+    private final AuthorRepository authorRepository;
+    private final PublisherRepository publisherRepository;
+    private final GenreRepository genreRepository;
 
     // ==========================================
     // BACKOFFICE / ADMIN APIs
@@ -56,12 +63,24 @@ public class BookService {
                 .cover(request.cover())
                 .edition(request.edition())
                 .format(request.format())
+                .pageCount(request.pageCount())
+                .language(request.language())
                 .work(request.work())
                 .description(request.description())
                 .status(Book.Status.ACTIVE)
                 .totalCopies(0)
                 .availableCopies(0)
                 .build();
+
+        if (request.publisherId() != null) {
+            publisherRepository.findById(request.publisherId()).ifPresent(book::setPublisher);
+        }
+        if (request.authorIds() != null && !request.authorIds().isEmpty()) {
+            book.setAuthors(new HashSet<>(authorRepository.findAllById(request.authorIds())));
+        }
+        if (request.genreIds() != null && !request.genreIds().isEmpty()) {
+            book.setGenres(new HashSet<>(genreRepository.findAllById(request.genreIds())));
+        }
 
         book = repository.save(book);
         return mapToAdminResponse(book);
@@ -81,10 +100,26 @@ public class BookService {
         book.setCover(request.cover());
         book.setEdition(request.edition());
         book.setFormat(request.format());
+        book.setPageCount(request.pageCount());
+        book.setLanguage(request.language());
         book.setWork(request.work());
         book.setDescription(request.description());
         
         if (request.status() != null) book.setStatus(request.status());
+
+        if (request.publisherId() != null) {
+            book.setPublisher(publisherRepository.findById(request.publisherId()).orElse(null));
+        } else {
+            book.setPublisher(null);
+        }
+
+        if (request.authorIds() != null) {
+            book.setAuthors(new HashSet<>(authorRepository.findAllById(request.authorIds())));
+        }
+
+        if (request.genreIds() != null) {
+            book.setGenres(new HashSet<>(genreRepository.findAllById(request.genreIds())));
+        }
 
         book = repository.save(book);
         return mapToAdminResponse(book);
@@ -155,6 +190,8 @@ public class BookService {
                 .cover(book.getCover())
                 .edition(book.getEdition())
                 .format(book.getFormat() != null ? book.getFormat().name() : null)
+                .pageCount(book.getPageCount())
+                .language(book.getLanguage())
                 .description(book.getDescription())
                 .totalCopies(book.getTotalCopies())
                 .availableCopies(book.getAvailableCopies())
@@ -175,6 +212,8 @@ public class BookService {
                 .cover(book.getCover())
                 .edition(book.getEdition())
                 .format(book.getFormat() != null ? book.getFormat().name() : null)
+                .pageCount(book.getPageCount())
+                .language(book.getLanguage())
                 .description(book.getDescription())
                 .totalCopies(book.getTotalCopies())
                 .availableCopies(book.getAvailableCopies())

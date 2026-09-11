@@ -7,5 +7,7 @@ public record BookCopyUpdateRequest(
         @NotBlank(message = "Barcode cannot be empty")
         String barcode,
         
-        BookCopy.Status status
+        BookCopy.Status status,
+
+        String location
 ) {}

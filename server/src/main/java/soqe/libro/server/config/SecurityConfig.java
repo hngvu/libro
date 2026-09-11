@@ -45,7 +45,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/books/**", "/genres/**", "/authors/**", "/publishers/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/books/**", "/book-copies/**", "/genres/**", "/authors/**", "/publishers/**").permitAll()
                         .requestMatchers("/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .anyRequest().authenticated()
         );

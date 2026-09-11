@@ -31,7 +31,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-[#1e2320]/75 backdrop-blur-xs transition-opacity animate-in fade-in"
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in"
         onClick={() => onOpenChange(false)}
       />
       {/* Dialog container */}
@@ -54,14 +54,14 @@ export function DialogContent({
   return (
     <div
       className={cn(
-        "relative w-full max-w-lg rounded-xl border border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#faf9f4] dark:bg-[#252c28] p-6 shadow-2xl transition-all duration-200 animate-in zoom-in-95 text-[#1e2320] dark:text-[#f5f3e6]",
+        "relative w-full max-w-lg rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#1f232b] p-6 shadow-2xl transition-all duration-200 animate-in zoom-in-95 text-gray-900 dark:text-gray-100",
         className
       )}
     >
       {onClose && (
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-sm p-1 text-[#6f7f64] hover:text-[#1e2320] dark:hover:text-[#f5f3e6] transition-colors focus:outline-none cursor-pointer"
+          className="absolute right-4 top-4 rounded-sm p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors focus:outline-none cursor-pointer"
         >
           <IconX size={18} />
           <span className="sr-only">Close</span>
@@ -94,7 +94,7 @@ export function DialogTitle({
   return (
     <h2
       className={cn(
-        "text-lg font-semibold leading-none tracking-tight text-[#1e2320] dark:text-[#f5f3e6]",
+        "text-lg font-semibold leading-none tracking-tight text-gray-900 dark:text-gray-100",
         className
       )}
       {...props}
@@ -108,7 +108,7 @@ export function DialogDescription({
 }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
     <p
-      className={cn("text-sm text-[#6f7f64] dark:text-[#c8d0b7] mt-1", className)}
+      className={cn("text-sm text-gray-500 dark:text-gray-400 mt-1", className)}
       {...props}
     />
   )

@@ -32,6 +32,8 @@ export interface BookPublicResponse {
   cover: string | null
   edition: string | null
   format: BookFormat | null
+  pageCount: number | null
+  language: string | null
   description: string | null
   totalCopies: number
   availableCopies: number
@@ -50,6 +52,8 @@ export interface BookResponse {
   cover: string | null
   edition: string | null
   format: BookFormat | null
+  pageCount: number | null
+  language: string | null
   description: string | null
   totalCopies: number
   availableCopies: number
@@ -62,14 +66,17 @@ export interface BookResponse {
 export interface BookCopyPublicResponse {
   barcode: string
   status: BookCopyStatus
+  location?: string | null
 }
 
 export interface BookCopyResponse {
   id: number
   barcode: string
   status: BookCopyStatus
+  location?: string | null
   bookId: number
-  bookTitle: string
+  bookTitle?: string
+  lastLoanDate?: string | null
 }
 
 export interface LoanPublicResponse {
@@ -160,6 +167,22 @@ export interface PublisherResponse {
 }
 
 // Request types
+export interface AuthorCreateRequest {
+  name: string
+  biography?: string
+}
+
+export interface PublisherCreateRequest {
+  name: string
+  address?: string
+  website?: string
+}
+
+export interface GenreCreateRequest {
+  name: string
+  description?: string
+}
+
 export interface BookCreateRequest {
   title: string
   handle: string
@@ -169,8 +192,13 @@ export interface BookCreateRequest {
   cover?: string
   edition?: string
   format: BookFormat
+  pageCount?: number
+  language?: string
   work?: string
   description?: string
+  publisherId?: number | null
+  authorIds?: number[]
+  genreIds?: number[]
 }
 
 export interface BookUpdateRequest {
@@ -181,18 +209,25 @@ export interface BookUpdateRequest {
   cover?: string
   edition?: string
   format: BookFormat
+  pageCount?: number
+  language?: string
   work?: string
   description?: string
   status?: BookStatus
+  publisherId?: number | null
+  authorIds?: number[]
+  genreIds?: number[]
 }
 
 export interface BookCopyCreateRequest {
   barcode: string
   bookId: number
+  location?: string
 }
 
 export interface BookCopyUpdateRequest {
   status: BookCopyStatus
+  location?: string
 }
 
 export interface LoanCreateRequest {

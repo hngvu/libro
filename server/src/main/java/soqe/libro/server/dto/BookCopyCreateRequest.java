@@ -8,5 +8,7 @@ public record BookCopyCreateRequest(
         String barcode,
         
         @NotNull(message = "Book ID is required")
-        Long bookId
+        Long bookId,
+
+        String location
 ) {}

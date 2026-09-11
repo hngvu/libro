@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import soqe.libro.server.entity.Book;
+import java.util.Set;
 
 public record BookCreateRequest(
         @NotBlank(message = "Title cannot be empty")
@@ -24,7 +25,13 @@ public record BookCreateRequest(
         String cover,
         String edition,
         Book.Format format,
+        Integer pageCount,
+        String language,
         String work,
-        String description
+        String description,
+        Long publisherId,
+        Set<Long> authorIds,
+        Set<Long> genreIds
 ) {
 }
+

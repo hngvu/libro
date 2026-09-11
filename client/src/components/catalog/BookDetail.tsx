@@ -92,10 +92,11 @@ export function BookDetail({
   }
 
   const hash = (book.isbn || book.handle).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  const estimatedPages = 320 + (hash % 280)
+  const pages = book.pageCount || (320 + (hash % 280))
   const bookFormat = book.format === 'EBOOK' ? 'E-Book' : book.format === 'HARDCOVER' ? 'Hardcover' : 'Paperback'
   const pubYear = book.publicationYear || 2024
   const publisherName = book.publisher?.name || 'Independent Archive'
+  const bookLanguage = book.language || 'English'
 
   const authorsList = book.authors && book.authors.length > 0 ? book.authors : []
   const genresList = book.genres && book.genres.length > 0 ? book.genres : []
@@ -282,7 +283,7 @@ export function BookDetail({
 
           {/* Metadata: Pages, format, first published */}
           <div className="text-[14px] text-[#333333] mb-4 leading-relaxed font-sans">
-            <p className="text-[#181818]">{estimatedPages} pages, {bookFormat}</p>
+            <p className="text-[#181818]">{pages} pages, {bookFormat}</p>
             <p className="text-[#595959]">First published {pubYear ? pubYear : '2007'}{publisherName ? ` by ${publisherName}` : ''}</p>
           </div>
 
@@ -305,7 +306,7 @@ export function BookDetail({
                 <div className="space-y-2.5 text-[14px]">
                   <div className="flex items-baseline">
                     <span className="w-32 sm:w-36 shrink-0 text-[#767676] dark:text-[#999999]">Format</span>
-                    <span className="text-[#181818] dark:text-[#f5f3e6]">{estimatedPages} pages, {book.edition || bookFormat}</span>
+                    <span className="text-[#181818] dark:text-[#f5f3e6]">{pages} pages, {book.edition || bookFormat}</span>
                   </div>
                   <div className="flex items-baseline">
                     <span className="w-32 sm:w-36 shrink-0 text-[#767676] dark:text-[#999999]">Published</span>
@@ -319,7 +320,7 @@ export function BookDetail({
                   </div>
                   <div className="flex items-baseline">
                     <span className="w-32 sm:w-36 shrink-0 text-[#767676] dark:text-[#999999]">Language</span>
-                    <span className="text-[#181818] dark:text-[#f5f3e6]">English</span>
+                    <span className="text-[#181818] dark:text-[#f5f3e6]">{bookLanguage}</span>
                   </div>
                 </div>
 
@@ -336,6 +337,11 @@ export function BookDetail({
                           className="px-2.5 py-1 rounded bg-[#faf9f4] dark:bg-[#252c28] border border-[#d8d4c7] dark:border-[#3d4b3e] font-mono text-xs flex items-center gap-1.5 shadow-2xs text-[#181818] dark:text-[#f5f3e6]"
                         >
                           <span>{c.barcode}</span>
+                          {c.location && (
+                            <span className="text-[10.5px] font-sans text-[#767676] dark:text-[#a0a0a0]">
+                              · {c.location}
+                            </span>
+                          )}
                           <span
                             className={`w-2 h-2 rounded-full ${c.status === 'AVAILABLE' ? 'bg-emerald-500' : 'bg-amber-500'}`}
                             title={c.status}

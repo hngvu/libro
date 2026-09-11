@@ -14,15 +14,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/auth': 'http://localhost:8080',
-      '/books': 'http://localhost:8080',
-      '/book-copies': 'http://localhost:8080',
-      '/genres': 'http://localhost:8080',
-      '/authors': 'http://localhost:8080',
-      '/publishers': 'http://localhost:8080',
-      '/loans': 'http://localhost:8080',
-      '/users': 'http://localhost:8080',
-      '/admin': 'http://localhost:8080',
+      '/api': 'http://localhost:8080',
     },
   },
 })

@@ -14,6 +14,8 @@ public record BookResponse(
         String cover,
         String edition,
         String format,
+        Integer pageCount,
+        String language,
         String description,
         Integer totalCopies,
         Integer availableCopies,

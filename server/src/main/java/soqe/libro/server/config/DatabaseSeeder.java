@@ -137,8 +137,10 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .publicationYear(2008)
                 .edition("1st Edition")
                 .format(Book.Format.PAPERBACK)
+                .pageCount(464)
+                .language("English")
                 .description("Even bad code can function. But if code isn't clean, it can bring a development organization to its knees.")
-                .cover("https://images-na.ssl-images-amazon.com/images/I/41xShlnTZTL._SX376_BO1,204,203,200_.jpg")
+                .cover("https://images-na.ssl-images-amazon.com/images/I/41xShlnTZTL.jpg")
                 .totalCopies(3)
                 .availableCopies(3)
                 .publisher(oreilly)
@@ -155,8 +157,10 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .publicationYear(1997)
                 .edition("First US Edition")
                 .format(Book.Format.HARDCOVER)
+                .pageCount(223)
+                .language("English")
                 .description("The first novel in the Harry Potter series and Rowling's debut novel.")
-                .cover("https://images-na.ssl-images-amazon.com/images/I/51UoqRAxwEL._SX331_BO1,204,203,200_.jpg")
+                .cover("https://images-na.ssl-images-amazon.com/images/I/51UoqRAxwEL.jpg")
                 .totalCopies(2)
                 .availableCopies(2)
                 .publisher(penguin)
@@ -168,12 +172,12 @@ public class DatabaseSeeder implements CommandLineRunner {
         bookRepository.saveAll(List.of(cleanCode, harryPotter));
 
         // 6. Book Copies
-        BookCopy cc1 = BookCopy.builder().barcode("BC-CC-001").status(BookCopy.Status.AVAILABLE).book(cleanCode).build();
-        BookCopy cc2 = BookCopy.builder().barcode("BC-CC-002").status(BookCopy.Status.AVAILABLE).book(cleanCode).build();
-        BookCopy cc3 = BookCopy.builder().barcode("BC-CC-003").status(BookCopy.Status.AVAILABLE).book(cleanCode).build();
+        BookCopy cc1 = BookCopy.builder().barcode("BC-CC-001").status(BookCopy.Status.AVAILABLE).location("Shelf A-1").book(cleanCode).build();
+        BookCopy cc2 = BookCopy.builder().barcode("BC-CC-002").status(BookCopy.Status.AVAILABLE).location("Shelf A-1").book(cleanCode).build();
+        BookCopy cc3 = BookCopy.builder().barcode("BC-CC-003").status(BookCopy.Status.AVAILABLE).location("Shelf A-2").book(cleanCode).build();
 
-        BookCopy hp1 = BookCopy.builder().barcode("BC-HP-001").status(BookCopy.Status.AVAILABLE).book(harryPotter).build();
-        BookCopy hp2 = BookCopy.builder().barcode("BC-HP-002").status(BookCopy.Status.AVAILABLE).book(harryPotter).build();
+        BookCopy hp1 = BookCopy.builder().barcode("BC-HP-001").status(BookCopy.Status.AVAILABLE).location("Shelf B-1").book(harryPotter).build();
+        BookCopy hp2 = BookCopy.builder().barcode("BC-HP-002").status(BookCopy.Status.AVAILABLE).location("Shelf B-2").book(harryPotter).build();
 
         bookCopyRepository.saveAll(List.of(cc1, cc2, cc3, hp1, hp2));
 

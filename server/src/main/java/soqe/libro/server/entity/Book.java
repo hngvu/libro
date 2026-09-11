@@ -36,6 +36,12 @@ public class Book extends BaseEntity {
     @Column(length = 30)
     private Format format;
 
+    @Column(name = "page_count")
+    private Integer pageCount;
+
+    @Column(length = 50)
+    private String language;
+
     @Column(columnDefinition = "CHAR(8)")
     private String work; // first book edition handle for grouping
 

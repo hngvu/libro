@@ -19,6 +19,9 @@ public class BookCopy extends BaseEntity {
     @Column(nullable = false)
     private Status status;
 
+    @Column(length = 100)
+    private String location;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;

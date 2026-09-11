@@ -3,5 +3,6 @@ import lombok.Builder;
 @Builder
 public record BookCopyPublicResponse(
         String barcode,
-        String status
+        String status,
+        String location
 ) {}

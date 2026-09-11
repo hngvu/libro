@@ -13,7 +13,22 @@ import { Navbar } from '@/components/layout/Navbar'
 import { BookCatalog } from '@/components/catalog/BookCatalog'
 import { BookDetail } from '@/components/catalog/BookDetail'
 import { MyLoansView } from '@/components/loans/MyLoansView'
-import { AdminDashboard } from '@/components/admin/AdminDashboard'
+import { AdminLayout } from '@/components/admin/AdminLayout'
+import { DashboardPage } from '@/pages/admin/DashboardPage'
+import { BookCatalogPage } from '@/pages/admin/BookCatalogPage'
+import { BookDetailPage } from '@/pages/admin/BookDetailPage'
+import { BookItemCopiesPage } from '@/pages/admin/BookItemCopiesPage'
+import { BookCopiesPage } from '@/pages/admin/BookCopiesPage'
+import { BookTaxonomyPage } from '@/pages/admin/BookTaxonomyPage'
+import { CirculationDeskPage } from '@/pages/admin/CirculationDeskPage'
+import { OverduePage } from '@/pages/admin/OverduePage'
+import { ReservationsPage } from '@/pages/admin/ReservationsPage'
+import { MemberListPage } from '@/pages/admin/MemberListPage'
+import { FinesPage } from '@/pages/admin/FinesPage'
+import { ReportsPage } from '@/pages/admin/ReportsPage'
+import { StaffSettingsPage } from '@/pages/admin/StaffSettingsPage'
+import { ActivityLogPage } from '@/pages/admin/ActivityLogPage'
+import { SettingsPage } from '@/pages/admin/SettingsPage'
 import { AuthModal } from '@/components/auth/AuthModal'
 import { UserProfileModal } from '@/components/profile/UserProfileModal'
 import type { BookPublicResponse } from '@/types/api'
@@ -67,7 +82,7 @@ function AppContent() {
       ? 'book-detail'
       : location.pathname === '/loans'
       ? 'loans'
-      : location.pathname === '/admin'
+      : location.pathname.startsWith('/admin')
       ? 'admin'
       : 'catalog'
 
@@ -106,7 +121,13 @@ function AppContent() {
   const isAdminView = currentView === 'admin'
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fafafa] dark:bg-[#1e2320] text-[#1e2320] dark:text-[#f5f3e6] transition-colors">
+    <div
+      className={`min-h-screen flex flex-col ${
+        isAdminView
+          ? 'bg-[#16181d] text-[#cbd2de]'
+          : 'bg-[#fafafa] dark:bg-[#1e2320] text-[#1e2320] dark:text-[#f5f3e6]'
+      } transition-colors`}
+    >
       {/* Top Navigation: Shown on public reader views only */}
       {!isAdminView && (
         <Navbar
@@ -146,7 +167,26 @@ function AppContent() {
             path="/loans"
             element={<MyLoansView onOpenAuth={() => handleOpenAuth('login')} />}
           />
-          <Route path="/admin" element={<AdminDashboard />} />
+
+          {/* Admin Nested Sub-routes with AdminLayout */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="books" element={<BookCatalogPage />} />
+            <Route path="books/:id" element={<BookDetailPage />} />
+            <Route path="books/:id/copies" element={<BookItemCopiesPage />} />
+            <Route path="copies" element={<BookCopiesPage />} />
+            <Route path="taxonomy" element={<BookTaxonomyPage />} />
+            <Route path="circulation" element={<CirculationDeskPage />} />
+            <Route path="overdue" element={<OverduePage />} />
+            <Route path="reservations" element={<ReservationsPage />} />
+            <Route path="members" element={<MemberListPage />} />
+            <Route path="fines" element={<FinesPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="staff-settings" element={<StaffSettingsPage />} />
+            <Route path="activity-log" element={<ActivityLogPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
