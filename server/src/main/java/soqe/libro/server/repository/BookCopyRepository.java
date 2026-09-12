@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface BookCopyRepository extends JpaRepository<BookCopy, Long>, JpaSpecificationExecutor<BookCopy> {
     Optional<BookCopy> findByBarcode(String barcode);
+    java.util.List<BookCopy> findByBookAndStatus(soqe.libro.server.entity.Book book, BookCopy.Status status);
 }

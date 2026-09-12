@@ -18,7 +18,7 @@ export function AdminHeader() {
     if (path.startsWith('/admin/authors/')) return 'Author Details'
     if (path === '/admin/authors') return 'Authors'
     if (path.startsWith('/admin/genres/')) return 'Genre Details'
-    if (path === '/admin/genres' || path === '/admin/taxonomy') return 'Genres'
+    if (path === '/admin/genres') return 'Genres'
     if (path === '/admin/circulation') return 'Checkout & Returns'
     if (path === '/admin/overdue') return 'Overdue'
     if (path === '/admin/reservations') return 'Reservations'

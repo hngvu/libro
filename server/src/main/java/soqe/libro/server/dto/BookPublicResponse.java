@@ -5,6 +5,7 @@ import java.util.Set;
 
 @Builder
 public record BookPublicResponse(
+        Long id,
         String title,
         String handle,
         String slug,

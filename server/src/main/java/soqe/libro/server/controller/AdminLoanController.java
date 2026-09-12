@@ -22,12 +22,12 @@ public class AdminLoanController {
     @GetMapping
     public ResponseEntity<Page<LoanResponse>> searchLoans(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Loan.LoanStatus status,
-            @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) Long bookCopyId,
+            @RequestParam(required = false) java.util.List<Loan.LoanStatus> status,
+            @RequestParam(required = false) java.util.List<Long> userId,
+            @RequestParam(required = false) java.util.List<Long> bookCopyId,
             @RequestParam(required = false) Boolean isOverdue,
             Pageable pageable) {
-        return ResponseEntity.ok(loanService.searchLoansForAdmin(keyword, status, userId, bookCopyId, isOverdue, pageable));
+        return ResponseEntity.ok(loanService.searchLoansForAdminMulti(keyword, status, userId, bookCopyId, isOverdue, pageable));
     }
 
     @GetMapping("/{id}")
@@ -50,6 +50,21 @@ public class AdminLoanController {
             @PathVariable Long id,
             @Valid @RequestBody(required = false) LoanRenewRequest request) {
         return ResponseEntity.ok(loanService.renewLoanByAdmin(id, request));
+    }
+
+    @PostMapping("/{id}/report-lost")
+    public ResponseEntity<LoanResponse> reportLost(
+            @PathVariable Long id,
+            @RequestParam(required = false) java.math.BigDecimal amount) {
+        return ResponseEntity.ok(loanService.reportLostByAdmin(id, amount));
+    }
+
+    @PostMapping("/{id}/report-damaged")
+    public ResponseEntity<LoanResponse> reportDamaged(
+            @PathVariable Long id,
+            @RequestParam(required = false) java.math.BigDecimal amount,
+            @RequestParam(required = false) String note) {
+        return ResponseEntity.ok(loanService.reportDamagedByAdmin(id, amount, note));
     }
 
     @DeleteMapping("/{id}")

@@ -1,108 +1,64 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   IconCheck,
   IconCoins,
   IconClock,
+  IconRefresh,
 } from '@tabler/icons-react'
 import { useAdmin } from '@/components/admin/AdminContext'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-
-interface FineRecord {
-  id: number
-  receiptCode: string
-  patronName: string
-  patronUsername: string
-  bookTitle: string
-  daysOverdue: number
-  amount: number
-  status: 'OUTSTANDING' | 'PAID' | 'WAIVED'
-  assessedDate: string
-  paidDate?: string
-}
-
-const INITIAL_FINES: FineRecord[] = [
-  {
-    id: 1,
-    receiptCode: 'FINE-2026-001',
-    patronName: 'Tran Van Bao',
-    patronUsername: 'tranvanbao',
-    bookTitle: 'Clean Code: A Handbook of Agile Software Craftsmanship',
-    daysOverdue: 4,
-    amount: 20000,
-    status: 'OUTSTANDING',
-    assessedDate: '2026-09-08',
-  },
-  {
-    id: 2,
-    receiptCode: 'FINE-2026-002',
-    patronName: 'Le Thi Mai',
-    patronUsername: 'lethimai',
-    bookTitle: 'Domain-Driven Design: Tackling Complexity in the Heart of Software',
-    daysOverdue: 7,
-    amount: 35000,
-    status: 'OUTSTANDING',
-    assessedDate: '2026-09-05',
-  },
-  {
-    id: 3,
-    receiptCode: 'FINE-2026-003',
-    patronName: 'Hoang Minh',
-    patronUsername: 'hoangminh',
-    bookTitle: 'Refactoring: Improving the Design of Existing Code',
-    daysOverdue: 2,
-    amount: 10000,
-    status: 'PAID',
-    assessedDate: '2026-08-20',
-    paidDate: '2026-08-22',
-  },
-  {
-    id: 4,
-    receiptCode: 'FINE-2026-004',
-    patronName: 'Pham Quoc Huy',
-    patronUsername: 'phamquochuy',
-    bookTitle: 'Designing Data-Intensive Applications',
-    daysOverdue: 10,
-    amount: 50000,
-    status: 'PAID',
-    assessedDate: '2026-08-15',
-    paidDate: '2026-08-18',
-  },
-]
+import { api } from '@/services/api'
+import type { FineResponse } from '@/types/api'
 
 export function FinesPage() {
   const { t, isDark, showFeedback } = useAdmin()
   const [activeTab, setActiveTab] = useState<'outstanding' | 'history'>('outstanding')
-  const [fines, setFines] = useState<FineRecord[]>(INITIAL_FINES)
-  
+  const [fines, setFines] = useState<FineResponse[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const handleCollectFine = (id: number) => {
-    setFines((prev) =>
-      prev.map((f) =>
-        f.id === id
-          ? {
-              ...f,
-              status: 'PAID',
-              paidDate: new Date().toISOString().split('T')[0],
-            }
-          : f
-      )
-    )
-    showFeedback('success', 'Fee payment recorded and receipt generated!')
+  const fetchFines = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await api.adminGetFines({ page: 1, size: 100 })
+      setFines(res.content || [])
+    } catch (err: any) {
+      showFeedback('error', err.message || 'Failed to fetch library fines')
+    } finally {
+      setLoading(false)
+    }
+  }, [showFeedback])
+
+  useEffect(() => {
+    fetchFines()
+  }, [fetchFines])
+
+  const handleCollectFine = async (id: number) => {
+    try {
+      await api.adminCollectFineCash(id)
+      showFeedback('success', 'Fee payment recorded via Cash and receipt generated!')
+      fetchFines()
+    } catch (err: any) {
+      showFeedback('error', err.message || 'Failed to collect payment')
+    }
   }
 
-  const handleWaiveFine = (id: number) => {
-    if (!confirm('Waive this library fee penalty?')) return
-    setFines((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, status: 'WAIVED' } : f))
-    )
-    showFeedback('success', 'Fee waived under librarian discretion.')
+  const handleWaiveFine = async (id: number) => {
+    const reason = prompt('Enter reason for waiving this penalty:')
+    if (!reason || !reason.trim()) return
+    try {
+      await api.adminWaiveFine(id, reason.trim())
+      showFeedback('success', 'Fee waived under librarian discretion.')
+      fetchFines()
+    } catch (err: any) {
+      showFeedback('error', err.message || 'Failed to waive fine')
+    }
   }
 
-  const outstanding = fines.filter((f) => f.status === 'OUTSTANDING')
+  const outstanding = fines.filter((f) => f.status === 'PENDING')
   const history = fines.filter((f) => f.status === 'PAID' || f.status === 'WAIVED')
 
-  const totalOutstanding = outstanding.reduce((sum, f) => sum + f.amount, 0)
-  const totalCollected = history.filter((f) => f.status === 'PAID').reduce((sum, f) => sum + f.amount, 0)
+  const totalOutstanding = outstanding.reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
+  const totalCollected = history.filter((f) => f.status === 'PAID').reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
 
   return (
     <div className="space-y-4">
@@ -137,32 +93,42 @@ export function FinesPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)}>
-        <TabsList className={`p-1 rounded-xl border ${t.cardBg}`}>
-          <TabsTrigger
-            value="outstanding"
-            className={`text-xs px-3.5 py-1.5 rounded-lg font-medium transition-all ${
-              activeTab === 'outstanding'
-                ? isDark ? 'bg-[#28303d] text-white shadow-xs' : 'bg-gray-900 text-white shadow-xs'
-                : t.subTextColor
-            }`}
+        <div className="flex items-center justify-between">
+          <TabsList className={`p-1 rounded-xl border ${t.cardBg}`}>
+            <TabsTrigger
+              value="outstanding"
+              className={`text-xs px-3.5 py-1.5 rounded-lg font-medium transition-all ${
+                activeTab === 'outstanding'
+                  ? isDark ? 'bg-[#28303d] text-white shadow-xs' : 'bg-gray-900 text-white shadow-xs'
+                  : t.subTextColor
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                <IconCoins size={15} /> Outstanding Fines ({outstanding.length})
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="history"
+              className={`text-xs px-3.5 py-1.5 rounded-lg font-medium transition-all ${
+                activeTab === 'history'
+                  ? isDark ? 'bg-[#28303d] text-white shadow-xs' : 'bg-gray-900 text-white shadow-xs'
+                  : t.subTextColor
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                <IconClock size={15} /> Payment History ({history.length})
+              </span>
+            </TabsTrigger>
+          </TabsList>
+          <button
+            onClick={fetchFines}
+            disabled={loading}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${t.secondaryBtn} disabled:opacity-50`}
           >
-            <span className="flex items-center gap-1.5">
-              <IconCoins size={15} /> Outstanding Fines ({outstanding.length})
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="history"
-            className={`text-xs px-3.5 py-1.5 rounded-lg font-medium transition-all ${
-              activeTab === 'history'
-                ? isDark ? 'bg-[#28303d] text-white shadow-xs' : 'bg-gray-900 text-white shadow-xs'
-                : t.subTextColor
-            }`}
-          >
-            <span className="flex items-center gap-1.5">
-              <IconClock size={15} /> Payment History ({history.length})
-            </span>
-          </TabsTrigger>
-        </TabsList>
+            <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
 
         {/* TAB 1: OUTSTANDING */}
         <TabsContent value="outstanding" className="space-y-4 outline-none pt-3">
@@ -171,26 +137,35 @@ export function FinesPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className={`border-b ${t.tableHead}`}>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Receipt Code</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Patron</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Overdue Title</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Days Late</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Fine Amount</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider text-right">Actions</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Fine Code</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Patron</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Reason & Title</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Details</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Amount</th>
+                    <th className="py-3 px-4 text-xs font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-transparent">
                   {outstanding.map((f) => (
                     <tr key={f.id} className={`border-b transition-colors ${t.tableRow}`}>
-                      <td className="py-3 px-4 font-mono text-xs font-semibold">{f.receiptCode}</td>
+                      <td className="py-3 px-4 font-mono text-xs font-semibold">{f.fineCode}</td>
                       <td className="py-3 px-4 text-xs">
-                        <div className={`font-medium ${t.titleColor}`}>{f.patronName}</div>
-                        <div className={`text-[10px] font-mono ${t.mutedColor}`}>@{f.patronUsername}</div>
+                        <div className={`font-medium ${t.titleColor}`}>{f.userFullName || 'Patron'}</div>
+                        <div className={`text-[10px] font-mono ${t.mutedColor}`}>{f.userEmail}</div>
                       </td>
-                      <td className={`py-3 px-4 text-xs font-medium ${t.titleColor}`}>{f.bookTitle}</td>
-                      <td className="py-3 px-4 text-xs font-bold text-rose-400">+{f.daysOverdue} days</td>
+                      <td className="py-3 px-4 text-xs">
+                        <span className="font-semibold text-rose-400 mr-1.5 uppercase text-[11px]">[{f.reason}]</span>
+                        <span className={`font-medium ${t.titleColor}`}>{f.bookTitle || 'Library Resource'}</span>
+                      </td>
+                      <td className="py-3 px-4 text-xs font-mono">
+                        {f.daysOverdue ? (
+                          <span className="font-bold text-rose-400">+{f.daysOverdue} days late</span>
+                        ) : (
+                          <span className={t.subTextColor}>{f.waivedReason || '—'}</span>
+                        )}
+                      </td>
                       <td className="py-3 px-4 text-xs font-mono font-bold text-amber-400">
-                        {f.amount.toLocaleString('vi-VN')} VND
+                        ${Number(f.amount).toFixed(2)}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -204,7 +179,7 @@ export function FinesPage() {
                             onClick={() => handleCollectFine(f.id)}
                             className={`h-7 px-2.5 text-[11px] font-medium rounded-lg transition-colors cursor-pointer ${t.primaryBtn}`}
                           >
-                            Collect Payment
+                            Collect Cash
                           </button>
                         </div>
                       </td>
@@ -230,24 +205,36 @@ export function FinesPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className={`border-b ${t.tableHead}`}>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Receipt Code</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Patron</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Title</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Amount Paid</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Date Settled</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider text-right">Status</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Fine Code</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Patron</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Title</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Amount</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Payment Method</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Date Settled</th>
+                    <th className="py-3 px-4 text-xs font-semibold text-right">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-transparent">
                   {history.map((f) => (
                     <tr key={f.id} className={`border-b transition-colors ${t.tableRow}`}>
-                      <td className="py-3 px-4 font-mono text-xs font-semibold">{f.receiptCode}</td>
-                      <td className={`py-3 px-4 text-xs font-medium ${t.titleColor}`}>{f.patronName}</td>
-                      <td className={`py-3 px-4 text-xs ${t.subTextColor}`}>{f.bookTitle}</td>
+                      <td className="py-3 px-4 font-mono text-xs font-semibold">{f.fineCode}</td>
+                      <td className={`py-3 px-4 text-xs font-medium ${t.titleColor}`}>{f.userFullName || f.userEmail}</td>
+                      <td className={`py-3 px-4 text-xs ${t.subTextColor}`}>{f.bookTitle || 'Library Resource'}</td>
                       <td className="py-3 px-4 text-xs font-mono font-semibold text-emerald-400">
-                        {f.amount.toLocaleString('vi-VN')} VND
+                        ${Number(f.amount).toFixed(2)}
                       </td>
-                      <td className={`py-3 px-4 text-xs ${t.subTextColor}`}>{f.paidDate || f.assessedDate}</td>
+                      <td className="py-3 px-4 text-xs font-mono font-medium">
+                        {f.paymentMethod ? (
+                          <span className={`px-2 py-0.5 rounded text-[10px] ${
+                            f.paymentMethod === 'STRIPE' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          }`}>
+                            {f.paymentMethod}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td className={`py-3 px-4 text-xs ${t.subTextColor}`}>
+                        {f.paidAt ? f.paidAt.split('T')[0] : (f.waivedAt ? f.waivedAt.split('T')[0] : (f.createdAt ? f.createdAt.split('T')[0] : '—'))}
+                      </td>
                       <td className="py-3 px-4 text-right">
                         <span
                           className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${

@@ -125,11 +125,11 @@ export function ActivityLogPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className={`border-b ${t.tableHead}`}>
-                <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Timestamp</th>
-                <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Staff Operator</th>
-                <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Event Action</th>
-                <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Details</th>
-                <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider text-right">IP Address</th>
+                <th className="py-3 px-4 text-xs font-semibold">Timestamp</th>
+                <th className="py-3 px-4 text-xs font-semibold">Staff Operator</th>
+                <th className="py-3 px-4 text-xs font-semibold">Event Action</th>
+                <th className="py-3 px-4 text-xs font-semibold">Details</th>
+                <th className="py-3 px-4 text-xs font-semibold text-right">IP Address</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-transparent">

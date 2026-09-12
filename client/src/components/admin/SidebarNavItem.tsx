@@ -32,8 +32,8 @@ export function SidebarNavItem({
       end={shouldEnd}
       onClick={() => setMobileSidebarOpen(false)}
       className={({ isActive }) =>
-        `flex items-center justify-between rounded-xl text-xs transition-colors duration-150 cursor-pointer group ${
-          isSubItem ? 'px-3 py-2 ml-3.5' : 'px-3 py-2.5'
+        `flex items-center justify-between rounded-xl transition-colors duration-150 cursor-pointer group ${
+          isSubItem ? 'px-3 py-1.5 ml-3.5 text-[13px]' : 'px-3 py-2 text-[13.5px]'
         } ${
           isActive
             ? isDark
@@ -56,7 +56,7 @@ export function SidebarNavItem({
         )}
         {badge !== undefined && (
           <span
-            className={`text-[10px] font-mono px-2 py-0.5 rounded-full transition-colors ${
+            className={`text-xs font-mono px-2 py-0.5 rounded-full transition-colors ${
               isDark
                 ? 'bg-[#181a20] text-[#c7c9c8] group-hover:text-white'
                 : 'bg-gray-100 text-gray-700 border border-gray-200/60 group-hover:text-gray-950'

@@ -30,9 +30,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class LoanService {
 
-    public static final int MAX_ACTIVE_LOANS = 5;
-    public static final int MAX_RENEWALS = 2;
-    public static final int STANDARD_LOAN_DAYS = 14;
+    public static final int DEFAULT_FREE_MAX_ACTIVE_LOANS = 1;
+    public static final int DEFAULT_FREE_LOAN_DAYS = 7;
+    public static final int DEFAULT_FREE_MAX_RENEWALS = 0;
     public static final int STANDARD_RENEWAL_DAYS = 14;
 
     private static final String ALPHANUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -43,6 +43,10 @@ public class LoanService {
     private final UserRepository userRepository;
     private final BookCopyRepository bookCopyRepository;
     private final BookRepository bookRepository;
+    private final FineService fineService;
+    private final soqe.libro.server.repository.FineRepository fineRepository;
+    private final soqe.libro.server.repository.UserSubscriptionRepository userSubscriptionRepository;
+    private final ReservationService reservationService;
 
     // ==========================================
     // ADMIN METHODS
@@ -56,8 +60,26 @@ public class LoanService {
             Long bookCopyId,
             Boolean isOverdue,
             Pageable pageable) {
+        return searchLoansForAdminMulti(
+                keyword,
+                status != null ? java.util.List.of(status) : null,
+                userId != null ? java.util.List.of(userId) : null,
+                bookCopyId != null ? java.util.List.of(bookCopyId) : null,
+                isOverdue,
+                pageable
+        );
+    }
 
-        return repository.findAll(LoanSpecification.filter(keyword, status, userId, bookCopyId, isOverdue), pageable)
+    @Transactional(readOnly = true)
+    public Page<LoanResponse> searchLoansForAdminMulti(
+            String keyword,
+            java.util.List<Loan.LoanStatus> statuses,
+            java.util.List<Long> userIds,
+            java.util.List<Long> bookCopyIds,
+            Boolean isOverdue,
+            Pageable pageable) {
+
+        return repository.findAll(LoanSpecification.filterMulti(keyword, statuses, userIds, bookCopyIds, isOverdue), pageable)
                 .map(loan -> LoanResponse.builder()
                         .id(loan.getId())
                         .loanCode(loan.getLoanCode())
@@ -124,10 +146,17 @@ public class LoanService {
                     errors.put("user", "User account is " + user.getStatus() + " and cannot borrow books");
                 }
 
-                // Check active loans limit (max 5)
+                // Check active loans limit (dynamic based on membership tier)
+                int maxActiveLoans = DEFAULT_FREE_MAX_ACTIVE_LOANS;
+                var activeSubOpt = userSubscriptionRepository.findTopByUserAndStatusOrderByCurrentPeriodEndDesc(
+                        user, soqe.libro.server.entity.UserSubscription.SubscriptionStatus.ACTIVE);
+                if (activeSubOpt.isPresent() && activeSubOpt.get().getPlan() != null) {
+                    maxActiveLoans = activeSubOpt.get().getPlan().getMaxActiveLoans();
+                }
+
                 long activeLoansCount = repository.countByUserAndStatus(user, Loan.LoanStatus.ONGOING);
-                if (activeLoansCount >= MAX_ACTIVE_LOANS) {
-                    errors.put("user", "User has reached the maximum limit of " + MAX_ACTIVE_LOANS + " active borrowed books");
+                if (activeLoansCount >= maxActiveLoans) {
+                    errors.put("user", "User has reached the limit of " + maxActiveLoans + " active borrowed books under their current membership plan");
                 }
 
                 // Check overdue loans
@@ -136,34 +165,52 @@ public class LoanService {
                 if (hasOverdue) {
                     errors.put("user", "User currently has overdue books that must be returned before borrowing new books");
                 }
+
+                // Check unpaid fines
+                boolean hasUnpaidFines = fineRepository.existsByUserAndStatus(user, soqe.libro.server.entity.Fine.FineStatus.PENDING);
+                if (hasUnpaidFines) {
+                    errors.put("user", "User currently has unpaid library fines that must be settled before borrowing new books");
+                }
             }
         }
 
         BookCopy copy = null;
-        if (req.bookCopyId() != null) {
+        if (StringUtils.hasText(req.barcode())) {
+            var copyOpt = bookCopyRepository.findByBarcode(req.barcode().trim());
+            if (copyOpt.isEmpty()) {
+                errors.put("barcode", "Book copy not found with barcode: " + req.barcode().trim());
+            } else {
+                copy = copyOpt.get();
+            }
+        } else if (req.bookCopyId() != null) {
             var copyOpt = bookCopyRepository.findById(req.bookCopyId());
             if (copyOpt.isEmpty()) {
                 errors.put("bookCopyId", "Book copy not found with ID: " + req.bookCopyId());
             } else {
                 copy = copyOpt.get();
-                if (copy.getStatus() != BookCopy.Status.AVAILABLE) {
-                    errors.put("bookCopy", "Book copy is currently " + copy.getStatus() + " and not available for borrowing");
+            }
+        } else {
+            errors.put("bookCopy", "Either barcode or bookCopyId must be provided");
+        }
+
+        if (copy != null) {
+            if (copy.getStatus() != BookCopy.Status.AVAILABLE) {
+                errors.put("bookCopy", "Book copy is currently " + copy.getStatus() + " and not available for borrowing");
+            }
+
+            // Check if user is already borrowing a copy of the same book/work
+            if (user != null && copy.getBook() != null) {
+                Book book = copy.getBook();
+                boolean alreadyBorrowing = false;
+
+                if (StringUtils.hasText(book.getWork())) {
+                    alreadyBorrowing = repository.existsByUserAndBookCopy_Book_WorkAndStatus(user, book.getWork(), Loan.LoanStatus.ONGOING);
+                } else {
+                    alreadyBorrowing = repository.existsByUserAndBookCopy_BookAndStatus(user, book, Loan.LoanStatus.ONGOING);
                 }
 
-                // Check if user is already borrowing a copy of the same book/work
-                if (user != null && copy.getBook() != null) {
-                    Book book = copy.getBook();
-                    boolean alreadyBorrowing = false;
-
-                    if (StringUtils.hasText(book.getWork())) {
-                        alreadyBorrowing = repository.existsByUserAndBookCopy_Book_WorkAndStatus(user, book.getWork(), Loan.LoanStatus.ONGOING);
-                    } else {
-                        alreadyBorrowing = repository.existsByUserAndBookCopy_BookAndStatus(user, book, Loan.LoanStatus.ONGOING);
-                    }
-
-                    if (alreadyBorrowing) {
-                        errors.put("book", "User is already borrowing a copy of this book/work ('" + book.getTitle() + "'). Must return the current copy before borrowing another edition or copy");
-                    }
+                if (alreadyBorrowing) {
+                    errors.put("book", "User is already borrowing a copy of this book/work ('" + book.getTitle() + "'). Must return the current copy before borrowing another edition or copy");
                 }
             }
         }
@@ -182,7 +229,15 @@ public class LoanService {
         bookCopyRepository.save(copy);
 
         LocalDate borrowDate = LocalDate.now();
-        LocalDate dueDate = req.dueDate() != null ? req.dueDate() : borrowDate.plusDays(STANDARD_LOAN_DAYS);
+        int loanDurationDays = DEFAULT_FREE_LOAN_DAYS;
+        if (user != null) {
+            var activeSubOpt = userSubscriptionRepository.findTopByUserAndStatusOrderByCurrentPeriodEndDesc(
+                    user, soqe.libro.server.entity.UserSubscription.SubscriptionStatus.ACTIVE);
+            if (activeSubOpt.isPresent() && activeSubOpt.get().getPlan() != null) {
+                loanDurationDays = activeSubOpt.get().getPlan().getLoanDurationDays();
+            }
+        }
+        LocalDate dueDate = req.dueDate() != null ? req.dueDate() : borrowDate.plusDays(loanDurationDays);
         String loanCode = generateUniqueLoanCode();
 
         Loan loan = Loan.builder()
@@ -237,40 +292,80 @@ public class LoanService {
 
         BookCopy copy = loan.getBookCopy();
         if (copy != null) {
-            if (copy.getStatus() == BookCopy.Status.LOANED) {
-                copy.setStatus(BookCopy.Status.AVAILABLE);
-                bookCopyRepository.save(copy);
-            }
-            Book book = copy.getBook();
-            if (book != null) {
-                book.setAvailableCopies(book.getAvailableCopies() + 1);
-                bookRepository.save(book);
+            boolean assignedToReservation = reservationService.assignCopyFromReturn(copy);
+            if (!assignedToReservation) {
+                if (copy.getStatus() == BookCopy.Status.LOANED) {
+                    copy.setStatus(BookCopy.Status.AVAILABLE);
+                    bookCopyRepository.save(copy);
+                }
+                Book book = copy.getBook();
+                if (book != null) {
+                    book.setAvailableCopies(book.getAvailableCopies() + 1);
+                    bookRepository.save(book);
+                }
             }
         }
 
         loan = repository.save(loan);
 
-        return LoanResponse.builder()
-                .id(loan.getId())
-                .loanCode(loan.getLoanCode())
-                .userId(loan.getUser() != null ? loan.getUser().getId() : null)
-                .userEmail(loan.getUser() != null ? loan.getUser().getEmail() : null)
-                .userFullName(loan.getUser() != null ? loan.getUser().getFullName() : null)
-                .bookCopyId(loan.getBookCopy() != null ? loan.getBookCopy().getId() : null)
-                .barcode(loan.getBookCopy() != null ? loan.getBookCopy().getBarcode() : null)
-                .bookId(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getId() : null)
-                .bookTitle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getTitle() : null)
-                .bookHandle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getHandle() : null)
-                .borrowDate(loan.getBorrowDate())
-                .dueDate(loan.getDueDate())
-                .returnDate(loan.getReturnDate())
-                .status(loan.getStatus().name())
-                .renewalCount(loan.getRenewalCount())
-                .createdAt(loan.getCreatedAt())
-                .updatedAt(loan.getUpdatedAt())
-                .createdBy(loan.getCreatedBy())
-                .updatedBy(loan.getUpdatedBy())
-                .build();
+        // Assess overdue fine if returned after due date
+        fineService.assessOverdueFineIfAny(loan, loan.getReturnDate());
+
+        return toAdminResponse(loan);
+    }
+
+    @Transactional
+    public LoanResponse reportLostByAdmin(Long id, java.math.BigDecimal customAmount) {
+        Loan loan = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
+
+        if (loan.getStatus() == Loan.LoanStatus.RETURNED || loan.getStatus() == Loan.LoanStatus.CANCELLED) {
+            throw new BusinessValidationException("Action failed", Map.of("loan", "Cannot report lost for a loan that is already " + loan.getStatus()));
+        }
+
+        loan.setStatus(Loan.LoanStatus.RETURNED);
+        loan.setReturnDate(LocalDate.now());
+
+        BookCopy copy = loan.getBookCopy();
+        if (copy != null) {
+            copy.setStatus(BookCopy.Status.LOST);
+            bookCopyRepository.save(copy);
+
+            Book book = copy.getBook();
+            if (book != null) {
+                book.setTotalCopies(Math.max(0, book.getTotalCopies() - 1));
+                bookRepository.save(book);
+            }
+        }
+
+        loan = repository.save(loan);
+        fineService.createLostBookFine(loan, customAmount);
+
+        return toAdminResponse(loan);
+    }
+
+    @Transactional
+    public LoanResponse reportDamagedByAdmin(Long id, java.math.BigDecimal customAmount, String note) {
+        Loan loan = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
+
+        if (loan.getStatus() == Loan.LoanStatus.RETURNED || loan.getStatus() == Loan.LoanStatus.CANCELLED) {
+            throw new BusinessValidationException("Action failed", Map.of("loan", "Cannot report damaged for a loan that is already " + loan.getStatus()));
+        }
+
+        loan.setStatus(Loan.LoanStatus.RETURNED);
+        loan.setReturnDate(LocalDate.now());
+
+        BookCopy copy = loan.getBookCopy();
+        if (copy != null) {
+            copy.setStatus(BookCopy.Status.DAMAGED);
+            bookCopyRepository.save(copy);
+        }
+
+        loan = repository.save(loan);
+        fineService.createDamagedBookFine(loan, customAmount, note);
+
+        return toAdminResponse(loan);
     }
 
     @Transactional
@@ -290,9 +385,18 @@ public class LoanService {
             throw new BusinessValidationException("Renew failed", Map.of("user", "User account is not active"));
         }
 
+        int maxRenewals = DEFAULT_FREE_MAX_RENEWALS;
+        if (loan.getUser() != null) {
+            var activeSubOpt = userSubscriptionRepository.findTopByUserAndStatusOrderByCurrentPeriodEndDesc(
+                    loan.getUser(), soqe.libro.server.entity.UserSubscription.SubscriptionStatus.ACTIVE);
+            if (activeSubOpt.isPresent() && activeSubOpt.get().getPlan() != null) {
+                maxRenewals = activeSubOpt.get().getPlan().getMaxRenewals();
+            }
+        }
+
         int currentRenewals = loan.getRenewalCount() != null ? loan.getRenewalCount() : 0;
-        if (currentRenewals >= MAX_RENEWALS) {
-            throw new BusinessValidationException("Renew failed", Map.of("renewalCount", "Loan has reached the maximum renewal limit of " + MAX_RENEWALS + " times"));
+        if (currentRenewals >= maxRenewals) {
+            throw new BusinessValidationException("Renew failed", Map.of("renewalCount", "Loan has reached the maximum renewal limit of " + maxRenewals + " times"));
         }
 
         if (req != null && req.newDueDate() != null) {
@@ -342,14 +446,17 @@ public class LoanService {
 
         BookCopy copy = loan.getBookCopy();
         if (copy != null) {
-            if (copy.getStatus() == BookCopy.Status.LOANED) {
-                copy.setStatus(BookCopy.Status.AVAILABLE);
-                bookCopyRepository.save(copy);
-            }
-            Book book = copy.getBook();
-            if (book != null) {
-                book.setAvailableCopies(book.getAvailableCopies() + 1);
-                bookRepository.save(book);
+            boolean assignedToReservation = reservationService.assignCopyFromReturn(copy);
+            if (!assignedToReservation) {
+                if (copy.getStatus() == BookCopy.Status.LOANED) {
+                    copy.setStatus(BookCopy.Status.AVAILABLE);
+                    bookCopyRepository.save(copy);
+                }
+                Book book = copy.getBook();
+                if (book != null) {
+                    book.setAvailableCopies(book.getAvailableCopies() + 1);
+                    bookRepository.save(book);
+                }
             }
         }
 
@@ -426,9 +533,16 @@ public class LoanService {
             throw new BusinessValidationException("Renew failed", Map.of("loan", "Overdue loans cannot be renewed. Please return the book to the library."));
         }
 
+        int maxRenewals = DEFAULT_FREE_MAX_RENEWALS;
+        var activeSubOpt = userSubscriptionRepository.findTopByUserAndStatusOrderByCurrentPeriodEndDesc(
+                user, soqe.libro.server.entity.UserSubscription.SubscriptionStatus.ACTIVE);
+        if (activeSubOpt.isPresent() && activeSubOpt.get().getPlan() != null) {
+            maxRenewals = activeSubOpt.get().getPlan().getMaxRenewals();
+        }
+
         int currentRenewals = loan.getRenewalCount() != null ? loan.getRenewalCount() : 0;
-        if (currentRenewals >= MAX_RENEWALS) {
-            throw new BusinessValidationException("Renew failed", Map.of("renewalCount", "You have reached the maximum renewal limit of " + MAX_RENEWALS + " times for this loan"));
+        if (currentRenewals >= maxRenewals) {
+            throw new BusinessValidationException("Renew failed", Map.of("renewalCount", "You have reached the maximum renewal limit of " + maxRenewals + " times for this loan under your current membership plan"));
         }
 
         loan.setDueDate(loan.getDueDate().plusDays(STANDARD_RENEWAL_DAYS));
@@ -460,5 +574,29 @@ public class LoanService {
             code = sb.toString();
         } while (repository.findByLoanCode(code).isPresent());
         return code;
+    }
+
+    private LoanResponse toAdminResponse(Loan loan) {
+        return LoanResponse.builder()
+                .id(loan.getId())
+                .loanCode(loan.getLoanCode())
+                .userId(loan.getUser() != null ? loan.getUser().getId() : null)
+                .userEmail(loan.getUser() != null ? loan.getUser().getEmail() : null)
+                .userFullName(loan.getUser() != null ? loan.getUser().getFullName() : null)
+                .bookCopyId(loan.getBookCopy() != null ? loan.getBookCopy().getId() : null)
+                .barcode(loan.getBookCopy() != null ? loan.getBookCopy().getBarcode() : null)
+                .bookId(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getId() : null)
+                .bookTitle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getTitle() : null)
+                .bookHandle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getHandle() : null)
+                .borrowDate(loan.getBorrowDate())
+                .dueDate(loan.getDueDate())
+                .returnDate(loan.getReturnDate())
+                .status(loan.getStatus() != null ? loan.getStatus().name() : null)
+                .renewalCount(loan.getRenewalCount())
+                .createdAt(loan.getCreatedAt())
+                .updatedAt(loan.getUpdatedAt())
+                .createdBy(loan.getCreatedBy())
+                .updatedBy(loan.getUpdatedBy())
+                .build();
     }
 }

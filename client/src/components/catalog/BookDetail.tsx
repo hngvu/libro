@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import type { BookPublicResponse, BookCopyPublicResponse } from '@/types/api'
+import type { BookPublicResponse } from '@/types/api'
 import { api } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import {
   IconBook,
-  IconBarcode,
   IconCheck,
   IconClock,
   IconChevronDown,
@@ -29,7 +28,6 @@ export function BookDetail({
   const [book, setBook] = useState<BookPublicResponse | null>(initialBook)
   const [loadingBook, setLoadingBook] = useState(!initialBook && !!handle)
 
-  const [copies, setCopies] = useState<BookCopyPublicResponse[]>([])
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
   const [bookDetailsExpanded, setBookDetailsExpanded] = useState(false)
   const [genresExpanded, setGenresExpanded] = useState(false)
@@ -37,6 +35,30 @@ export function BookDetail({
   const [shelfStatus, setShelfStatus] = useState<'want_to_read' | 'currently_reading' | 'read' | null>(null)
   const [shelfDropdownOpen, setShelfDropdownOpen] = useState(false)
   const [borrowDropdownOpen, setBorrowDropdownOpen] = useState(false)
+
+  const [reserving, setReserving] = useState(false)
+  const [reserveSuccess, setReserveSuccess] = useState<string | null>(null)
+  const [reserveError, setReserveError] = useState<string | null>(null)
+
+  const handleReserve = async () => {
+    if (!user || user.role !== 'MEMBER') {
+      onOpenAuth('login')
+      return
+    }
+    if (!book) return
+    setReserving(true)
+    setReserveSuccess(null)
+    setReserveError(null)
+    try {
+      const res = await api.placeReservation({ bookId: book.id, bookHandle: book.handle })
+      setReserveSuccess(`Book hold placed! Code: ${res.reservationCode} (Queue #${res.queuePosition || 1})`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to place reservation'
+      setReserveError(msg)
+    } finally {
+      setReserving(false)
+    }
+  }
 
   useEffect(() => {
     if (handle) {
@@ -49,15 +71,6 @@ export function BookDetail({
       setBook(initialBook)
     }
   }, [handle, initialBook])
-
-  useEffect(() => {
-    const bookHandle = book?.handle || handle
-    if (bookHandle) {
-      api.getBookCopies(bookHandle)
-        .then((res) => setCopies(res.content || []))
-        .catch(() => setCopies([]))
-    }
-  }, [book?.handle, handle])
 
   // Set document title to "book title | Libro"
   useEffect(() => {
@@ -120,55 +133,78 @@ export function BookDetail({
 
           {/* Action Buttons (Scholarly Sage Theme) */}
           <div className="w-full flex flex-col gap-2.5">
-            {/* Primary Borrow button */}
-            <div className="relative w-full">
-              <div className="flex h-[42px] rounded-md bg-[#3d4b3e] hover:bg-[#2e3a2f] text-white shadow-xs transition-colors overflow-hidden font-sans">
+            {/* Primary Borrow or Reserve button */}
+            {book.availableCopies === 0 ? (
+              <div className="w-full flex flex-col gap-1.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!user) {
-                      onOpenAuth('login')
-                      return
-                    }
-                    navigate('/loans')
-                  }}
-                  className="flex-1 px-4 text-[14px] font-semibold flex items-center justify-center cursor-pointer select-none"
+                  onClick={handleReserve}
+                  disabled={reserving}
+                  className="w-full h-[42px] rounded-md bg-amber-600 hover:bg-amber-700 text-white font-sans text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
                 >
-                  Borrow
+                  <IconClock size={16} /> {reserving ? 'Placing Hold...' : 'Reserve (Out of Stock)'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setBorrowDropdownOpen(!borrowDropdownOpen)}
-                  className="px-3 border-l border-white/20 hover:bg-black/15 flex items-center justify-center cursor-pointer transition-colors"
-                >
-                  <IconChevronDown size={14} />
-                </button>
-              </div>
-              {borrowDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setBorrowDropdownOpen(false)} />
-                  <div className="absolute left-0 right-0 mt-1 rounded-md border border-[#c8d0b7] bg-white shadow-lg py-1 z-50 text-[13px]">
-                    <button
-                      onClick={() => {
-                        setBorrowDropdownOpen(false)
-                        if (!user) {
-                          onOpenAuth('login')
-                          return
-                        }
-                        navigate('/loans')
-                      }}
-                      className="w-full text-left px-3.5 py-2 hover:bg-[#f0f4f1] text-[#3d4b3e] font-medium"
-                    >
-                      My Library Loans
-                    </button>
-                    <button onClick={() => { setBorrowDropdownOpen(false); window.open(`https://www.amazon.com/s?k=${encodeURIComponent(book.title)}`, '_blank') }}
-                      className="w-full text-left px-3.5 py-2 hover:bg-[#fafafa] text-[#666]">
-                      Search on Amazon
-                    </button>
+                {reserveSuccess && (
+                  <div className="p-2 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-1.5">
+                    <IconCheck size={14} className="shrink-0" /> {reserveSuccess}
                   </div>
-                </>
-              )}
-            </div>
+                )}
+                {reserveError && (
+                  <div className="p-2 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+                    {reserveError}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="relative w-full">
+                <div className="flex h-[42px] rounded-md bg-[#3d4b3e] hover:bg-[#2e3a2f] text-white shadow-xs transition-colors overflow-hidden font-sans">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!user || user.role !== 'MEMBER') {
+                        onOpenAuth('login')
+                        return
+                      }
+                      navigate('/loans')
+                    }}
+                    className="flex-1 px-4 text-[14px] font-semibold flex items-center justify-center cursor-pointer select-none"
+                  >
+                    Borrow
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBorrowDropdownOpen(!borrowDropdownOpen)}
+                    className="px-3 border-l border-white/20 hover:bg-black/15 flex items-center justify-center cursor-pointer transition-colors"
+                  >
+                    <IconChevronDown size={14} />
+                  </button>
+                </div>
+                {borrowDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setBorrowDropdownOpen(false)} />
+                    <div className="absolute left-0 right-0 mt-1 rounded-md border border-[#c8d0b7] bg-white shadow-lg py-1 z-50 text-[13px]">
+                      <button
+                        onClick={() => {
+                          setBorrowDropdownOpen(false)
+                          if (!user || user.role !== 'MEMBER') {
+                            onOpenAuth('login')
+                            return
+                          }
+                          navigate('/loans')
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#f0f4f1] text-[#3d4b3e] font-medium"
+                      >
+                        My Library Loans
+                      </button>
+                      <button onClick={() => { setBorrowDropdownOpen(false); window.open(`https://www.amazon.com/s?k=${encodeURIComponent(book.title)}`, '_blank') }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#fafafa] text-[#666]">
+                        Search on Amazon
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Want to Read button */}
             <div className="relative w-full">
@@ -331,34 +367,6 @@ export function BookDetail({
                     <span className="text-[#181818] dark:text-[#f5f3e6]">{bookLanguage}</span>
                   </div>
                 </div>
-
-                {/* Physical Copies / Barcodes */}
-                {copies.length > 0 && (
-                  <div className="pt-3 border-t border-[#e8e8e8] dark:border-[#38423a]">
-                    <div className="flex items-center gap-1 text-xs font-bold text-[#767676] uppercase tracking-wider mb-2">
-                      <IconBarcode size={14} /> Shelf Barcodes ({copies.length})
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {copies.map((c) => (
-                        <span
-                          key={c.barcode}
-                          className="px-2.5 py-1 rounded bg-[#faf9f4] dark:bg-[#252c28] border border-[#d8d4c7] dark:border-[#3d4b3e] font-mono text-xs flex items-center gap-1.5 shadow-2xs text-[#181818] dark:text-[#f5f3e6]"
-                        >
-                          <span>{c.barcode}</span>
-                          {c.location && (
-                            <span className="text-[10.5px] font-sans text-[#767676] dark:text-[#a0a0a0]">
-                              · {c.location}
-                            </span>
-                          )}
-                          <span
-                            className={`w-2 h-2 rounded-full ${c.status === 'AVAILABLE' ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                            title={c.status}
-                          />
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>

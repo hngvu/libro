@@ -6,6 +6,7 @@ public record AuthorResponse(
         String name,
         String handle,
         String biography,
+        String image,
         String status,
         Integer bookCount
 ) {}

@@ -17,8 +17,12 @@ public class AdminBookCopyController {
     private final BookCopyService service;
 
     @GetMapping
-    public ResponseEntity<Page<BookCopyResponse>> search(@RequestParam(required = false) String keyword, @RequestParam(required = false) BookCopy.Status status, @RequestParam(required = false) Long bookId, Pageable pageable) {
-        return ResponseEntity.ok(service.searchForAdmin(keyword, status, bookId, pageable));
+    public ResponseEntity<Page<BookCopyResponse>> search(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) java.util.List<BookCopy.Status> status,
+            @RequestParam(required = false) java.util.List<Long> bookId,
+            Pageable pageable) {
+        return ResponseEntity.ok(service.searchForAdminMulti(keyword, status, bookId, pageable));
     }
 
     @GetMapping("/{id}")

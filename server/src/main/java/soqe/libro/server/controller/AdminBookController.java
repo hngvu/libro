@@ -22,13 +22,13 @@ public class AdminBookController {
     @GetMapping
     public ResponseEntity<Page<BookResponse>> searchBooks(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Book.Format format,
-            @RequestParam(required = false) Book.Status status,
-            @RequestParam(required = false, name = "genre") String genreHandle,
-            @RequestParam(required = false) Long authorId,
-            @RequestParam(required = false) Long genreId,
+            @RequestParam(required = false) java.util.List<Book.Format> format,
+            @RequestParam(required = false) java.util.List<Book.Status> status,
+            @RequestParam(required = false, name = "genre") java.util.List<String> genreHandle,
+            @RequestParam(required = false) java.util.List<Long> authorId,
+            @RequestParam(required = false) java.util.List<Long> genreId,
             Pageable pageable) {
-        return ResponseEntity.ok(bookService.searchBooksForAdmin(keyword, format, status, genreHandle, authorId, genreId, pageable));
+        return ResponseEntity.ok(bookService.searchBooksForAdminMulti(keyword, format, status, genreHandle, authorId, genreId, pageable));
     }
 
     @GetMapping("/{id}")

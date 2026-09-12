@@ -63,11 +63,13 @@ This project strictly adheres to the following backend development standards to 
   - The user has a pickup window (e.g., 3 days) to collect the book.
   - If expired, status transitions to `EXPIRED` and the copy is automatically offered to the next user in the queue. If queue is empty, the copy reverts to `AVAILABLE`.
 
-### 2. Fine & Penalty Management (Quản lý Phạt & Bồi thường)
-- **Overdue Fines**: Automatically calculate fines based on days overdue (e.g., fixed rate per day).
-- **Fine Cap**: Fine cannot exceed 100% of the book's replacement value to avoid unbounded accumulation.
-- **Lost / Damaged Handling**: Dedicated workflow for users/librarians to report lost or damaged books, recording compensation charges and transitioning `BookCopy` to `LOST` or `DAMAGED`.
-- **Account Restriction**: Users with unpaid fines above a threshold are blocked from borrowing or renewing books.
+### 2. Fine & Penalty Management (Quản lý Phạt & Bồi thường) - [x] *Implemented*
+- **Overdue Fines**: Automatically calculated upon return based on overdue days (`daysOverdue * dailyRate`) with a fine cap.
+- **Lost / Damaged Handling**: Admin endpoints `POST /admin/loans/{id}/report-lost` and `POST /admin/loans/{id}/report-damaged` to update inventory and assess replacement fees.
+- **Borrowing Restriction**: Automatically blocks members with `PENDING` fines from borrowing new books.
+- **Payment Methods**:
+  - Offline / In-person: Admin cash collection (`POST /admin/fines/{id}/pay-cash`) and waiver (`POST /admin/fines/{id}/waive`).
+  - Online: Stripe Checkout hosted payment (`POST /fines/{codeOrId}/checkout-session`) and Webhook listener (`POST /webhooks/stripe`).
 
 ### 3. Dynamic System Settings (Cài đặt Hệ thống Động)
 - **Purpose**: Allow Admins/Librarians to configure business parameters via the Admin UI without modifying code or restarting the server.
@@ -80,3 +82,8 @@ This project strictly adheres to the following backend development standards to 
   - `RESERVATION_MAX_ACTIVE`: Maximum concurrent active reservations per user (default: 3).
   - `RESERVATION_HOLD_DAYS`: Hold shelf pickup window in days (default: 3).
 - **Performance Strategy**: Cached in memory (via Spring Cache / `ConcurrentHashMap`) with automatic cache invalidation on admin update + safe hardcoded fallback values if key is missing.
+
+### 4. Membership Subscription (Thuê bao Hội viên định kỳ)
+- **Business Model**: Monthly / Yearly subscription tiers (e.g., Free, Standard, VIP/Premium).
+- **Integration**: Powered by Stripe Billing (Subscriptions, recurring invoices, and customer portal).
+- **Tier Benefits**: Dynamic borrowing quotas, longer loan durations, renewal limits, and reservation priority linked to the active membership plan.

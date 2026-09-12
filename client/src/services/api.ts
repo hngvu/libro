@@ -3,7 +3,6 @@ import type {
   Page,
   BookPublicResponse,
   BookResponse,
-  BookCopyPublicResponse,
   BookCopyResponse,
   LoanPublicResponse,
   LoanResponse,
@@ -32,6 +31,22 @@ import type {
   LoanStatus,
   UserRole,
   UserStatus,
+  FineResponse,
+  FinePublicResponse,
+  FineStatus,
+  FineReason,
+  StripeCheckoutResponse,
+  MembershipPlanResponse,
+  UserSubscriptionResponse,
+  DashboardSummaryResponse,
+  CirculationTrendResponse,
+  TopBorrowedBookResponse,
+  CategoryDistributionResponse,
+  RevenueReportResponse,
+  OperationalAlertsResponse,
+  ReservationResponse,
+  ReservationStatus,
+  ReservationCreateRequest,
 } from '@/types/api'
 
 const TOKEN_KEY = 'libro_jwt_token'
@@ -46,6 +61,18 @@ export function setToken(token: string): void {
 
 export function removeToken(): void {
   localStorage.removeItem(TOKEN_KEY)
+}
+
+function appendMultiParam(search: URLSearchParams, key: string, val?: any) {
+  if (val === undefined || val === null || val === '') return
+  if (Array.isArray(val)) {
+    const filtered = val.filter((v) => v !== undefined && v !== null && String(v).trim() !== '')
+    if (filtered.length > 0) {
+      search.set(key, filtered.join(','))
+    }
+  } else {
+    search.set(key, String(val))
+  }
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -90,8 +117,12 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   if (!response.ok) {
     let errorMsg = 'An error occurred'
-    if (json) {
-      if (json.validationErrors && typeof json.validationErrors === 'object') {
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
+      errorMsg = 'Cannot connect to backend server. Please make sure the server is running on port 8080.'
+    } else if (json) {
+      if (typeof json === 'string' && json.trim()) {
+        errorMsg = json
+      } else if (json.validationErrors && typeof json.validationErrors === 'object') {
         const fieldErrors = Object.values(json.validationErrors).filter(Boolean).join(', ')
         errorMsg = fieldErrors || json.message || errorMsg
       } else if (json.message) {
@@ -165,17 +196,17 @@ export const api = {
   // Public Books
   async getBooks(params: {
     keyword?: string
-    format?: BookFormat
-    genre?: string
-    author?: string
+    format?: BookFormat | BookFormat[]
+    genre?: string | string[]
+    author?: string | string[]
     page?: number
     size?: number
   } = {}): Promise<Page<BookPublicResponse>> {
     const search = new URLSearchParams()
     if (params.keyword) search.set('keyword', params.keyword)
-    if (params.format) search.set('format', params.format)
-    if (params.genre) search.set('genre', params.genre)
-    if (params.author) search.set('author', params.author)
+    appendMultiParam(search, 'format', params.format)
+    appendMultiParam(search, 'genre', params.genre)
+    appendMultiParam(search, 'author', params.author)
     if (params.page !== undefined) search.set('page', String(params.page))
     if (params.size !== undefined) search.set('size', String(params.size))
 
@@ -195,22 +226,18 @@ export const api = {
     return request<GenrePublicResponse>(`/genres/${handle}`)
   },
 
-  async getBookCopies(bookHandle: string): Promise<Page<BookCopyPublicResponse>> {
-    return request<Page<BookCopyPublicResponse>>(`/book-copies/book/${bookHandle}`)
-  },
-
   async getGenres(): Promise<Page<GenrePublicResponse>> {
     return request<Page<GenrePublicResponse>>('/genres?page=1&size=50')
   },
 
   // Member Loans
   async getMyLoans(params: {
-    status?: LoanStatus
+    status?: LoanStatus | LoanStatus[]
     page?: number
     size?: number
   } = {}): Promise<Page<LoanPublicResponse>> {
     const search = new URLSearchParams()
-    if (params.status) search.set('status', params.status)
+    appendMultiParam(search, 'status', params.status)
     if (params.page !== undefined) search.set('page', String(params.page))
     if (params.size !== undefined) search.set('size', String(params.size))
 
@@ -222,24 +249,30 @@ export const api = {
     return request<LoanPublicResponse>(`/loans/${loanCode}`)
   },
 
+  async renewMyLoan(loanCode: string): Promise<LoanPublicResponse> {
+    return request<LoanPublicResponse>(`/loans/${loanCode}/renew`, {
+      method: 'POST',
+    })
+  },
+
   // Admin: Books
   async adminGetBooks(params: {
     keyword?: string
-    format?: BookFormat
-    status?: BookStatus
-    genre?: string
-    authorId?: number
-    genreId?: number
+    format?: BookFormat | BookFormat[]
+    status?: BookStatus | BookStatus[]
+    genre?: string | string[]
+    authorId?: number | number[]
+    genreId?: number | number[]
     page?: number
     size?: number
   } = {}): Promise<Page<BookResponse>> {
     const search = new URLSearchParams()
     if (params.keyword) search.set('keyword', params.keyword)
-    if (params.format) search.set('format', params.format)
-    if (params.status) search.set('status', params.status)
-    if (params.genre) search.set('genre', params.genre)
-    if (params.authorId !== undefined) search.set('authorId', String(params.authorId))
-    if (params.genreId !== undefined) search.set('genreId', String(params.genreId))
+    appendMultiParam(search, 'format', params.format)
+    appendMultiParam(search, 'status', params.status)
+    appendMultiParam(search, 'genre', params.genre)
+    appendMultiParam(search, 'authorId', params.authorId)
+    appendMultiParam(search, 'genreId', params.genreId)
     if (params.page !== undefined) search.set('page', String(params.page))
     if (params.size !== undefined) search.set('size', String(params.size))
 
@@ -274,15 +307,15 @@ export const api = {
   // Admin: Book Copies
   async adminGetBookCopies(params: {
     keyword?: string
-    status?: BookCopyStatus
-    bookId?: number
+    status?: BookCopyStatus | BookCopyStatus[]
+    bookId?: number | number[]
     page?: number
     size?: number
   } = {}): Promise<Page<BookCopyResponse>> {
     const search = new URLSearchParams()
     if (params.keyword) search.set('keyword', params.keyword)
-    if (params.status) search.set('status', params.status)
-    if (params.bookId !== undefined) search.set('bookId', String(params.bookId))
+    appendMultiParam(search, 'status', params.status)
+    appendMultiParam(search, 'bookId', params.bookId)
     if (params.page !== undefined) search.set('page', String(params.page))
     if (params.size !== undefined) search.set('size', String(params.size))
 
@@ -313,18 +346,18 @@ export const api = {
   // Admin: Loans
   async adminGetLoans(params: {
     keyword?: string
-    status?: LoanStatus
-    userId?: number
-    bookCopyId?: number
+    status?: LoanStatus | LoanStatus[]
+    userId?: number | number[]
+    bookCopyId?: number | number[]
     isOverdue?: boolean
     page?: number
     size?: number
   } = {}): Promise<Page<LoanResponse>> {
     const search = new URLSearchParams()
     if (params.keyword) search.set('keyword', params.keyword)
-    if (params.status) search.set('status', params.status)
-    if (params.userId !== undefined) search.set('userId', String(params.userId))
-    if (params.bookCopyId !== undefined) search.set('bookCopyId', String(params.bookCopyId))
+    appendMultiParam(search, 'status', params.status)
+    appendMultiParam(search, 'userId', params.userId)
+    appendMultiParam(search, 'bookCopyId', params.bookCopyId)
     if (params.isOverdue !== undefined) search.set('isOverdue', String(params.isOverdue))
     if (params.page !== undefined) search.set('page', String(params.page))
     if (params.size !== undefined) search.set('size', String(params.size))
@@ -362,15 +395,15 @@ export const api = {
   // Admin: Users
   async adminGetUsers(params: {
     keyword?: string
-    role?: UserRole
-    status?: UserStatus
+    role?: UserRole | UserRole[]
+    status?: UserStatus | UserStatus[]
     page?: number
     size?: number
   } = {}): Promise<Page<UserResponse>> {
     const search = new URLSearchParams()
     if (params.keyword) search.set('keyword', params.keyword)
-    if (params.role) search.set('role', params.role)
-    if (params.status) search.set('status', params.status)
+    appendMultiParam(search, 'role', params.role)
+    appendMultiParam(search, 'status', params.status)
     if (params.page !== undefined) search.set('page', String(params.page))
     if (params.size !== undefined) search.set('size', String(params.size))
 
@@ -503,6 +536,283 @@ export const api = {
   async adminDeleteGenre(id: number): Promise<void> {
     return request<void>(`/admin/genres/${id}`, {
       method: 'DELETE',
+    })
+  },
+
+  // Member: Fines
+  async getMyFines(params: {
+    status?: FineStatus | FineStatus[]
+    page?: number
+    size?: number
+  } = {}): Promise<Page<FinePublicResponse>> {
+    const search = new URLSearchParams()
+    appendMultiParam(search, 'status', params.status)
+    if (params.page !== undefined) search.set('page', String(params.page))
+    if (params.size !== undefined) search.set('size', String(params.size))
+
+    const q = search.toString()
+    return request<Page<FinePublicResponse>>(`/fines/my-fines${q ? `?${q}` : ''}`)
+  },
+
+  async createFineCheckoutSession(codeOrId: number | string, clientBaseUrl?: string): Promise<StripeCheckoutResponse> {
+    const search = new URLSearchParams()
+    if (clientBaseUrl) search.set('clientBaseUrl', clientBaseUrl)
+    const q = search.toString()
+    return request<StripeCheckoutResponse>(`/fines/${codeOrId}/checkout-session${q ? `?${q}` : ''}`, {
+      method: 'POST',
+    })
+  },
+
+  // Admin: Loans - Report Lost / Damaged
+  async adminReportLoanLost(id: number, amount?: number): Promise<LoanResponse> {
+    const search = new URLSearchParams()
+    if (amount !== undefined) search.set('amount', String(amount))
+    const q = search.toString()
+    return request<LoanResponse>(`/admin/loans/${id}/report-lost${q ? `?${q}` : ''}`, {
+      method: 'POST',
+    })
+  },
+
+  async adminReportLoanDamaged(id: number, amount?: number, note?: string): Promise<LoanResponse> {
+    const search = new URLSearchParams()
+    if (amount !== undefined) search.set('amount', String(amount))
+    if (note) search.set('note', note)
+    const q = search.toString()
+    return request<LoanResponse>(`/admin/loans/${id}/report-damaged${q ? `?${q}` : ''}`, {
+      method: 'POST',
+    })
+  },
+
+  // Admin: Fines
+  async adminGetFines(params: {
+    keyword?: string
+    status?: FineStatus | FineStatus[]
+    reason?: FineReason | FineReason[]
+    userId?: number | number[]
+    page?: number
+    size?: number
+  } = {}): Promise<Page<FineResponse>> {
+    const search = new URLSearchParams()
+    if (params.keyword) search.set('keyword', params.keyword)
+    appendMultiParam(search, 'status', params.status)
+    appendMultiParam(search, 'reason', params.reason)
+    appendMultiParam(search, 'userId', params.userId)
+    if (params.page !== undefined) search.set('page', String(params.page))
+    if (params.size !== undefined) search.set('size', String(params.size))
+
+    const q = search.toString()
+    return request<Page<FineResponse>>(`/admin/fines${q ? `?${q}` : ''}`)
+  },
+
+  async adminGetFine(id: number): Promise<FineResponse> {
+    return request<FineResponse>(`/admin/fines/${id}`)
+  },
+
+  async adminCollectFineCash(id: number): Promise<FineResponse> {
+    return request<FineResponse>(`/admin/fines/${id}/pay-cash`, {
+      method: 'POST',
+    })
+  },
+
+  async adminWaiveFine(id: number, reason: string): Promise<FineResponse> {
+    return request<FineResponse>(`/admin/fines/${id}/waive`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    })
+  },
+
+  // Membership & Subscriptions
+  async getMembershipPlans(): Promise<MembershipPlanResponse[]> {
+    return request<MembershipPlanResponse[]>('/membership-plans')
+  },
+
+  async getMembershipPlan(code: string): Promise<MembershipPlanResponse> {
+    return request<MembershipPlanResponse>(`/membership-plans/${code}`)
+  },
+
+  async getMySubscription(): Promise<UserSubscriptionResponse> {
+    return request<UserSubscriptionResponse>('/subscriptions/my-subscription')
+  },
+
+  async createSubscriptionCheckoutSession(planCode: string, clientBaseUrl?: string): Promise<StripeCheckoutResponse> {
+    const search = new URLSearchParams()
+    search.set('planCode', planCode)
+    if (clientBaseUrl) search.set('clientBaseUrl', clientBaseUrl)
+    return request<StripeCheckoutResponse>(`/subscriptions/checkout-session?${search.toString()}`, {
+      method: 'POST',
+    })
+  },
+
+  async createCustomerPortalSession(returnUrl?: string): Promise<StripeCheckoutResponse> {
+    const search = new URLSearchParams()
+    if (returnUrl) search.set('returnUrl', returnUrl)
+    const q = search.toString()
+    return request<StripeCheckoutResponse>(`/subscriptions/portal-session${q ? `?${q}` : ''}`, {
+      method: 'POST',
+    })
+  },
+
+  // Admin Membership & Subscriptions Management
+  async adminGetMembershipPlans(): Promise<MembershipPlanResponse[]> {
+    return request<MembershipPlanResponse[]>('/admin/membership-plans')
+  },
+
+  async adminCreateMembershipPlan(data: Partial<MembershipPlanResponse>): Promise<MembershipPlanResponse> {
+    return request<MembershipPlanResponse>('/admin/membership-plans', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
+  async adminUpdateMembershipPlan(id: number, data: Partial<MembershipPlanResponse>): Promise<MembershipPlanResponse> {
+    return request<MembershipPlanResponse>(`/admin/membership-plans/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  },
+
+  async adminDeleteMembershipPlan(id: number): Promise<void> {
+    return request<void>(`/admin/membership-plans/${id}`, {
+      method: 'DELETE',
+    })
+  },
+
+  async adminGetUserSubscriptions(): Promise<UserSubscriptionResponse[]> {
+    return request<UserSubscriptionResponse[]>('/admin/membership-plans/user-subscriptions')
+  },
+
+  async adminCancelUserSubscription(id: number): Promise<UserSubscriptionResponse> {
+    return request<UserSubscriptionResponse>(`/admin/membership-plans/user-subscriptions/${id}/cancel`, {
+      method: 'POST',
+    })
+  },
+
+  // Analytics & Dashboard
+  async adminGetDashboardSummary(): Promise<DashboardSummaryResponse> {
+    return request<DashboardSummaryResponse>('/admin/dashboard/summary')
+  },
+
+  async adminGetCirculationTrends(period: string = '30d'): Promise<CirculationTrendResponse> {
+    return request<CirculationTrendResponse>(`/admin/dashboard/circulation-trends?period=${encodeURIComponent(period)}`)
+  },
+
+  async adminGetOperationalAlerts(): Promise<OperationalAlertsResponse> {
+    return request<OperationalAlertsResponse>('/admin/dashboard/operational-alerts')
+  },
+
+  // Reports
+  async adminGetTopBorrowedBooks(limit: number = 10): Promise<TopBorrowedBookResponse[]> {
+    return request<TopBorrowedBookResponse[]>(`/admin/reports/top-books?limit=${limit}`)
+  },
+
+  async adminGetCategoryDistribution(): Promise<CategoryDistributionResponse> {
+    return request<CategoryDistributionResponse>('/admin/reports/category-distribution')
+  },
+
+  async adminGetRevenueReport(): Promise<RevenueReportResponse> {
+    return request<RevenueReportResponse>('/admin/reports/revenue')
+  },
+
+  async adminExportReport(type: string = 'top-books'): Promise<Blob> {
+    const token = getToken()
+    const headers: Record<string, string> = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const response = await fetch(`/api/admin/reports/export?type=${encodeURIComponent(type)}`, {
+      headers,
+    })
+    if (!response.ok) {
+      throw new Error(`Export failed with status: ${response.status}`)
+    }
+    return response.blob()
+  },
+
+  // Member: Reservations (Book Holds)
+  async placeReservation(data: ReservationCreateRequest): Promise<ReservationResponse> {
+    return request<ReservationResponse>('/reservations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
+  async getMyReservations(params: {
+    status?: ReservationStatus
+    page?: number
+    size?: number
+  } = {}): Promise<Page<ReservationResponse>> {
+    const search = new URLSearchParams()
+    if (params.status) search.set('status', params.status)
+    if (params.page !== undefined) search.set('page', String(params.page))
+    if (params.size !== undefined) search.set('size', String(params.size))
+
+    const q = search.toString()
+    return request<Page<ReservationResponse>>(`/reservations/my-reservations${q ? `?${q}` : ''}`)
+  },
+
+  async getMyReservationDetail(id: number): Promise<ReservationResponse> {
+    return request<ReservationResponse>(`/reservations/${id}`)
+  },
+
+  async cancelMyReservation(id: number, reason?: string): Promise<ReservationResponse> {
+    const search = new URLSearchParams()
+    if (reason) search.set('reason', reason)
+    const q = search.toString()
+    return request<ReservationResponse>(`/reservations/${id}/cancel${q ? `?${q}` : ''}`, {
+      method: 'POST',
+    })
+  },
+
+  // Admin: Reservations
+  async adminGetReservations(params: {
+    keyword?: string
+    status?: ReservationStatus | ReservationStatus[]
+    userId?: number | number[]
+    bookId?: number | number[]
+    page?: number
+    size?: number
+  } = {}): Promise<Page<ReservationResponse>> {
+    const search = new URLSearchParams()
+    if (params.keyword) search.set('keyword', params.keyword)
+    appendMultiParam(search, 'status', params.status)
+    appendMultiParam(search, 'userId', params.userId)
+    appendMultiParam(search, 'bookId', params.bookId)
+    if (params.page !== undefined) search.set('page', String(params.page))
+    if (params.size !== undefined) search.set('size', String(params.size))
+
+    const q = search.toString()
+    return request<Page<ReservationResponse>>(`/admin/reservations${q ? `?${q}` : ''}`)
+  },
+
+  async adminGetReservation(id: number): Promise<ReservationResponse> {
+    return request<ReservationResponse>(`/admin/reservations/${id}`)
+  },
+
+  async adminMarkReservationReady(id: number, bookCopyId?: number): Promise<ReservationResponse> {
+    const search = new URLSearchParams()
+    if (bookCopyId !== undefined) search.set('bookCopyId', String(bookCopyId))
+    const q = search.toString()
+    return request<ReservationResponse>(`/admin/reservations/${id}/ready${q ? `?${q}` : ''}`, {
+      method: 'POST',
+    })
+  },
+
+  async adminFulfillReservation(id: number): Promise<ReservationResponse> {
+    return request<ReservationResponse>(`/admin/reservations/${id}/fulfill`, {
+      method: 'POST',
+    })
+  },
+
+  async adminCancelReservation(id: number, reason?: string): Promise<ReservationResponse> {
+    const search = new URLSearchParams()
+    if (reason) search.set('reason', reason)
+    const q = search.toString()
+    return request<ReservationResponse>(`/admin/reservations/${id}/cancel${q ? `?${q}` : ''}`, {
+      method: 'POST',
+    })
+  },
+
+  async adminProcessExpiredReservations(): Promise<{ message: string; expiredCount: number }> {
+    return request<{ message: string; expiredCount: number }>('/admin/reservations/process-expired', {
+      method: 'POST',
     })
   },
 }

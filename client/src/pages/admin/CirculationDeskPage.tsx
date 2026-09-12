@@ -3,12 +3,12 @@ import { useOutletContext } from 'react-router-dom'
 import {
   IconArrowLeftRight,
   IconArrowBackUp,
-  
   IconSearch,
   IconRefresh,
-  
+  IconBook2,
 } from '@tabler/icons-react'
 import { useAdmin } from '@/components/admin/AdminContext'
+import { AdminCombobox } from '@/components/admin/AdminCombobox'
 import type { AdminLayoutOutletContext } from '@/components/admin/AdminLayout'
 import { api } from '@/services/api'
 import type { LoanResponse, UserResponse, BookCopyResponse } from '@/types/api'
@@ -34,9 +34,9 @@ export function CirculationDeskPage() {
   const [, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
 
-  // Checkout form
+  // Checkout form state
   const [selectedUserId, setSelectedUserId] = useState<number>(0)
-  const [selectedCopyId, setSelectedCopyId] = useState<number>(0)
+  const [scannedCopy, setScannedCopy] = useState<BookCopyResponse | null>(null)
   const [dueDate, setDueDate] = useState(
     new Date(Date.now() + circulationSettings.defaultLoanDays * 24 * 60 * 60 * 1000)
       .toISOString()
@@ -60,19 +60,12 @@ export function CirculationDeskPage() {
       setLoans(loansRes.content || [])
       setUsers(usersRes.content || [])
       setCopies(copiesRes.content || [])
-      if (usersRes.content && usersRes.content.length > 0 && selectedUserId === 0 && usersRes.content[0].id) {
-        setSelectedUserId(usersRes.content[0].id)
-      }
-      const availCopies = (copiesRes.content || []).filter((c) => c.status === 'AVAILABLE')
-      if (availCopies.length > 0 && selectedCopyId === 0) {
-        setSelectedCopyId(availCopies[0].id)
-      }
     } catch (err: any) {
       showFeedback('error', err.message || 'Failed to load circulation data')
     } finally {
       setLoading(false)
     }
-  }, [keyword])
+  }, [keyword, showFeedback])
 
   useEffect(() => {
     fetchCirculationData()
@@ -80,18 +73,29 @@ export function CirculationDeskPage() {
 
   const handleIssueCheckout = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedUserId || !selectedCopyId) {
-      showFeedback('error', 'Please select a patron and an available book copy')
+    if (!selectedUserId) {
+      showFeedback('error', 'Please select a patron borrower')
       return
     }
+    if (!scannedCopy) {
+      showFeedback('error', 'Please select a book copy')
+      return
+    }
+    if (scannedCopy.status !== 'AVAILABLE') {
+      showFeedback('error', `This book copy is currently not available (${scannedCopy.status})`)
+      return
+    }
+
     setCheckoutLoading(true)
     try {
       await api.adminCreateLoan({
         userId: Number(selectedUserId),
-        bookCopyId: Number(selectedCopyId),
+        bookCopyId: Number(scannedCopy.id),
         dueDate,
       })
-      showFeedback('success', 'Circulation loan ticket issued successfully!')
+      showFeedback('success', `Loan ticket issued successfully for copy ${scannedCopy.barcode}!`)
+      setSelectedUserId(0)
+      setScannedCopy(null)
       fetchCirculationData()
       refreshCounts()
     } catch (err: any) {
@@ -131,7 +135,6 @@ export function CirculationDeskPage() {
 
   const activeLoans = loans.filter((l) => l.status === 'BORROWED' || l.status === 'OVERDUE')
   const returnedLoans = loans.filter((l) => l.status === 'RETURNED')
-  const availableCopies = copies.filter((c) => c.status === 'AVAILABLE')
 
   return (
     <div className="space-y-4">
@@ -165,63 +168,125 @@ export function CirculationDeskPage() {
 
         {/* TAB 1: CHECKOUT */}
         <TabsContent value="checkout" className="space-y-4 outline-none pt-3">
-          <div className={`p-5 rounded-2xl border ${t.cardBg}`}>
-            <h3 className={`text-sm font-bold font-sans mb-1 ${t.titleColor}`}>New Borrowing Transaction</h3>
+          <div className={`p-5 rounded-xl border ${t.cardBg}`}>
+            <h3 className={`text-sm font-bold font-sans mb-1 ${t.titleColor}`}>
+              New Borrowing Transaction
+            </h3>
             <p className={`text-xs mb-4 ${t.subTextColor}`}>
-              Check out a physical book copy to a patron with an assigned return deadline.
+              Issue physical book copies to library patrons.
             </p>
 
-            <form onSubmit={handleIssueCheckout} className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-end">
+            <form onSubmit={handleIssueCheckout} className="space-y-4 max-w-2xl">
+              {/* 1. Borrower Patron */}
               <div>
-                <label className={`text-xs font-medium block mb-1 ${t.subTextColor}`}>Borrower Patron *</label>
-                <select
-                  required
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(Number(e.target.value))}
-                  className={`w-full h-9 px-3 rounded-xl text-xs border outline-none cursor-pointer ${t.inputBg}`}
-                >
-                  <option value="">-- Select Patron --</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.fullName} (@{u.username})
-                    </option>
-                  ))}
-                </select>
+                <AdminCombobox
+                  label="Borrower Patron *"
+                  options={users.map((u) => ({
+                    id: u.id || 0,
+                    label: u.fullName,
+                    sublabel: `${u.email} • @${u.username}${u.phone ? ` • ${u.phone}` : ''}`,
+                    keywords: [u.email, u.username, u.fullName, u.phone || ''],
+                  }))}
+                  selectedIds={selectedUserId ? [selectedUserId] : []}
+                  multiple={false}
+                  onChange={(ids) => setSelectedUserId(ids[0] || 0)}
+                />
               </div>
 
+              {/* 2. Book Copy Selection (by ISBN, Title or Barcode) */}
               <div>
-                <label className={`text-xs font-medium block mb-1 ${t.subTextColor}`}>Available Copy *</label>
-                <select
-                  required
-                  value={selectedCopyId}
-                  onChange={(e) => setSelectedCopyId(Number(e.target.value))}
-                  className={`w-full h-9 px-3 rounded-xl text-xs border outline-none cursor-pointer ${t.inputBg}`}
-                >
-                  <option value="">-- Select Copy ({availableCopies.length} on shelf) --</option>
-                  {availableCopies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.barcode} — {c.bookTitle || `Book ID #${c.bookId}`}
-                    </option>
-                  ))}
-                </select>
+                <AdminCombobox
+                  label="Available Book Copy *"
+                  options={copies.filter((c) => c.status === 'AVAILABLE').map((c) => ({
+                    id: c.id,
+                    label: c.bookTitle || `Book ID #${c.bookId}`,
+                    sublabel: `Barcode: ${c.barcode} • Location: ${c.location || 'Unassigned'}`,
+                    keywords: [c.barcode, c.bookTitle || '', c.location || ''],
+                  }))}
+                  selectedIds={scannedCopy ? [scannedCopy.id] : []}
+                  multiple={false}
+                  onChange={(ids) => {
+                    const found = copies.find((c) => c.id === ids[0]) || null
+                    setScannedCopy(found)
+                  }}
+                />
+
+                {/* Scanned Book Preview Card */}
+                {scannedCopy && (
+                  <div
+                    className={`mt-2.5 p-3.5 rounded-lg border flex items-start gap-3.5 transition-all ${
+                      scannedCopy.status === 'AVAILABLE'
+                        ? isDark
+                          ? 'bg-emerald-950/20 border-emerald-500/30'
+                          : 'bg-emerald-50/70 border-emerald-200'
+                        : isDark
+                        ? 'bg-rose-950/20 border-rose-500/30'
+                        : 'bg-rose-50/70 border-rose-200'
+                    }`}
+                  >
+                    <div
+                      className={`w-10 h-14 rounded-[2px] border overflow-hidden shrink-0 flex items-center justify-center ${
+                        isDark ? 'border-[#333a48] bg-[#16181d]' : 'border-gray-300 bg-gray-100'
+                      }`}
+                    >
+                      <IconBook2 size={24} className={t.mutedColor} />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className={`text-xs sm:text-sm font-semibold truncate ${t.titleColor}`}>
+                          {scannedCopy.bookTitle || `Book ID #${scannedCopy.bookId}`}
+                        </h4>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-md font-semibold shrink-0 ${
+                            scannedCopy.status === 'AVAILABLE' ? t.statusActive : t.statusOverdue
+                          }`}
+                        >
+                          {scannedCopy.status}
+                        </span>
+                      </div>
+
+                      <div className={`mt-1 text-xs space-y-0.5 ${t.subTextColor}`}>
+                        <p className="flex items-center gap-2">
+                          <span>
+                            Barcode: <span className="font-mono font-medium text-gray-900 dark:text-gray-200">{scannedCopy.barcode}</span>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            Location: <span className="font-medium text-gray-900 dark:text-gray-200">{scannedCopy.location || 'Unassigned'}</span>
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className={`text-xs font-medium block mb-1 ${t.subTextColor}`}>Due Return Date *</label>
-                <div className="flex items-center gap-2">
+              {/* 3. Due Return Date & Action Button */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end pt-1">
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>
+                    Due Date *
+                  </label>
                   <input
                     type="date"
                     required
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
-                    className={`flex-1 h-9 px-3 rounded-xl text-xs border outline-none ${t.inputBg}`}
+                    className={`w-full h-9 px-3 rounded-md text-xs border outline-none ${t.inputBg}`}
                   />
+                  <span className={`text-[11px] block mt-1 ${t.mutedColor}`}>
+                    Default: {circulationSettings.defaultLoanDays} days
+                  </span>
+                </div>
+
+                <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={checkoutLoading}
-                    className={`h-9 px-4 text-xs font-medium rounded-xl transition-all cursor-pointer shrink-0 disabled:opacity-50 ${t.primaryBtn}`}
+                    disabled={checkoutLoading || !selectedUserId || !scannedCopy || scannedCopy.status !== 'AVAILABLE'}
+                    className={`h-9 px-5 text-xs font-semibold rounded-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${t.primaryBtn}`}
                   >
-                    {checkoutLoading ? 'Issuing...' : 'Issue Ticket'}
+                    {checkoutLoading ? 'Processing...' : 'Issue Loan'}
                   </button>
                 </div>
               </div>
@@ -396,17 +461,17 @@ export function CirculationDeskPage() {
               />
             </div>
 
-            <div className={`flex justify-end gap-2 pt-3 border-t ${isDark ? 'border-[#2c323e]' : 'border-gray-200'}`}>
+            <div className="flex items-center justify-between pt-2">
               <button
                 type="button"
                 onClick={() => setRenewModalOpen(false)}
-                className={`px-4 py-2 text-xs font-medium rounded-xl transition-colors cursor-pointer ${t.secondaryBtn}`}
+                className={`h-9 px-4 text-xs font-medium rounded-lg transition-colors cursor-pointer ${t.secondaryBtn}`}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className={`px-4 py-2 text-xs font-medium rounded-xl transition-colors cursor-pointer ${t.primaryBtn}`}
+                className={`h-9 px-5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${t.primaryBtn}`}
               >
                 Confirm Extension
               </button>

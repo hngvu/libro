@@ -7,8 +7,9 @@ public record LoanCreateRequest(
         @NotNull(message = "User ID cannot be null")
         Long userId,
 
-        @NotNull(message = "Book copy ID cannot be null")
         Long bookCopyId,
+
+        String barcode,
 
         LocalDate dueDate
 ) {}

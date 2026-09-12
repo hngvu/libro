@@ -29,6 +29,8 @@ import { CirculationDeskPage } from '@/pages/admin/CirculationDeskPage'
 import { OverduePage } from '@/pages/admin/OverduePage'
 import { ReservationsPage } from '@/pages/admin/ReservationsPage'
 import { MemberListPage } from '@/pages/admin/MemberListPage'
+import { MembershipPlansPage } from '@/pages/admin/MembershipPlansPage'
+import { UserSubscriptionsPage } from '@/pages/admin/UserSubscriptionsPage'
 import { FinesPage } from '@/pages/admin/FinesPage'
 import { ReportsPage } from '@/pages/admin/ReportsPage'
 import { StaffSettingsPage } from '@/pages/admin/StaffSettingsPage'
@@ -186,11 +188,15 @@ function AppContent() {
             <Route path="authors/:id" element={<AdminAuthorDetailPage />} />
             <Route path="genres" element={<AdminGenresPage />} />
             <Route path="genres/:id" element={<AdminGenreDetailPage />} />
-            <Route path="taxonomy" element={<Navigate to="/admin/genres" replace />} />
             <Route path="circulation" element={<CirculationDeskPage />} />
             <Route path="overdue" element={<OverduePage />} />
             <Route path="reservations" element={<ReservationsPage />} />
             <Route path="members" element={<MemberListPage />} />
+            <Route path="subscriptions" element={<Navigate to="plans" replace />} />
+            <Route path="subscriptions/plans" element={<MembershipPlansPage />} />
+            <Route path="subscriptions/history" element={<UserSubscriptionsPage />} />
+            <Route path="membership-plans" element={<MembershipPlansPage />} />
+            <Route path="user-subscriptions" element={<UserSubscriptionsPage />} />
             <Route path="fines" element={<FinesPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="staff-settings" element={<StaffSettingsPage />} />
@@ -219,10 +225,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
         <AppContent />
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }

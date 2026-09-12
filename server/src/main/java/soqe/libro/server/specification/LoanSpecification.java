@@ -21,6 +21,21 @@ public class LoanSpecification {
             Long userId,
             Long bookCopyId,
             Boolean isOverdue) {
+        return filterMulti(
+                keyword,
+                status != null ? List.of(status) : null,
+                userId != null ? List.of(userId) : null,
+                bookCopyId != null ? List.of(bookCopyId) : null,
+                isOverdue
+        );
+    }
+
+    public static Specification<Loan> filterMulti(
+            String keyword,
+            List<Loan.LoanStatus> statuses,
+            List<Long> userIds,
+            List<Long> bookCopyIds,
+            Boolean isOverdue) {
 
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -40,16 +55,28 @@ public class LoanSpecification {
                 ));
             }
 
-            if (status != null) {
-                predicates.add(cb.equal(root.get("status"), status));
+            if (statuses != null && !statuses.isEmpty()) {
+                if (statuses.size() == 1) {
+                    predicates.add(cb.equal(root.get("status"), statuses.get(0)));
+                } else {
+                    predicates.add(root.get("status").in(statuses));
+                }
             }
 
-            if (userId != null) {
-                predicates.add(cb.equal(root.get("user").get("id"), userId));
+            if (userIds != null && !userIds.isEmpty()) {
+                if (userIds.size() == 1) {
+                    predicates.add(cb.equal(root.get("user").get("id"), userIds.get(0)));
+                } else {
+                    predicates.add(root.get("user").get("id").in(userIds));
+                }
             }
 
-            if (bookCopyId != null) {
-                predicates.add(cb.equal(root.get("bookCopy").get("id"), bookCopyId));
+            if (bookCopyIds != null && !bookCopyIds.isEmpty()) {
+                if (bookCopyIds.size() == 1) {
+                    predicates.add(cb.equal(root.get("bookCopy").get("id"), bookCopyIds.get(0)));
+                } else {
+                    predicates.add(root.get("bookCopy").get("id").in(bookCopyIds));
+                }
             }
 
             if (Boolean.TRUE.equals(isOverdue)) {

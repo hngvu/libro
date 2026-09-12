@@ -11,6 +11,8 @@ export interface OptionItem {
   id: number
   label: string
   sublabel?: string
+  image?: string
+  keywords?: string[]
 }
 
 interface AdminComboboxProps {
@@ -50,13 +52,22 @@ export function AdminCombobox({
   const { t, isDark } = useAdmin()
   const isCommaMode = displayMode === 'comma'
   const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const selectedOptions = options.filter((opt) => selectedIds.includes(opt.id))
   const commaText = selectedOptions.map((opt) => opt.label).join(', ')
+
+  const [query, setQuery] = useState(() => {
+    if (isCommaMode) {
+      return commaText
+    }
+    if (!multiple) {
+      return selectedOptions[0]?.label || ''
+    }
+    return ''
+  })
 
   // For single select or comma mode, sync display value when closed or on external change
   useEffect(() => {
@@ -69,7 +80,7 @@ export function AdminCombobox({
         setQuery(selectedOptions[0]?.label || '')
       }
     }
-  }, [selectedIds, open, multiple, isCommaMode, commaText])
+  }, [selectedIds, options, open, multiple, isCommaMode, commaText])
 
   // Close when clicking outside
   useEffect(() => {
@@ -94,11 +105,23 @@ export function AdminCombobox({
 
   const createTarget = (isCommaMode ? (query.split(',').pop() || '') : query).trim()
 
+  const isSelectedQuery =
+    !multiple &&
+    selectedOptions.length > 0 &&
+    query.trim().toLowerCase() === (selectedOptions[0]?.label || '').trim().toLowerCase()
+
   const filteredOptions = isCommaMode
     ? createTarget
       ? options.filter((opt) => opt.label.toLowerCase().includes(createTarget.toLowerCase()))
       : options
-    : options.filter((opt) => opt.label.toLowerCase().includes(query.trim().toLowerCase()))
+    : isSelectedQuery || !query.trim()
+    ? options
+    : options.filter(
+        (opt) =>
+          opt.label.toLowerCase().includes(query.trim().toLowerCase()) ||
+          Boolean(opt.sublabel && opt.sublabel.toLowerCase().includes(query.trim().toLowerCase())) ||
+          Boolean(opt.keywords && opt.keywords.some((k) => k.toLowerCase().includes(query.trim().toLowerCase())))
+      )
 
   const exactMatchExists = Boolean(
     createTarget &&
@@ -251,6 +274,9 @@ export function AdminCombobox({
           onClick={() => {
             setOpen(true)
             inputRef.current?.focus()
+            if (!multiple) {
+              inputRef.current?.select()
+            }
           }}
           className={`min-h-[34px] xl:min-h-[38px] w-full px-2.5 xl:px-3 py-1 xl:py-1.5 rounded-md border flex items-center justify-between gap-1.5 cursor-text text-xs xl:text-sm transition ${
             open
@@ -291,7 +317,12 @@ export function AdminCombobox({
               type="text"
               value={query}
               onChange={handleInputChange}
-              onFocus={() => setOpen(true)}
+              onFocus={() => {
+                setOpen(true)
+                if (!multiple) {
+                  inputRef.current?.select()
+                }
+              }}
               onKeyDown={handleKeyDown}
               placeholder={
                 multiple && !isChipsBelow && !isCommaMode && selectedOptions.length > 0
@@ -321,7 +352,10 @@ export function AdminCombobox({
                 onClick={(e) => {
                   e.stopPropagation()
                   setOpen(!open)
-                  if (!open) inputRef.current?.focus()
+                  if (!open) {
+                    inputRef.current?.focus()
+                    if (!multiple) inputRef.current?.select()
+                  }
                 }}
                 className={`p-0.5 transition-transform cursor-pointer ${t.mutedColor} ${
                   open ? 'rotate-180' : ''
@@ -336,7 +370,7 @@ export function AdminCombobox({
         {/* Popover Dropdown */}
         {open && (
           <div
-            className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md border shadow-xl max-h-60 overflow-y-auto ${
+            className={`absolute left-0 right-0 top-full mt-1 z-[100] rounded-md border shadow-2xl max-h-48 overflow-y-auto ${
               isDark ? 'bg-[#181b22] border-[#2c323e]' : 'bg-white border-gray-300'
             }`}
           >
@@ -383,7 +417,7 @@ export function AdminCombobox({
                       type="button"
                       disabled={isSelected}
                       onClick={() => !isSelected && handleSelectOption(opt)}
-                      className={`w-full px-3 py-2 text-xs flex items-center justify-between transition text-left ${
+                      className={`w-full px-3 py-2 text-xs flex items-center gap-3 transition text-left ${
                         isSelected
                           ? 'opacity-40 cursor-not-allowed bg-transparent text-gray-400 dark:text-[#5d6575]'
                           : isDark
@@ -391,10 +425,22 @@ export function AdminCombobox({
                           : 'hover:bg-gray-100 text-gray-800 cursor-pointer'
                       }`}
                     >
-                      <div className="flex flex-col min-w-0 pr-2">
-                        <span className="truncate font-normal">{opt.label}</span>
+                      {opt.image && (
+                        <div className="w-7 h-10 rounded-[2px] overflow-hidden shrink-0 border border-gray-200 dark:border-[#333a48] bg-gray-100 dark:bg-[#16181d]">
+                          <img
+                            src={opt.image}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none'
+                            }}
+                          />
+                        </div>
+                      )}
+                      <div className="flex flex-col min-w-0 flex-1 pr-2">
+                        <span className="truncate font-medium">{opt.label}</span>
                         {opt.sublabel && (
-                          <span className={`text-[10px] ${t.mutedColor} truncate`}>{opt.sublabel}</span>
+                          <span className={`text-[11px] ${t.mutedColor} truncate mt-0.5`}>{opt.sublabel}</span>
                         )}
                       </div>
                     </button>

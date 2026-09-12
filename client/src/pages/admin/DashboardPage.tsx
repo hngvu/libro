@@ -10,58 +10,46 @@ import {
   IconPlus,
   IconArrowLeftRight,
   IconArrowBackUp,
+  IconCoins,
+  IconCrown,
+  IconAlertOctagon,
+  IconReportAnalytics,
 } from '@tabler/icons-react'
 import { useAdmin } from '@/components/admin/AdminContext'
 import { api } from '@/services/api'
-import type { LoanResponse } from '@/types/api'
+import type { DashboardSummaryResponse, OperationalAlertsResponse, LoanResponse } from '@/types/api'
 
 export function DashboardPage() {
   const navigate = useNavigate()
   const { t, isDark, showFeedback } = useAdmin()
 
-  const [counts, setCounts] = useState({
-    books: 0,
-    copies: 0,
-    overdue: 0,
-    activeLoans: 0,
-    members: 0,
-  })
+  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null)
+  const [alerts, setAlerts] = useState<OperationalAlertsResponse | null>(null)
   const [recentLoans, setRecentLoans] = useState<LoanResponse[]>([])
-  const [loadingLoans, setLoadingLoans] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const fetchDashboardData = useCallback(async () => {
-    setLoadingLoans(true)
+    setLoading(true)
     try {
-      const [booksRes, copiesRes, loansRes, usersRes] = await Promise.allSettled([
-        api.adminGetBooks({ page: 1, size: 1 }),
-        api.adminGetBookCopies({ page: 1, size: 1 }),
-        api.adminGetLoans({ page: 1, size: 50 }),
-        api.adminGetUsers({ page: 1, size: 1 }),
+      const [summaryRes, alertsRes, loansRes] = await Promise.allSettled([
+        api.adminGetDashboardSummary(),
+        api.adminGetOperationalAlerts(),
+        api.adminGetLoans({ page: 1, size: 6 }),
       ])
 
-      let overdueCount = 0
-      let borrowedCount = 0
-      let recentList: LoanResponse[] = []
-
-      if (loansRes.status === 'fulfilled') {
-        const list = loansRes.value.content || []
-        overdueCount = list.filter((l) => l.status === 'OVERDUE').length
-        borrowedCount = list.filter((l) => l.status === 'BORROWED').length
-        recentList = list.slice(0, 6)
+      if (summaryRes.status === 'fulfilled') {
+        setSummary(summaryRes.value)
       }
-
-      setCounts({
-        books: booksRes.status === 'fulfilled' ? booksRes.value.totalElements || 0 : 0,
-        copies: copiesRes.status === 'fulfilled' ? copiesRes.value.totalElements || 0 : 0,
-        overdue: overdueCount,
-        activeLoans: borrowedCount,
-        members: usersRes.status === 'fulfilled' ? usersRes.value.totalElements || 0 : 0,
-      })
-      setRecentLoans(recentList)
+      if (alertsRes.status === 'fulfilled') {
+        setAlerts(alertsRes.value)
+      }
+      if (loansRes.status === 'fulfilled') {
+        setRecentLoans(loansRes.value.content || [])
+      }
     } catch {
       // Ignore background load error
     } finally {
-      setLoadingLoans(false)
+      setLoading(false)
     }
   }, [])
 
@@ -82,8 +70,8 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Dynamic KPI Overview Cards (Reference SaaS Style) */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+      {/* 1. Dynamic KPI Overview Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3.5">
         {/* Card 1: Books */}
         <div
           onClick={() => navigate('/admin/books')}
@@ -93,17 +81,12 @@ export function DashboardPage() {
             <span className="text-xs font-medium">Catalog Titles</span>
             <IconBooks size={17} className={t.mutedColor} />
           </div>
-          <div className={`text-3xl font-sans font-bold tracking-tight ${t.titleColor}`}>
-            {counts.books}
+          <div className={`text-2xl font-sans font-bold tracking-tight ${t.titleColor}`}>
+            {summary?.totalBooks ?? 0}
           </div>
           <p className={`text-[11px] mt-1 truncate ${t.subTextColor}`}>
-            Catalog bibliography
+            Unique titles
           </p>
-          <div className="mt-2 h-5 w-full opacity-40">
-            <svg viewBox="0 0 100 25" fill="none" className="w-full h-full stroke-current text-blue-400">
-              <path d="M0 20 Q 25 5, 50 15 T 100 8" strokeWidth="2" fill="none" strokeLinecap="round" />
-            </svg>
-          </div>
         </div>
 
         {/* Card 2: Copies */}
@@ -115,19 +98,12 @@ export function DashboardPage() {
             <span className="text-xs font-medium">Physical Copies</span>
             <IconBarcode size={17} className={t.mutedColor} />
           </div>
-          <div className={`text-3xl font-sans font-bold tracking-tight ${t.titleColor}`}>
-            {counts.copies}
+          <div className={`text-2xl font-sans font-bold tracking-tight ${t.titleColor}`}>
+            {summary?.totalCopies ?? 0}
           </div>
-          <p className={`text-[11px] mt-1 truncate ${t.subTextColor}`}>
-            On shelf & in circulation
+          <p className={`text-[11px] mt-1 truncate text-emerald-600 dark:text-emerald-400`}>
+            {summary?.availableCopies ?? 0} available on shelf
           </p>
-          <div className="mt-2 h-5 w-full flex items-end gap-1.5 opacity-40">
-            <div className="w-1.5 h-2 bg-emerald-400 rounded-xs" />
-            <div className="w-1.5 h-4 bg-emerald-400 rounded-xs" />
-            <div className="w-1.5 h-3 bg-emerald-400 rounded-xs" />
-            <div className="w-1.5 h-5 bg-emerald-400 rounded-xs" />
-            <div className="w-1.5 h-3.5 bg-emerald-400 rounded-xs" />
-          </div>
         </div>
 
         {/* Card 3: Active Loans */}
@@ -139,41 +115,33 @@ export function DashboardPage() {
             <span className="text-xs font-medium">Active Loans</span>
             <IconClock size={17} className={t.mutedColor} />
           </div>
-          <div className={`text-3xl font-sans font-bold tracking-tight ${t.titleColor}`}>
-            {counts.activeLoans}
+          <div className={`text-2xl font-sans font-bold tracking-tight ${t.titleColor}`}>
+            {summary?.activeLoans ?? 0}
           </div>
           <p className={`text-[11px] mt-1 truncate ${t.subTextColor}`}>
-            Borrowed by readers
+            In circulation
           </p>
-          <div className="mt-2 h-5 w-full opacity-50">
-            <svg viewBox="0 0 100 25" fill="none" className="w-full h-full stroke-current text-blue-500">
-              <path d="M0 18 Q 30 22, 60 8 T 100 5" strokeWidth="2" fill="none" strokeLinecap="round" />
-            </svg>
-          </div>
         </div>
 
         {/* Card 4: Overdue */}
         <div
           onClick={() => navigate('/admin/overdue')}
           className={`p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${t.cardBg} ${t.cardHover} ${
-            counts.overdue > 0 ? (isDark ? 'border-rose-500/40 bg-rose-500/5 ring-1 ring-rose-500/30' : 'border-rose-300 bg-rose-50/50') : ''
+            (summary?.overdueLoans ?? 0) > 0 ? (isDark ? 'border-rose-500/40 bg-rose-500/5 ring-1 ring-rose-500/30' : 'border-rose-300 bg-rose-50/50') : ''
           }`}
         >
           <div className="flex items-center justify-between mb-1.5">
-            <span className={`text-xs font-medium ${counts.overdue > 0 ? 'text-rose-400 font-semibold' : t.subTextColor}`}>
+            <span className={`text-xs font-medium ${(summary?.overdueLoans ?? 0) > 0 ? 'text-rose-400 font-semibold' : t.subTextColor}`}>
               Overdue Returns
             </span>
-            <IconAlertTriangle size={17} className={counts.overdue > 0 ? 'text-rose-400' : t.mutedColor} />
+            <IconAlertTriangle size={17} className={(summary?.overdueLoans ?? 0) > 0 ? 'text-rose-400' : t.mutedColor} />
           </div>
-          <div className={`text-3xl font-sans font-bold tracking-tight ${counts.overdue > 0 ? 'text-rose-400' : t.titleColor}`}>
-            {counts.overdue}
+          <div className={`text-2xl font-sans font-bold tracking-tight ${(summary?.overdueLoans ?? 0) > 0 ? 'text-rose-400' : t.titleColor}`}>
+            {summary?.overdueLoans ?? 0}
           </div>
-          <p className={`text-[11px] mt-1 truncate ${counts.overdue > 0 ? 'text-rose-400 font-medium' : t.subTextColor}`}>
-            {counts.overdue > 0 ? 'Action required' : 'All loans current'}
+          <p className={`text-[11px] mt-1 truncate ${(summary?.overdueLoans ?? 0) > 0 ? 'text-rose-400 font-medium' : t.subTextColor}`}>
+            {(summary?.overdueLoans ?? 0) > 0 ? 'Action required' : 'All loans current'}
           </p>
-          <div className="mt-2 h-5 w-full opacity-40 flex items-center">
-            <div className={`h-1 w-full rounded-full ${counts.overdue > 0 ? 'bg-rose-500' : 'bg-gray-500'}`} />
-          </div>
         </div>
 
         {/* Card 5: Members */}
@@ -182,24 +150,114 @@ export function DashboardPage() {
           className={`p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${t.cardBg} ${t.cardHover}`}
         >
           <div className={`flex items-center justify-between mb-1.5 ${t.subTextColor}`}>
-            <span className="text-xs font-medium">Patrons & Staff</span>
+            <span className="text-xs font-medium">Members</span>
             <IconUsers size={17} className={t.mutedColor} />
           </div>
-          <div className={`text-3xl font-sans font-bold tracking-tight ${t.titleColor}`}>
-            {counts.members}
+          <div className={`text-2xl font-sans font-bold tracking-tight ${t.titleColor}`}>
+            {summary?.totalMembers ?? 0}
           </div>
           <p className={`text-[11px] mt-1 truncate ${t.subTextColor}`}>
-            Registered accounts
+            {summary?.activeSubscriptions ?? 0} active subscribers
           </p>
-          <div className="mt-2 h-5 w-full opacity-40">
-            <svg viewBox="0 0 100 25" fill="none" className="w-full h-full stroke-current text-purple-400">
-              <path d="M0 15 Q 35 25, 70 8 T 100 12" strokeWidth="2" fill="none" strokeLinecap="round" />
-            </svg>
+        </div>
+
+        {/* Card 6: Pending Fines */}
+        <div
+          onClick={() => navigate('/admin/fines')}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${t.cardBg} ${t.cardHover}`}
+        >
+          <div className={`flex items-center justify-between mb-1.5 ${t.subTextColor}`}>
+            <span className="text-xs font-medium">Unpaid Fines</span>
+            <IconCoins size={17} className="text-amber-500" />
           </div>
+          <div className={`text-2xl font-sans font-bold tracking-tight text-amber-600 dark:text-amber-400`}>
+            ${(summary?.pendingFinesAmount ?? 0).toFixed(2)}
+          </div>
+          <p className={`text-[11px] mt-1 truncate ${t.subTextColor}`}>
+            {summary?.pendingFinesCount ?? 0} unpaid tickets
+          </p>
+        </div>
+
+        {/* Card 7: Subscription MRR */}
+        <div
+          onClick={() => navigate('/admin/reports')}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${t.cardBg} ${t.cardHover}`}
+        >
+          <div className={`flex items-center justify-between mb-1.5 ${t.subTextColor}`}>
+            <span className="text-xs font-medium">Monthly MRR</span>
+            <IconCrown size={17} className="text-indigo-500" />
+          </div>
+          <div className={`text-2xl font-sans font-bold tracking-tight text-indigo-600 dark:text-indigo-400`}>
+            ${(summary?.estimatedMonthlyRecurringRevenue ?? 0).toFixed(2)}
+          </div>
+          <p className={`text-[11px] mt-1 truncate ${t.subTextColor}`}>
+            Stripe recurring
+          </p>
         </div>
       </div>
 
-      {/* 2. Quick Action Shortcuts */}
+      {/* 2. Operational Alerts (Severe Overdues or Low Stock) */}
+      {alerts && (alerts.totalSevereOverdues > 0 || alerts.totalOutOfStock > 0) && (
+        <div className="p-4 rounded-2xl border border-amber-300 dark:border-amber-700 bg-amber-50/70 dark:bg-amber-950/30 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <IconAlertOctagon size={18} className="text-amber-600 dark:text-amber-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                Operational Watchlist & Attention Required
+              </h3>
+            </div>
+            <span className="text-xs font-medium text-amber-800 dark:text-amber-300">
+              {alerts.totalSevereOverdues} overdue tickets • {alerts.totalOutOfStock} titles out of stock
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            {alerts.severeOverdues.length > 0 && (
+              <div className="space-y-1.5 bg-white/60 dark:bg-[#1a202c]/50 p-3 rounded-xl border border-amber-200 dark:border-amber-800">
+                <div className="font-semibold text-rose-700 dark:text-rose-400 flex items-center justify-between">
+                  <span>Critical Overdue Loans (&gt; 7 days)</span>
+                  <button onClick={() => navigate('/admin/overdue')} className="underline text-[11px] cursor-pointer">
+                    Inspect
+                  </button>
+                </div>
+                {alerts.severeOverdues.slice(0, 3).map((item) => (
+                  <div key={item.loanCode} className="flex items-center justify-between text-[11px]">
+                    <span className="truncate max-w-[220px]">
+                      <strong>{item.borrowerName}</strong>: {item.bookTitle}
+                    </span>
+                    <span className="font-mono text-rose-600 font-bold">
+                      +{item.daysOverdue}d overdue
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {alerts.outOfStockBooks.length > 0 && (
+              <div className="space-y-1.5 bg-white/60 dark:bg-[#1a202c]/50 p-3 rounded-xl border border-amber-200 dark:border-amber-800">
+                <div className="font-semibold text-amber-800 dark:text-amber-300 flex items-center justify-between">
+                  <span>Titles with Zero Available Copies</span>
+                  <button onClick={() => navigate('/admin/books')} className="underline text-[11px] cursor-pointer">
+                    View Catalog
+                  </button>
+                </div>
+                {alerts.outOfStockBooks.slice(0, 3).map((book) => (
+                  <div key={book.bookHandle} className="flex items-center justify-between text-[11px]">
+                    <span className="truncate max-w-[220px]">
+                      <span className="font-mono">{book.bookHandle}</span> • {book.title}
+                    </span>
+                    <span className="text-amber-700 dark:text-amber-400 font-medium">
+                      0 / {book.totalCopies} left
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 3. Quick Action Shortcuts */}
       <div className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 ${t.cardBg}`}>
         <div>
           <div className={`text-xs font-semibold ${t.titleColor}`}>Quick Desk Actions</div>
@@ -225,15 +283,15 @@ export function DashboardPage() {
             <IconPlus size={14} /> Add Title
           </button>
           <button
-            onClick={() => navigate('/admin/members')}
+            onClick={() => navigate('/admin/reports')}
             className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 cursor-pointer ${t.secondaryBtn}`}
           >
-            <IconUsers size={14} /> Add Patron
+            <IconReportAnalytics size={14} /> View Analytics Reports
           </button>
         </div>
       </div>
 
-      {/* 3. Recent Loans Activity Table */}
+      {/* 4. Recent Loans Activity Table */}
       <div className={`rounded-2xl border overflow-hidden shadow-xs ${t.tableWrapper}`}>
         <div className={`p-4 border-b flex items-center justify-between ${isDark ? 'border-[#2c323e]' : 'border-gray-200'}`}>
           <div>
@@ -249,19 +307,19 @@ export function DashboardPage() {
           </button>
         </div>
 
-        {loadingLoans ? (
+        {loading ? (
           <div className={`p-8 text-center text-xs ${t.subTextColor}`}>Loading recent transactions...</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className={`border-b ${t.tableHead}`}>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Loan Code</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Borrower</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Book Title</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Due Date</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Status</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider text-right">Action</th>
+                  <th className="py-3 px-4 text-xs font-semibold">Loan Code</th>
+                  <th className="py-3 px-4 text-xs font-semibold">Borrower</th>
+                  <th className="py-3 px-4 text-xs font-semibold">Book Title</th>
+                  <th className="py-3 px-4 text-xs font-semibold">Due Date</th>
+                  <th className="py-3 px-4 text-xs font-semibold">Status</th>
+                  <th className="py-3 px-4 text-xs font-semibold text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-transparent">

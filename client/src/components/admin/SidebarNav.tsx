@@ -4,8 +4,8 @@ import {
   IconBooks,
   IconBook2,
   IconStack2,
-  IconArrowsExchange,
-  IconTransferOut,
+  IconRefresh,
+  IconArrowLeftRight,
   IconClockExclamation,
   IconCalendarEvent,
   IconUsers,
@@ -16,6 +16,8 @@ import {
   IconSettings,
   IconUserCog,
   IconHistory,
+  IconCreditCard,
+  IconCrown,
 } from '@tabler/icons-react'
 import { useAuth } from '@/context/AuthContext'
 import { SidebarNavItem } from './SidebarNavItem'
@@ -39,7 +41,7 @@ export function SidebarNav() {
       {/* 2. Books Group (Catalog, Copies, Taxonomy) */}
       <SidebarNavGroup
         title="Books"
-        icon={<IconBooks size={16} />}
+        icon={<IconBooks size={17} />}
         defaultOpen={true}
       >
         <SidebarNavItem
@@ -68,16 +70,16 @@ export function SidebarNav() {
         />
       </SidebarNavGroup>
 
-      {/* 3. Borrow & Return Group (Checkout & Returns, Overdue, Reservations) */}
+      {/* 3. Circulation Group (Checkout, Overdue, Reservations) */}
       <SidebarNavGroup
-        title="Borrow & Return"
-        icon={<IconArrowsExchange size={16} />}
+        title="Circulation"
+        icon={<IconRefresh size={17} />}
         defaultOpen={true}
       >
         <SidebarNavItem
           to="/admin/circulation"
-          icon={<IconTransferOut size={15} />}
-          label="Checkout & Returns"
+          icon={<IconArrowLeftRight size={15} />}
+          label="Desk"
           isSubItem={true}
         />
         <SidebarNavItem
@@ -94,7 +96,27 @@ export function SidebarNav() {
         />
       </SidebarNavGroup>
 
-      {/* 4. Single Domain Pages (Members, Fines, Reports) */}
+      {/* 4. Subscriptions Group (Plans & Member Subscriptions) */}
+      <SidebarNavGroup
+        title="Subscriptions"
+        icon={<IconCreditCard size={17} />}
+        defaultOpen={true}
+      >
+        <SidebarNavItem
+          to="/admin/subscriptions/plans"
+          icon={<IconCrown size={15} />}
+          label="Membership Plans"
+          isSubItem={true}
+        />
+        <SidebarNavItem
+          to="/admin/subscriptions/history"
+          icon={<IconHistory size={15} />}
+          label="User Subscriptions"
+          isSubItem={true}
+        />
+      </SidebarNavGroup>
+
+      {/* 5. Single Domain Pages (Members, Fines, Reports) */}
       <div className="space-y-1 pt-1">
         <SidebarNavItem
           to="/admin/members"
@@ -118,7 +140,7 @@ export function SidebarNav() {
         <div className="pt-1">
           <SidebarNavGroup
             title="Administration"
-            icon={<IconSettings size={16} />}
+            icon={<IconSettings size={17} />}
             defaultOpen={true}
           >
             <SidebarNavItem

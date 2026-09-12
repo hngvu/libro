@@ -2,18 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { api } from '@/services/api'
 import type { BookPublicResponse, GenrePublicResponse } from '@/types/api'
-import { Badge } from '@/components/ui/badge'
 import {
   IconSearch,
   IconClock,
-  IconDashboard,
   IconUser,
   IconLogout,
   IconChevronDown,
   IconX,
   IconBook,
   IconBell,
-  IconShieldLock,
 } from '@tabler/icons-react'
 
 interface NavbarProps {
@@ -37,7 +34,8 @@ export function Navbar({
   onSelectGenre,
   searchKeyword = '',
 }: NavbarProps) {
-  const { user, logout, canAccessAdmin } = useAuth()
+  const { user, logout } = useAuth()
+  const isMemberUser = user?.role === 'MEMBER'
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const [browseDropdownOpen, setBrowseDropdownOpen] = useState(false)
   const [genres, setGenres] = useState<GenrePublicResponse[]>([])
@@ -140,7 +138,7 @@ export function Navbar({
 
           {/* Goodreads Main Nav Links */}
           <nav className="hidden lg:flex items-center gap-1 text-sm font-medium">
-            {user && (
+            {isMemberUser && (
               <button
                 onClick={() => onViewChange('loans')}
                 className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
@@ -151,20 +149,6 @@ export function Navbar({
               >
                 <IconClock size={16} />
                 My Books
-              </button>
-            )}
-
-            {canAccessAdmin && (
-              <button
-                onClick={() => onViewChange('admin')}
-                className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  currentView === 'admin'
-                    ? 'bg-[#3d4b3e] text-[#f5f3e6] font-semibold'
-                    : 'text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40'
-                }`}
-              >
-                <IconShieldLock size={16} />
-                Staff Desk
               </button>
             )}
 
@@ -207,21 +191,6 @@ export function Navbar({
                 </>
               )}
             </div>
-
-            {/* Admin Desk Link */}
-            {canAccessAdmin && (
-              <button
-                onClick={() => onViewChange('admin')}
-                className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  currentView === 'admin'
-                    ? 'bg-[#3d4b3e] text-[#f5f3e6] font-semibold'
-                    : 'text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40'
-                }`}
-              >
-                <IconDashboard size={16} />
-                Admin Desk
-              </button>
-            )}
           </nav>
         </div>
 
@@ -313,7 +282,7 @@ export function Navbar({
 
         {/* Right: User Menu & Actions */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          {user ? (
+          {isMemberUser ? (
             <div className="flex items-center gap-1 sm:gap-2">
               <button
                 type="button"
@@ -352,20 +321,6 @@ export function Navbar({
                         <p className="text-[11px] text-[#6f7f64] dark:text-[#c8d0b7] truncate">
                           {user.email}
                         </p>
-                        <div className="mt-1">
-                          <Badge
-                            variant={
-                              user.role === 'ADMIN'
-                                ? 'destructive'
-                                : user.role === 'LIBRARIAN'
-                                ? 'default'
-                                : 'secondary'
-                            }
-                            className="text-[9px] py-0 px-1.5"
-                          >
-                            {user.role}
-                          </Badge>
-                        </div>
                       </div>
 
                       <button
@@ -387,18 +342,6 @@ export function Navbar({
                       >
                         <IconClock size={15} /> My Bookshelf & Loans
                       </button>
-
-                      {canAccessAdmin && (
-                        <button
-                          onClick={() => {
-                            setUserDropdownOpen(false)
-                            onViewChange('admin')
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#3d4b3e] dark:text-[#c8d0b7] hover:bg-[#c8d0b7]/40 dark:hover:bg-[#3d4b3e]/40 rounded-lg transition-colors cursor-pointer font-medium"
-                        >
-                          <IconDashboard size={15} /> Library Administration
-                        </button>
-                      )}
 
                       <div className="my-1 border-t border-[#c8d0b7]/50 dark:border-[#3d4b3e]" />
 

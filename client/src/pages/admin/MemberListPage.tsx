@@ -1,17 +1,23 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   IconSearch,
   IconPlus,
-  IconRefresh,
-  
   IconLock,
   IconLockOpen,
-  IconEye,
-  
-  
+  IconArrowsUpDown,
+  IconUser,
+  IconFilter2,
 } from '@tabler/icons-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useAdmin } from '@/components/admin/AdminContext'
 import { useAuth } from '@/context/AuthContext'
+import { AdminFilterSelect } from '@/components/admin/AdminFilterSelect'
 import { api } from '@/services/api'
 import type { UserResponse, LoanResponse } from '@/types/api'
 import {
@@ -29,6 +35,20 @@ export function MemberListPage() {
   const [users, setUsers] = useState<UserResponse[]>([])
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
+  const [sortBy, setSortBy] = useState<'default' | 'name-asc' | 'name-desc'>('default')
+  const [activeFilterFields, setActiveFilterFields] = useState<string[]>([])
+  const [statusFilter, setStatusFilter] = useState<string>('')
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
+
+  const removeFilterField = (field: string) => {
+    setActiveFilterFields(activeFilterFields.filter((f) => f !== field))
+    if (field === 'status') setStatusFilter('')
+  }
+
+  const resetAllFilters = () => {
+    setStatusFilter('')
+    setActiveFilterFields([])
+  }
 
   // Member Detail Modal State
   const [detailModalOpen, setDetailModalOpen] = useState(false)
@@ -53,7 +73,7 @@ export function MemberListPage() {
         keyword: keyword || undefined,
         role: 'MEMBER',
         page: 1,
-        size: 50,
+        size: 100,
       })
       setUsers(res.content || [])
     } catch (err: any) {
@@ -61,11 +81,42 @@ export function MemberListPage() {
     } finally {
       setLoading(false)
     }
-  }, [keyword])
+  }, [keyword, showFeedback])
 
   useEffect(() => {
     fetchUsers()
   }, [fetchUsers])
+
+  const filteredUsers = useMemo(() => {
+    let list = [...users]
+    if (statusFilter) {
+      list = list.filter((u) => u.status === statusFilter)
+    }
+    if (sortBy === 'name-asc') {
+      return list.sort((a, b) => (a.fullName || a.username).localeCompare(b.fullName || b.username))
+    }
+    if (sortBy === 'name-desc') {
+      return list.sort((a, b) => (b.fullName || b.username).localeCompare(a.fullName || a.username))
+    }
+    return list
+  }, [users, statusFilter, sortBy])
+
+  const toggleSelectUser = (id: number) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    const validIds = filteredUsers
+      .map((u) => u.id)
+      .filter((id): id is number => typeof id === 'number')
+    if (selectedUserIds.length === validIds.length) {
+      setSelectedUserIds([])
+    } else {
+      setSelectedUserIds(validIds)
+    }
+  }
 
   const handleOpenDetail = async (user: UserResponse) => {
     setSelectedUser(user)
@@ -109,11 +160,11 @@ export function MemberListPage() {
     e.preventDefault()
     try {
       await api.adminCreateUser({
-        username: formData.username,
-        email: formData.email,
+        username: formData.username.trim(),
+        email: formData.email.trim(),
         password: formData.password || 'libro123',
-        fullName: formData.fullName,
-        phone: formData.phone || undefined,
+        fullName: formData.fullName.trim(),
+        phone: formData.phone.trim() || undefined,
         role: 'MEMBER',
       })
       showFeedback('success', 'New reader account registered successfully!')
@@ -126,136 +177,260 @@ export function MemberListPage() {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-3 ${t.cardBg}`}>
-        <div className="relative w-full sm:w-80">
-          <IconSearch size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.mutedColor}`} />
-          <input
-            placeholder="Search reader by name, username, or email..."
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && fetchUsers()}
-            className={`h-9 pl-8.5 pr-3 text-xs w-full rounded-xl border outline-none transition ${t.inputBg}`}
-          />
+      {/* Search & Actions Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="flex items-center gap-2 w-full sm:w-[60%]">
+          <div className="relative flex-1">
+            <IconSearch size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.mutedColor}`} />
+            <input
+              placeholder="Search reader by name or email..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && fetchUsers()}
+              className={`h-9 pl-9 pr-3 text-sm w-full rounded-md border outline-none transition ${t.inputBg}`}
+            />
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                  sortBy !== 'default'
+                    ? isDark
+                      ? 'bg-[#252a34] border-blue-500/50 text-blue-400'
+                      : 'bg-blue-50 border-blue-300 text-blue-600'
+                    : isDark
+                    ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
+                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                title="Sort options"
+              >
+                <IconArrowsUpDown size={15} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => setSortBy('default')}
+                className={sortBy === 'default' ? 'font-semibold text-blue-500' : ''}
+              >
+                Default
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('name-asc')}
+                className={sortBy === 'name-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Name (A-Z)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('name-desc')}
+                className={sortBy === 'name-desc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Name (Z-A)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <button
-            onClick={fetchUsers}
-            className={`h-9 px-3 text-xs font-medium rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer ${t.secondaryBtn}`}
-          >
-            <IconRefresh size={14} /> Refresh
-          </button>
+        <div className="flex items-center gap-2 shrink-0 justify-end">
           {isAdmin && (
             <button
               onClick={() => {
                 setFormData({ username: '', email: '', password: '', fullName: '', phone: '' })
                 setAddModalOpen(true)
               }}
-              className={`h-9 px-3.5 text-xs font-medium rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${t.primaryBtn}`}
+              className={`h-9 px-4 text-sm font-semibold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${t.primaryBtn}`}
             >
-              <IconPlus size={15} /> Add Reader Account
+              <IconPlus size={15} /> Add Member
             </button>
           )}
         </div>
       </div>
 
-      {/* Member List Table */}
+      {/* Filter Section Under Searchbar */}
+      <div className="flex items-center gap-2 flex-wrap pt-0.5">
+        <div
+          className={`h-9 flex items-center gap-1.5 px-3 rounded-md border text-xs sm:text-[13px] font-semibold select-none ${
+            isDark ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de]' : 'bg-gray-100 border-gray-300 text-gray-800'
+          }`}
+        >
+          <IconFilter2 size={15} className={isDark ? 'text-gray-300' : 'text-gray-600'} />
+          <span>Filter</span>
+        </div>
+
+        {/* Status Filter (if active) */}
+        {activeFilterFields.includes('status') && (
+          <AdminFilterSelect
+            label="Status"
+            value={statusFilter}
+            options={[
+              { value: 'ACTIVE', label: 'Active' },
+              { value: 'INACTIVE', label: 'Locked' },
+            ]}
+            onChange={(val) => setStatusFilter(val)}
+            onRemove={() => removeFilterField('status')}
+            allLabel="All Status"
+          />
+        )}
+
+        {/* Add Filter Plus Button (DropdownMenu) */}
+        {activeFilterFields.length < 1 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                  isDark
+                    ? 'bg-[#181a20] border-[#2c323e] text-[#8c94a5] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
+                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                title="Add filter"
+              >
+                <IconPlus size={15} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {!activeFilterFields.includes('status') && (
+                <DropdownMenuItem onClick={() => setActiveFilterFields([...activeFilterFields, 'status'])}>
+                  Status
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Reset Button */}
+        {activeFilterFields.length > 0 && (
+          <button
+            onClick={resetAllFilters}
+            className="text-xs sm:text-[13px] text-blue-600 dark:text-blue-400 hover:underline px-1 cursor-pointer font-medium"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
+      {/* Counter & Bulk Actions */}
+      <div className="flex items-center justify-between pt-0.5 text-xs font-mono">
+        <span className={t.mutedColor}>Total {filteredUsers.length} members</span>
+        {selectedUserIds.length > 0 && (
+          <span className="text-blue-500 font-semibold">
+            {selectedUserIds.length} selected
+          </span>
+        )}
+      </div>
+
+      {/* Member List Table - Frameless style matching BookCatalogPage */}
       {loading ? (
-        <div className={`p-10 text-center text-xs rounded-2xl border ${t.cardBg} ${t.subTextColor}`}>
-          Loading reader directory...
+        <div className={`p-10 text-center text-sm ${t.subTextColor}`}>
+          Loading member directory...
         </div>
       ) : (
-        <div className={`rounded-2xl border overflow-hidden shadow-xs ${t.tableWrapper}`}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className={`border-b ${t.tableHead}`}>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Username</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Patron Full Name</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Email Address</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Phone</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Card Status</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-transparent">
-                {users.map((u) => (
-                  <tr key={u.id} className={`border-b transition-colors ${t.tableRow}`}>
-                    <td className="py-3 px-4 font-mono text-xs font-semibold">@{u.username}</td>
-                    <td className="py-3 px-4 text-xs font-medium">
-                      <span
-                        onClick={() => handleOpenDetail(u)}
-                        className={`cursor-pointer hover:underline ${t.titleColor}`}
-                      >
-                        {u.fullName || u.username}
-                      </span>
-                    </td>
-                    <td className={`py-3 px-4 text-xs ${t.subTextColor}`}>{u.email}</td>
-                    <td className={`py-3 px-4 text-xs ${t.subTextColor}`}>{u.phone || '—'}</td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${
-                          u.status === 'ACTIVE'
-                            ? t.statusActive
-                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className={`h-11 border-b ${isDark ? 'border-[#22262e]' : 'border-gray-200'} ${t.tableHead}`}>
+                <th className="w-10 px-3 text-center align-middle">
+                  <Checkbox
+                    checked={
+                      filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length
+                        ? true
+                        : selectedUserIds.length > 0
+                        ? 'indeterminate'
+                        : false
+                    }
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </th>
+                <th className="py-2.5 px-4 text-xs sm:text-[13px] font-semibold">
+                  Member
+                </th>
+                <th className="py-2.5 px-4 text-xs sm:text-[13px] font-semibold">
+                  Email
+                </th>
+                <th className="py-2.5 px-4 text-xs sm:text-[13px] font-semibold">
+                  Phone
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-transparent">
+              {filteredUsers.map((u) => (
+                <tr
+                  key={u.id}
+                  onClick={() => handleOpenDetail(u)}
+                  className={`group border-b transition-colors cursor-pointer ${
+                    isDark ? 'border-[#20242c]' : 'border-gray-200'
+                  } ${t.tableRow}`}
+                >
+                  <td
+                    className="w-10 px-3 text-center align-middle"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Checkbox
+                      checked={u.id != null && selectedUserIds.includes(u.id)}
+                      onCheckedChange={() => u.id != null && toggleSelectUser(u.id)}
+                    />
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border ${
+                          isDark
+                            ? 'bg-[#252a34] text-gray-300 border-[#3e4756]'
+                            : 'bg-gray-100 text-gray-700 border-gray-300'
                         }`}
                       >
-                        {u.status === 'ACTIVE' ? 'CARD ACTIVE' : 'LOCKED'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handleOpenDetail(u)}
-                          className={`h-7 px-2.5 text-[11px] font-medium rounded-lg transition-colors flex items-center gap-1 cursor-pointer ${t.secondaryBtn}`}
-                          title="View Profile & Borrow History"
+                        {u.fullName ? u.fullName.charAt(0).toUpperCase() : <IconUser size={16} />}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`font-medium text-sm transition-colors block ${t.titleColor} ${
+                            isDark ? 'group-hover:text-white' : 'group-hover:text-[#066fd1]'
+                          }`}
                         >
-                          <IconEye size={14} /> Profile
-                        </button>
-                        {isAdmin && (
-                          <button
-                            onClick={() => handleToggleCardLock(u)}
-                            className={`h-7 w-7 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
-                              u.status === 'ACTIVE'
-                                ? 'text-gray-400 hover:text-amber-400 hover:bg-amber-500/10'
-                                : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
-                            }`}
-                            title={u.status === 'ACTIVE' ? 'Lock Library Card' : 'Unlock Card'}
-                          >
-                            {u.status === 'ACTIVE' ? <IconLock size={15} /> : <IconLockOpen size={15} />}
-                          </button>
+                          {u.fullName || u.username}
+                        </span>
+                        {u.status !== 'ACTIVE' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                            {u.status === 'BANNED' ? 'Banned' : 'Locked'}
+                          </span>
                         )}
                       </div>
-                    </td>
-                  </tr>
-                ))}
-                {users.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className={`py-8 text-center text-xs ${t.subTextColor}`}>
-                      No members matching your search.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </td>
+                  <td className={`py-3 px-4 text-xs ${t.subTextColor}`}>
+                    {u.email}
+                  </td>
+                  <td className={`py-3 px-4 text-xs font-mono ${t.subTextColor}`}>
+                    {u.phone || '—'}
+                  </td>
+                </tr>
+              ))}
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className={`py-10 text-center text-sm ${t.subTextColor}`}
+                  >
+                    No members matching your search.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
       {/* MEMBER DETAIL MODAL (Profile + Loan History + Lock Toggle) */}
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent onClose={() => setDetailModalOpen(false)} className={`sm:max-w-xl rounded-2xl shadow-2xl p-6 border ${t.modalBg}`}>
+        <DialogContent onClose={() => setDetailModalOpen(false)} className={`sm:max-w-xl rounded-xl shadow-2xl p-6 border ${t.modalBg}`}>
           <DialogHeader>
             <DialogTitle className={`font-sans font-bold text-lg flex items-center justify-between ${t.titleColor}`}>
               <span>Patron Profile & Reading History</span>
-              {selectedUser && (
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${
-                    selectedUser.status === 'ACTIVE' ? t.statusActive : 'bg-rose-500/10 text-rose-400'
-                  }`}
-                >
-                  {selectedUser.status}
+              {selectedUser && selectedUser.status !== 'ACTIVE' && (
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                  {selectedUser.status === 'BANNED' ? 'Banned' : 'Locked'}
                 </span>
               )}
             </DialogTitle>
@@ -267,9 +442,9 @@ export function MemberListPage() {
           {selectedUser && (
             <div className="space-y-4 pt-2">
               {/* Profile Card */}
-              <div className={`p-4 rounded-xl border flex items-center justify-between ${isDark ? 'bg-[#16181d] border-[#2c323e]' : 'bg-gray-50 border-gray-200'}`}>
+              <div className={`p-4 rounded-md border flex items-center justify-between ${isDark ? 'bg-[#16181d] border-[#2c323e]' : 'bg-gray-50 border-gray-200'}`}>
                 <div>
-                  <h4 className={`text-sm font-bold ${t.titleColor}`}>{selectedUser.fullName || selectedUser.username}</h4>
+                  <h4 className={`text-sm font-semibold ${t.titleColor}`}>{selectedUser.fullName || selectedUser.username}</h4>
                   <div className={`text-xs mt-0.5 ${t.subTextColor}`}>{selectedUser.email}</div>
                   <div className={`text-[11px] mt-0.5 font-mono ${t.mutedColor}`}>Phone: {selectedUser.phone || 'None'} · User ID #{selectedUser.id}</div>
                 </div>
@@ -278,7 +453,7 @@ export function MemberListPage() {
                   <button
                     type="button"
                     onClick={() => handleToggleCardLock(selectedUser)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-medium border flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium border flex items-center gap-1.5 cursor-pointer transition-colors ${
                       selectedUser.status === 'ACTIVE'
                         ? 'border-amber-500/30 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'
                         : 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
@@ -300,21 +475,21 @@ export function MemberListPage() {
               {/* Borrowing History */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h5 className={`text-xs font-bold uppercase tracking-wider ${t.titleColor}`}>Borrowing History</h5>
-                  <span className={`text-[11px] ${t.subTextColor}`}>{userLoans.length} total loans</span>
+                  <h5 className={`text-xs font-semibold uppercase tracking-wider ${t.titleColor}`}>Borrowing History</h5>
+                  <span className={`text-xs ${t.subTextColor}`}>{userLoans.length} total loans</span>
                 </div>
 
                 {loadingLoans ? (
                   <div className={`p-6 text-center text-xs ${t.subTextColor}`}>Loading history...</div>
                 ) : userLoans.length > 0 ? (
-                  <div className={`rounded-xl border overflow-hidden max-h-56 overflow-y-auto ${isDark ? 'border-[#2c323e]' : 'border-gray-200'}`}>
+                  <div className={`rounded-md border overflow-hidden max-h-56 overflow-y-auto ${isDark ? 'border-[#2c323e]' : 'border-gray-200'}`}>
                     <table className="w-full text-left text-xs">
                       <thead>
                         <tr className={`border-b ${t.tableHead}`}>
-                          <th className="py-2 px-3">Loan</th>
-                          <th className="py-2 px-3">Book Title</th>
-                          <th className="py-2 px-3">Due Date</th>
-                          <th className="py-2 px-3 text-right">Status</th>
+                          <th className="py-2.5 px-3 font-semibold">Loan</th>
+                          <th className="py-2.5 px-3 font-semibold">Book Title</th>
+                          <th className="py-2.5 px-3 font-semibold">Due Date</th>
+                          <th className="py-2.5 px-3 font-semibold text-right">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-transparent">
@@ -342,7 +517,7 @@ export function MemberListPage() {
                     </table>
                   </div>
                 ) : (
-                  <div className={`p-6 text-center text-xs rounded-xl border ${isDark ? 'border-[#2c323e] bg-[#16181d]' : 'border-gray-200 bg-gray-50'} ${t.subTextColor}`}>
+                  <div className={`p-6 text-center text-xs rounded-md border ${isDark ? 'border-[#2c323e] bg-[#16181d]' : 'border-gray-200 bg-gray-50'} ${t.subTextColor}`}>
                     No loans on record for this member.
                   </div>
                 )}
@@ -352,7 +527,7 @@ export function MemberListPage() {
                 <button
                   type="button"
                   onClick={() => setDetailModalOpen(false)}
-                  className={`px-4 py-2 text-xs font-medium rounded-xl transition-colors cursor-pointer ${t.secondaryBtn}`}
+                  className={`px-4 py-2 text-xs font-semibold rounded-md border transition-colors cursor-pointer ${t.secondaryBtn}`}
                 >
                   Close
                 </button>
@@ -364,10 +539,10 @@ export function MemberListPage() {
 
       {/* CREATE MEMBER MODAL */}
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-        <DialogContent onClose={() => setAddModalOpen(false)} className={`sm:max-w-md rounded-2xl shadow-2xl p-6 border ${t.modalBg}`}>
+        <DialogContent onClose={() => setAddModalOpen(false)} className={`sm:max-w-md rounded-xl shadow-2xl p-6 border ${t.modalBg}`}>
           <DialogHeader>
             <DialogTitle className={`font-sans font-bold text-lg ${t.titleColor}`}>
-              Register Reader Account
+              Register Member Account
             </DialogTitle>
             <DialogDescription className={`text-xs ${t.subTextColor}`}>
               Create a library patron account with card borrowing rights
@@ -375,50 +550,54 @@ export function MemberListPage() {
           </DialogHeader>
 
           <form onSubmit={handleCreateMember} className="space-y-3 pt-2">
-            <div>
-              <label className={`text-xs font-medium ${t.subTextColor}`}>Full Name *</label>
+            <div className="space-y-1">
+              <label className={`block text-xs font-medium ${t.subTextColor}`}>Full Name *</label>
               <input
                 required
                 value={formData.fullName}
                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                className={`w-full mt-1 h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+                placeholder="e.g. John Doe"
+                className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none transition ${t.inputBg}`}
               />
             </div>
-            <div>
-              <label className={`text-xs font-medium ${t.subTextColor}`}>Username *</label>
+            <div className="space-y-1">
+              <label className={`block text-xs font-medium ${t.subTextColor}`}>Username *</label>
               <input
                 required
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                className={`w-full mt-1 h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+                placeholder="e.g. johndoe"
+                className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none transition ${t.inputBg}`}
               />
             </div>
-            <div>
-              <label className={`text-xs font-medium ${t.subTextColor}`}>Email Address *</label>
+            <div className="space-y-1">
+              <label className={`block text-xs font-medium ${t.subTextColor}`}>Email Address *</label>
               <input
                 type="email"
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className={`w-full mt-1 h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+                placeholder="e.g. john@example.com"
+                className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none transition ${t.inputBg}`}
               />
             </div>
-            <div>
-              <label className={`text-xs font-medium ${t.subTextColor}`}>Initial Password</label>
+            <div className="space-y-1">
+              <label className={`block text-xs font-medium ${t.subTextColor}`}>Initial Password</label>
               <input
                 type="password"
                 placeholder="Default: libro123"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className={`w-full mt-1 h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+                className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none transition ${t.inputBg}`}
               />
             </div>
-            <div>
-              <label className={`text-xs font-medium ${t.subTextColor}`}>Phone Number</label>
+            <div className="space-y-1">
+              <label className={`block text-xs font-medium ${t.subTextColor}`}>Phone Number</label>
               <input
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className={`w-full mt-1 h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+                placeholder="e.g. +1 555-0199"
+                className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none transition ${t.inputBg}`}
               />
             </div>
 
@@ -426,13 +605,13 @@ export function MemberListPage() {
               <button
                 type="button"
                 onClick={() => setAddModalOpen(false)}
-                className={`px-4 py-2 text-xs font-medium rounded-xl transition-colors cursor-pointer ${t.secondaryBtn}`}
+                className={`px-4 py-2 text-xs font-semibold rounded-md border transition-colors cursor-pointer ${t.secondaryBtn}`}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className={`px-4 py-2 text-xs font-medium rounded-xl transition-colors cursor-pointer ${t.primaryBtn}`}
+                className={`px-4 py-2 text-xs font-semibold rounded-md transition-colors cursor-pointer ${t.primaryBtn}`}
               >
                 Create Account
               </button>

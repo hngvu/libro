@@ -1,22 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
-  IconArrowLeft,
   IconExternalLink,
-  IconTrash,
   IconBook2,
   IconCategory,
 } from '@tabler/icons-react'
 import { useAdmin } from '@/components/admin/AdminContext'
+import { AdminRichTextEditor } from '@/components/admin/AdminRichTextEditor'
+import { Switch } from '@/components/ui/switch'
 import { api } from '@/services/api'
 import type { GenreResponse, BookResponse } from '@/types/api'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
 export function AdminGenreDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -36,7 +29,7 @@ export function AdminGenreDetailPage() {
     status: 'ACTIVE',
   })
 
-  const isDirty = React.useMemo(() => {
+  const isDirty = useMemo(() => {
     if (!genre) return false
     return (
       editForm.name !== (genre.name || '') ||
@@ -84,7 +77,7 @@ export function AdminGenreDetailPage() {
         description: editForm.description.trim() || undefined,
         status: editForm.status,
       })
-      showFeedback('success', 'Genre updated successfully!')
+      showFeedback('success', 'Genre details saved successfully!')
       loadData()
     } catch (err: any) {
       showFeedback('error', err.message || 'Failed to update genre')
@@ -110,9 +103,10 @@ export function AdminGenreDetailPage() {
     }
   }
 
+
   if (loading) {
     return (
-      <div className="py-20 text-center text-xs opacity-60">
+      <div className={`p-12 text-center text-xs ${t.subTextColor}`}>
         Loading category details...
       </div>
     )
@@ -120,44 +114,50 @@ export function AdminGenreDetailPage() {
 
   if (!genre) {
     return (
-      <div className="py-16 text-center space-y-3">
-        <p className={`text-sm ${t.subTextColor}`}>Category not found.</p>
-        <Link
-          to="/admin/genres"
-          className="text-xs text-blue-500 hover:underline font-medium"
+      <div className="space-y-4 py-8 text-center">
+        <p className={`text-sm ${t.subTextColor}`}>Category not found or has been removed.</p>
+        <button
+          onClick={() => navigate('/admin/genres')}
+          className={`px-4 py-2 text-xs font-medium rounded-md border ${t.secondaryBtn}`}
         >
-          &larr; Back to Genres
-        </Link>
+          Back to Genres
+        </button>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Top Header & Breadcrumbs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
-        <div className="flex items-center gap-2">
+    <div className="space-y-6 animate-in fade-in duration-150">
+      {/* Sub-Navigation Tabs & Top Action Bar */}
+      <div
+        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-2 ${
+          isDark ? 'border-[#22262e]' : 'border-gray-200'
+        }`}
+      >
+        <div className="flex items-center gap-1">
           <Link
-            to="/admin/genres"
-            className={`h-8 px-2.5 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors ${t.secondaryBtn}`}
-          >
-            <IconArrowLeft size={14} />
-            <span>Genres</span>
-          </Link>
-          <span className="text-sm opacity-40">/</span>
-          <span className={`text-sm font-semibold ${t.titleColor}`}>
-            {genre.name}
-          </span>
-          <span
-            className={`text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider ${
-              editForm.status === 'ACTIVE' ? t.statusActive : t.statusMuted
+            to={`/admin/genres/${genre.id}`}
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
+              isDark
+                ? 'bg-[#252a34] text-white border-[#333a48]'
+                : 'bg-gray-100 text-gray-900 border-gray-300'
             }`}
           >
-            {editForm.status}
-          </span>
+            Genre Details
+          </Link>
+          <a
+            href="#books-section"
+            className={`px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              isDark
+                ? 'text-[#8c94a5] hover:text-white hover:bg-[#1f2228]'
+                : 'text-gray-600 hover:text-gray-950 hover:bg-gray-100'
+            }`}
+          >
+            Books ({books.length})
+          </a>
         </div>
 
-        {/* Action Buttons */}
+        {/* Top Action Bar (Save Changes, Public View, Delete) */}
         <div className="flex items-center gap-2">
           {isDirty && (
             <button
@@ -176,262 +176,164 @@ export function AdminGenreDetailPage() {
               target="_blank"
               rel="noreferrer"
               className={`h-8 px-2.5 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer ${t.secondaryBtn}`}
-              title="View public genre page"
+              title="Open public genre page"
             >
               <IconExternalLink size={14} />
-              <span>Public</span>
+              <span>View</span>
             </a>
           )}
 
           <button
             type="button"
             onClick={handleDeleteGenre}
-            className={`h-8 px-2.5 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer text-rose-500 hover:bg-rose-500/10 ${
-              isDark ? 'border-[#2c323e]' : 'border-gray-200'
-            }`}
+            className="h-8 px-3.5 rounded-md text-xs font-medium inline-flex items-center transition-colors cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
             title="Delete this genre"
           >
-            <IconTrash size={14} />
             <span>Delete</span>
           </button>
         </div>
       </div>
 
-      {/* Main Grid: Form Left, Stats Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Genre Form */}
-        <div
-          className={`lg:col-span-2 rounded-xl border p-5 sm:p-6 space-y-4 shadow-xs ${t.cardBg}`}
-        >
-          <div className="flex items-center gap-2 border-b pb-3 mb-4">
-            <IconCategory size={18} className={t.mutedColor} />
-            <h2 className={`font-semibold text-sm ${t.titleColor}`}>
-              Genre Information
-            </h2>
+      {/* Main Genre Overview (Direct Frameless Form matching Book Style) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-y-6 lg:gap-0 items-start">
+        {/* Left Column (8/12): Genre Info & Editable Fields (utilizing 90% width) */}
+        <div className="lg:col-span-8 space-y-4 w-full lg:max-w-[90%] min-w-0">
+          {/* Row 1: Genre Name */}
+          <div className="space-y-1 w-full">
+            <label className={`block text-xs font-medium ${t.subTextColor}`}>
+              Genre / Category Name
+            </label>
+            <input
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              placeholder="e.g. Computer Science, Science Fiction, Business"
+              className={`w-full h-9 px-3 text-xs xl:text-sm font-normal rounded-md border outline-none transition ${t.inputBg}`}
+            />
           </div>
 
-          <form onSubmit={handleSaveGenre} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>
-                  Genre Name *
-                </label>
-                <input
-                  required
-                  type="text"
-                  value={editForm.name}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, name: e.target.value })
-                  }
-                  className={`w-full h-9 px-3 rounded-md text-xs border outline-none transition ${t.inputBg}`}
-                />
-              </div>
-
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>
-                  Handle (Slug) *
-                </label>
-                <input
-                  required
-                  type="text"
-                  value={editForm.handle}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, handle: e.target.value })
-                  }
-                  className={`w-full h-9 px-3 rounded-md text-xs font-mono border outline-none transition ${t.inputBg}`}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>
-                Status
-              </label>
-              <Select
-                value={editForm.status}
-                onValueChange={(val) => setEditForm({ ...editForm, status: val })}
-              >
-                <SelectTrigger className="w-full sm:w-48 h-9 text-xs">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">ACTIVE</SelectItem>
-                  <SelectItem value="INACTIVE">INACTIVE</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>
-                Description
-              </label>
-              <textarea
-                rows={5}
-                value={editForm.description}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, description: e.target.value })
-                }
-                placeholder="Write an overview or scope for books classified under this genre..."
-                className={`w-full p-3 rounded-md text-xs border outline-none resize-y leading-relaxed transition ${t.inputBg}`}
-              />
-            </div>
-          </form>
-        </div>
-
-        {/* Right Column: Statistics & Highlights */}
-        <div className="space-y-4">
-          <div className={`rounded-xl border p-5 shadow-xs ${t.cardBg}`}>
-            <h3 className={`font-semibold text-xs uppercase tracking-wider mb-3 ${t.subTextColor}`}>
-              Genre Metrics
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div
-                className={`p-3.5 rounded-lg border ${
-                  isDark ? 'bg-[#181a20] border-[#2c323e]' : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <span className={`text-[11px] block font-medium ${t.subTextColor}`}>
-                  Total Titles
-                </span>
-                <span className={`text-xl font-bold font-mono mt-1 block ${t.titleColor}`}>
-                  {books.length}
-                </span>
-              </div>
-              <div
-                className={`p-3.5 rounded-lg border ${
-                  isDark ? 'bg-[#181a20] border-[#2c323e]' : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <span className={`text-[11px] block font-medium ${t.subTextColor}`}>
-                  Physical Copies
-                </span>
-                <span className={`text-xl font-bold font-mono mt-1 block ${t.titleColor}`}>
-                  {books.reduce((sum, b) => sum + (b.totalCopies || 0), 0)}
-                </span>
-              </div>
-            </div>
+          {/* Row 2: Description with Rich Text Editor */}
+          <div className="pt-1 w-full">
+            <AdminRichTextEditor
+              label="Description / Scope"
+              value={editForm.description}
+              onChange={(val) => setEditForm({ ...editForm, description: val })}
+              placeholder="Write an overview, classification criteria, or scope for books under this genre (Markdown supported)..."
+              minHeight="220px"
+            />
           </div>
-        </div>
-      </div>
 
-      {/* Books under this Genre Section */}
-      <div className={`rounded-xl border overflow-hidden shadow-xs ${t.tableWrapper}`}>
-        <div className="px-5 py-4 border-b flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <IconBook2 size={16} className={t.mutedColor} />
-            <h3 className={`font-semibold text-xs uppercase tracking-wider ${t.titleColor}`}>
-              Books in {genre.name} ({books.length})
-            </h3>
-          </div>
-          <Link
-            to="/admin/books"
-            className="text-xs text-blue-500 hover:underline font-medium"
-          >
-            Catalog &rarr;
-          </Link>
-        </div>
+          {/* Row 3: Books in this Genre Section (List with Cover + Title) */}
+          <div id="books-section" className="space-y-3 pt-3">
+            <div className="flex items-center justify-between pb-1 border-b border-gray-200 dark:border-[#22262e]">
+              <div className="flex items-center gap-2">
+                <h3 className={`font-semibold text-xs sm:text-[13px] ${t.titleColor}`}>
+                  Books
+                </h3>
+              </div>
 
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className={`h-10 border-b ${isDark ? 'border-[#22262e]' : 'border-gray-200'} ${t.tableHead}`}>
-                <th className="py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider">
-                  Book Title
-                </th>
-                <th className="py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider">
-                  ISBN
-                </th>
-                <th className="py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider">
-                  Format
-                </th>
-                <th className="py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider">
-                  Copies
-                </th>
-                <th className="py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider text-right">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-transparent">
-              {books.map((b) => (
-                <tr
-                  key={b.id}
-                  onClick={() => navigate(`/admin/books/${b.id}`)}
-                  className={`group border-b transition-colors cursor-pointer ${
-                    isDark ? 'border-[#20242c]' : 'border-gray-200'
-                  } ${t.tableRow}`}
-                >
-                  <td className="py-2.5 px-4">
-                    <div className="flex items-center gap-3">
+            </div>
+
+            {books.length === 0 ? (
+              <div className={`py-6 text-center text-xs ${t.subTextColor}`}>
+                No books currently linked to this genre.
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100 dark:divide-[#20242c]">
+                {books.map((b) => (
+                  <div
+                    key={b.id}
+                    onClick={() => navigate(`/admin/books/${b.id}`)}
+                    className={`group flex items-center justify-between py-2.5 px-3 rounded-md transition-colors cursor-pointer ${t.tableRow}`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
                       {b.cover ? (
                         <img
                           src={b.cover}
                           alt={b.title}
-                          className="w-7 h-10 object-cover rounded shadow-2xs shrink-0"
+                          className="w-9 h-12 object-cover rounded-[2px] border border-gray-300 dark:border-[#2c323e] shrink-0"
                           onError={(e) => {
                             (e.target as HTMLElement).style.display = 'none'
                           }}
                         />
                       ) : (
                         <div
-                          className={`w-7 h-10 rounded flex items-center justify-center shrink-0 border ${
+                          className={`w-9 h-12 rounded-[2px] flex items-center justify-center shrink-0 border ${
                             isDark ? 'bg-[#16181d] border-[#2c323e]' : 'bg-gray-100 border-gray-300'
                           }`}
                         >
-                          <IconBook2 size={14} className={t.mutedColor} />
+                          <IconBook2 size={16} className={t.mutedColor} />
                         </div>
                       )}
-                      <div>
-                        <span
-                          className={`font-medium text-xs transition-colors ${t.titleColor} ${
-                            isDark ? 'group-hover:text-white' : 'group-hover:text-[#066fd1]'
-                          }`}
-                        >
-                          {b.title}
-                        </span>
-                        {b.publicationYear && (
-                          <span className={`text-[11px] block ${t.subTextColor}`}>
-                            {b.publicationYear}
-                          </span>
-                        )}
-                      </div>
+                      <span
+                        className={`font-medium text-sm transition-colors truncate block ${t.titleColor} ${
+                          isDark ? 'group-hover:text-white' : 'group-hover:text-[#066fd1]'
+                        }`}
+                      >
+                        {b.title}
+                      </span>
                     </div>
-                  </td>
-                  <td className={`py-2.5 px-4 text-xs font-mono ${t.subTextColor}`}>
-                    {b.isbn}
-                  </td>
-                  <td className={`py-2.5 px-4 text-xs ${t.subTextColor}`}>
-                    {b.format}
-                  </td>
-                  <td className="py-2.5 px-4 text-xs">
-                    <span className={`font-semibold ${t.titleColor}`}>
-                      {b.availableCopies}
-                    </span>
-                    <span className={t.subTextColor}> / {b.totalCopies}</span>
-                  </td>
-                  <td className="py-2.5 px-4 text-right">
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wide ${
-                        b.status === 'ACTIVE' ? t.statusActive : t.statusMuted
-                      }`}
-                    >
-                      {b.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {books.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className={`py-8 text-center text-xs ${t.subTextColor}`}
-                  >
-                    No books currently linked to this genre.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column (4/12): Status + Genre Visual Card */}
+        <div className="lg:col-span-4 space-y-4 w-full lg:max-w-[260px]">
+          {/* Status (Linear/Stripe Minimal Dot Style) */}
+          <div className="space-y-1 w-full">
+            <label className={`block text-xs font-medium ${t.subTextColor}`}>
+              Status
+            </label>
+            <div
+              onClick={() =>
+                setEditForm({
+                  ...editForm,
+                  status: editForm.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
+                })
+              }
+              className="flex items-center justify-between h-9 px-3 rounded-md border border-gray-200 dark:border-[#2c323e] bg-white dark:bg-[#16181d] cursor-pointer hover:border-gray-300 dark:hover:border-[#3e4757] transition-colors select-none"
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    editForm.status === 'ACTIVE'
+                      ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]'
+                      : 'bg-gray-400 dark:bg-gray-500'
+                  }`}
+                />
+                <span className="text-xs font-medium text-gray-900 dark:text-[#e2e8f0]">
+                  {editForm.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+              <Switch
+                checked={editForm.status === 'ACTIVE'}
+                onCheckedChange={(checked) =>
+                  setEditForm({ ...editForm, status: checked ? 'ACTIVE' : 'INACTIVE' })
+                }
+              />
+            </div>
+          </div>
+
+          <div
+            className={`w-full aspect-[4/3] rounded-md border flex flex-col items-center justify-center gap-2.5 p-4 select-none ${
+              isDark ? 'border-[#3e4756] bg-[#16181d]' : 'border-gray-300 bg-gray-100'
+            }`}
+          >
+            <div
+              className={`w-12 h-12 rounded-md flex items-center justify-center border ${
+                isDark
+                  ? 'bg-[#252a34] text-blue-400 border-[#3e4756]'
+                  : 'bg-white text-blue-600 border-gray-300'
+              }`}
+            >
+              <IconCategory size={26} />
+            </div>
+            <span className={`text-xs font-semibold text-center ${t.titleColor}`}>
+              {editForm.name || 'Category'}
+            </span>
+          </div>
         </div>
       </div>
     </div>

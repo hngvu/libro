@@ -8,5 +8,6 @@ public record AuthorCreateRequest(
         @NotBlank(message = "Handle cannot be empty")
         @Size(max = 255)
         String handle,
-        String biography
+        String biography,
+        String image
 ) {}

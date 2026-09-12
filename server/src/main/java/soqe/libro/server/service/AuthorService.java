@@ -28,6 +28,7 @@ public class AuthorService {
                         .name(a.getName())
                         .handle(a.getHandle())
                         .biography(a.getBiography())
+                        .image(a.getImage())
                         .status(a.getStatus() != null ? a.getStatus().name() : null)
                         .bookCount(a.getBooks() != null ? a.getBooks().size() : 0)
                         .build());
@@ -41,6 +42,7 @@ public class AuthorService {
                 .name(a.getName())
                 .handle(a.getHandle())
                 .biography(a.getBiography())
+                .image(a.getImage())
                 .status(a.getStatus() != null ? a.getStatus().name() : null)
                 .bookCount(a.getBooks() != null ? a.getBooks().size() : 0)
                 .build();
@@ -49,9 +51,9 @@ public class AuthorService {
     @Transactional
     public AuthorResponse createByAdmin(AuthorCreateRequest req) {
         validateUnique(req.handle(), null);
-        Author a = Author.builder().name(req.name()).handle(req.handle()).biography(req.biography()).status(Author.Status.ACTIVE).build();
+        Author a = Author.builder().name(req.name()).handle(req.handle()).biography(req.biography()).image(req.image()).status(Author.Status.ACTIVE).build();
         a = repository.save(a);
-        return AuthorResponse.builder().id(a.getId()).name(a.getName()).handle(a.getHandle()).biography(a.getBiography()).status(a.getStatus().name()).bookCount(0).build();
+        return AuthorResponse.builder().id(a.getId()).name(a.getName()).handle(a.getHandle()).biography(a.getBiography()).image(a.getImage()).status(a.getStatus().name()).bookCount(0).build();
     }
 
     @Transactional
@@ -61,9 +63,10 @@ public class AuthorService {
         a.setName(req.name());
         a.setHandle(req.handle());
         a.setBiography(req.biography());
+        a.setImage(req.image());
         if (req.status() != null) a.setStatus(req.status());
         a = repository.save(a);
-        return AuthorResponse.builder().id(a.getId()).name(a.getName()).handle(a.getHandle()).biography(a.getBiography()).status(a.getStatus().name()).bookCount(a.getBooks() != null ? a.getBooks().size() : 0).build();
+        return AuthorResponse.builder().id(a.getId()).name(a.getName()).handle(a.getHandle()).biography(a.getBiography()).image(a.getImage()).status(a.getStatus().name()).bookCount(a.getBooks() != null ? a.getBooks().size() : 0).build();
     }
 
     @Transactional
@@ -76,13 +79,13 @@ public class AuthorService {
     @Transactional(readOnly = true)
     public Page<AuthorPublicResponse> searchPublic(String keyword, Pageable pageable) {
         return repository.findAll(AuthorSpecification.filter(keyword, Author.Status.ACTIVE), pageable)
-                .map(a -> AuthorPublicResponse.builder().name(a.getName()).handle(a.getHandle()).biography(a.getBiography()).build());
+                .map(a -> AuthorPublicResponse.builder().name(a.getName()).handle(a.getHandle()).biography(a.getBiography()).image(a.getImage()).build());
     }
 
     @Transactional(readOnly = true)
     public AuthorPublicResponse getByHandle(String handle) {
         Author a = repository.findByHandle(handle).filter(x -> x.getStatus() == Author.Status.ACTIVE).orElseThrow(() -> new ResourceNotFoundException("Author not found"));
-        return AuthorPublicResponse.builder().name(a.getName()).handle(a.getHandle()).biography(a.getBiography()).build();
+        return AuthorPublicResponse.builder().name(a.getName()).handle(a.getHandle()).biography(a.getBiography()).image(a.getImage()).build();
     }
 
     private void validateUnique(String handle, Long excludeId) {

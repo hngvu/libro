@@ -24,7 +24,7 @@ interface AuthModalProps {
 export function AuthModal({ open, onOpenChange, defaultMode = 'login' }: AuthModalProps) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { login, register } = useAuth()
+  const { login, register, logout } = useAuth()
   const [mode, setMode] = useState<'login' | 'register'>(defaultMode)
 
   useEffect(() => {
@@ -51,17 +51,18 @@ export function AuthModal({ open, onOpenChange, defaultMode = 'login' }: AuthMod
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   const redirectAfterLogin = (loggedInUser: UserResponse | null) => {
-    onOpenChange(false)
     if (!loggedInUser) return
 
-    if (loggedInUser.role === 'ADMIN' || loggedInUser.role === 'LIBRARIAN') {
-      // Staff accounts go directly to the administration desk
-      navigate('/admin')
-    } else {
-      // Reader account: if currently on /admin, redirect back to catalog
-      if (location.pathname === '/admin') {
-        navigate('/')
-      }
+    if (loggedInUser.role !== 'MEMBER') {
+      // Reject non-MEMBER accounts on public reader auth modal
+      logout()
+      setError('Cổng đăng nhập Độc giả chỉ chấp nhận tài khoản Member. Tài khoản Quản trị / Thủ thư vui lòng sử dụng Cổng Quản trị (/admin).')
+      return
+    }
+
+    onOpenChange(false)
+    if (location.pathname === '/admin') {
+      navigate('/')
     }
   }
 
@@ -187,31 +188,15 @@ export function AuthModal({ open, onOpenChange, defaultMode = 'login' }: AuthMod
 
             {/* Quick Demo Logins */}
             <div className="pt-3.5 mt-3.5 border-t border-[#e8e5dc] dark:border-[#3d4b3e]/60 text-center">
-              <p className="text-[11px] text-[#767676] dark:text-[#999] mb-1.5 uppercase tracking-wider font-semibold">Demo accounts</p>
+              <p className="text-[11px] text-[#767676] dark:text-[#999] mb-1.5 uppercase tracking-wider font-semibold">Reader Demo Login</p>
               <div className="flex items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('admin@libro.com', 'admin123')}
-                  disabled={loading}
-                  className="px-3 py-1 text-[11.5px] font-medium rounded-full border border-[#d8d5ce] dark:border-[#3d4b3e] bg-white dark:bg-[#1a201c] hover:bg-black/5 text-[#444] dark:text-[#ccc] transition-colors cursor-pointer"
-                >
-                  Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('lucia@libro.com', 'lucia123')}
-                  disabled={loading}
-                  className="px-3 py-1 text-[11.5px] font-medium rounded-full border border-[#d8d5ce] dark:border-[#3d4b3e] bg-white dark:bg-[#1a201c] hover:bg-black/5 text-[#444] dark:text-[#ccc] transition-colors cursor-pointer"
-                >
-                  Librarian
-                </button>
                 <button
                   type="button"
                   onClick={() => handleQuickLogin('bin@libro.com', 'chubin123')}
                   disabled={loading}
-                  className="px-3 py-1 text-[11.5px] font-medium rounded-full border border-[#d8d5ce] dark:border-[#3d4b3e] bg-white dark:bg-[#1a201c] hover:bg-black/5 text-[#444] dark:text-[#ccc] transition-colors cursor-pointer"
+                  className="px-3.5 py-1 text-[11.5px] font-semibold rounded-full border border-[#3d4b3e] bg-[#3d4b3e] text-white hover:bg-[#2e3a2f] transition-colors cursor-pointer"
                 >
-                  Reader
+                  Sign in as Reader (bin@libro.com)
                 </button>
               </div>
             </div>

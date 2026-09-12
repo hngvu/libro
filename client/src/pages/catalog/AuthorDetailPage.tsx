@@ -92,10 +92,21 @@ export function AuthorDetailPage() {
       {/* Author Header Profile */}
       <div className="bg-[#faf9f4] dark:bg-[#252c28] border border-[#c8d0b7] dark:border-[#3d4b3e] rounded-2xl p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6">
-          {/* Avatar Monogram */}
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#3d4b3e] text-[#f5f3e6] flex items-center justify-center font-serif text-3xl font-bold shadow-md shrink-0 border-2 border-white/20">
-            {author.name.charAt(0).toUpperCase()}
-          </div>
+          {/* Avatar Monogram / Photo */}
+          {author.image ? (
+            <img
+              src={author.image}
+              alt={author.name}
+              className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg object-cover shadow-md shrink-0 border-2 border-white/20"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none'
+              }}
+            />
+          ) : (
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-[#2e7d56] text-[#f5f3e6] flex items-center justify-center font-serif text-3xl font-bold shrink-0 shadow-md">
+              {author.name.charAt(0).toUpperCase()}
+            </div>
+          )}
 
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-3">

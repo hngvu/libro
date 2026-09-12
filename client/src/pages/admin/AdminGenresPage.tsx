@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   IconSearch,
   IconChevronDown,
+  IconArrowsUpDown,
 } from '@tabler/icons-react'
 import {
   DropdownMenu,
@@ -36,10 +37,15 @@ function slugify(text: string): string {
 
 export function AdminGenresPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { t, isDark, showFeedback } = useAdmin()
 
+  const initialKeyword = searchParams.get('search') || ''
+  const initialSort = (searchParams.get('sort') || 'default') as 'default' | 'name-asc' | 'name-desc' | 'books-desc' | 'books-asc'
+
   const [genres, setGenres] = useState<GenreResponse[]>([])
-  const [keyword, setKeyword] = useState('')
+  const [sortBy, setSortBy] = useState<typeof initialSort>(initialSort)
+  const [keyword, setKeyword] = useState(initialKeyword)
   const [selectedGenreIds, setSelectedGenreIds] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -50,6 +56,31 @@ export function AdminGenresPage() {
     handle: '',
     description: '',
   })
+
+  // Sync state to URL search parameters
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (keyword.trim()) params.set('search', keyword.trim())
+    if (sortBy && sortBy !== 'default') params.set('sort', sortBy)
+    setSearchParams(params, { replace: true })
+  }, [keyword, sortBy, setSearchParams])
+
+  const sortedGenres = useMemo(() => {
+    const list = [...genres]
+    if (sortBy === 'name-asc') {
+      return list.sort((a, b) => a.name.localeCompare(b.name))
+    }
+    if (sortBy === 'name-desc') {
+      return list.sort((a, b) => b.name.localeCompare(a.name))
+    }
+    if (sortBy === 'books-desc') {
+      return list.sort((a, b) => (b.bookCount || 0) - (a.bookCount || 0))
+    }
+    if (sortBy === 'books-asc') {
+      return list.sort((a, b) => (a.bookCount || 0) - (b.bookCount || 0))
+    }
+    return list
+  }, [genres, sortBy])
 
   const fetchGenres = useCallback(async () => {
     setLoading(true)
@@ -78,10 +109,10 @@ export function AdminGenresPage() {
   }
 
   const toggleSelectAll = () => {
-    if (selectedGenreIds.length === genres.length) {
+    if (selectedGenreIds.length === sortedGenres.length) {
       setSelectedGenreIds([])
     } else {
-      setSelectedGenreIds(genres.map((g) => g.id))
+      setSelectedGenreIds(sortedGenres.map((g) => g.id))
     }
   }
 
@@ -118,16 +149,6 @@ export function AdminGenresPage() {
       name: '',
       handle: '',
       description: '',
-    })
-    setModalOpen(true)
-  }
-
-  const handleOpenEdit = (genre: GenreResponse) => {
-    setEditingGenre(genre)
-    setFormData({
-      name: genre.name,
-      handle: genre.handle,
-      description: genre.description || '',
     })
     setModalOpen(true)
   }
@@ -175,21 +196,75 @@ export function AdminGenresPage() {
     <div className="space-y-4">
       {/* Search & Actions Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-        <div className="relative w-full sm:w-[60%]">
-          <IconSearch size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.mutedColor}`} />
-          <input
-            placeholder="Search genre name..."
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && fetchGenres()}
-            className={`h-9 pl-9 pr-3 text-xs w-full rounded-md border outline-none transition ${t.inputBg}`}
-          />
+        <div className="flex items-center gap-2 w-full sm:w-[60%]">
+          <div className="relative flex-1">
+            <IconSearch size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.mutedColor}`} />
+            <input
+              placeholder="Search genre name..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && fetchGenres()}
+              className={`h-9 pl-9 pr-3 text-sm w-full rounded-md border outline-none transition ${t.inputBg}`}
+            />
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                  sortBy !== 'default'
+                    ? isDark
+                      ? 'bg-[#252a34] border-blue-500/50 text-blue-400'
+                      : 'bg-blue-50 border-blue-300 text-blue-600'
+                    : isDark
+                    ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
+                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                title="Sort options"
+              >
+                <IconArrowsUpDown size={15} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => setSortBy('default')}
+                className={sortBy === 'default' ? 'font-semibold text-blue-500' : ''}
+              >
+                Default
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('name-asc')}
+                className={sortBy === 'name-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Name (A-Z)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('name-desc')}
+                className={sortBy === 'name-desc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Name (Z-A)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('books-desc')}
+                className={sortBy === 'books-desc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Books Count (High to Low)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('books-asc')}
+                className={sortBy === 'books-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Books Count (Low to High)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="flex items-center gap-2 shrink-0 justify-end">
           <button
             onClick={handleOpenCreate}
-            className={`h-9 px-4 text-xs font-semibold rounded-md transition-all cursor-pointer ${t.primaryBtn}`}
+            className={`h-9 px-4 text-sm font-semibold rounded-md transition-all cursor-pointer ${t.primaryBtn}`}
           >
             Add Category
           </button>
@@ -197,13 +272,13 @@ export function AdminGenresPage() {
       </div>
 
       {/* Counter */}
-      <div className="flex items-center justify-between pt-0.5 text-[11px] font-mono">
-        <span className={t.mutedColor}>Total {genres.length} categories</span>
+      <div className="flex items-center justify-between pt-0.5 text-xs font-mono">
+        <span className={t.mutedColor}>Total {sortedGenres.length} genres</span>
       </div>
 
       {/* Genres Table - Frameless style matching BookCatalogPage */}
       {loading ? (
-        <div className={`p-10 text-center text-xs ${t.subTextColor}`}>
+        <div className={`p-10 text-center text-sm ${t.subTextColor}`}>
           Loading categories...
         </div>
       ) : (
@@ -214,7 +289,7 @@ export function AdminGenresPage() {
                 <th className="w-10 px-3 text-center align-middle">
                   <Checkbox
                     checked={
-                      genres.length > 0 && selectedGenreIds.length === genres.length
+                      sortedGenres.length > 0 && selectedGenreIds.length === sortedGenres.length
                         ? true
                         : selectedGenreIds.length > 0
                         ? 'indeterminate'
@@ -234,14 +309,14 @@ export function AdminGenresPage() {
                 <th className="px-4 text-left align-middle">
                   {selectedGenreIds.length > 0 ? (
                     <div className="flex items-center gap-2.5">
-                      <span className={`text-xs font-semibold normal-case whitespace-nowrap ${t.titleColor}`}>
+                      <span className={`text-xs sm:text-sm font-semibold normal-case whitespace-nowrap ${t.titleColor}`}>
                         {selectedGenreIds.length} selected
                       </span>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
                             type="button"
-                            className={`h-6 px-2 rounded-md border text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer select-none normal-case whitespace-nowrap ${
+                            className={`h-6 px-2 rounded-md border text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer select-none normal-case whitespace-nowrap ${
                               isDark
                                 ? 'bg-[#181a20] border-[#3e4756] text-[#cbd2de] hover:text-white hover:border-[#5a667b]'
                                 : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400'
@@ -265,27 +340,27 @@ export function AdminGenresPage() {
                       </DropdownMenu>
                     </div>
                   ) : (
-                    <span className={`text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                      Category Name
+                    <span className={`text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                      Genre Name
                     </span>
                   )}
                 </th>
 
                 {/* Books Column */}
-                <th className={`w-44 px-4 text-right text-[11px] font-semibold uppercase tracking-wider align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                <th className={`w-28 px-4 text-right text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
                   Books
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-transparent">
-              {genres.length === 0 ? (
+              {sortedGenres.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className={`py-12 text-center text-xs ${t.subTextColor}`}>
+                  <td colSpan={3} className={`py-12 text-center text-sm ${t.subTextColor}`}>
                     No categories found. Click "Add Category" to create one.
                   </td>
                 </tr>
               ) : (
-                genres.map((g) => {
+                sortedGenres.map((g) => {
                   const isSelected = selectedGenreIds.includes(g.id)
                   return (
                     <tr
@@ -318,31 +393,17 @@ export function AdminGenresPage() {
                       </td>
 
                       {/* Clean Category Name (No tag icon, no ID) */}
-                      <td className="py-3.5 px-4">
-                        <span className={`font-medium text-xs ${t.titleColor}`}>
+                      <td className="py-3 px-4">
+                        <span className={`font-medium text-sm ${t.titleColor}`}>
                           {g.name}
                         </span>
                       </td>
 
-                      {/* Books Count & Quick Edit */}
-                      <td className="w-44 py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2.5">
-                          <span className={`text-[11px] font-mono px-2 py-0.5 rounded-md ${isDark ? 'bg-[#20252e] text-[#8c94a5]' : 'bg-gray-100 text-gray-600'}`}>
-                            {g.bookCount ?? 0} {g.bookCount === 1 ? 'book' : 'books'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleOpenEdit(g)
-                            }}
-                            className={`text-[11px] font-medium opacity-0 group-hover:opacity-100 transition-opacity hover:underline cursor-pointer ${
-                              isDark ? 'text-blue-400' : 'text-blue-600'
-                            }`}
-                          >
-                            Edit
-                          </button>
-                        </div>
+                      {/* Books Count */}
+                      <td className="w-28 py-3 px-4 text-right">
+                        <span className={`text-sm font-mono font-normal ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                          {g.bookCount ?? 0}
+                        </span>
                       </td>
                     </tr>
                   )
@@ -379,20 +440,6 @@ export function AdminGenresPage() {
                 onChange={(e) => handleNameChange(e.target.value)}
                 placeholder="e.g. Science Fiction"
                 className={`w-full h-9 px-3 rounded-md text-xs border outline-none ${t.inputBg}`}
-              />
-            </div>
-
-            <div>
-              <label className={`block text-xs font-semibold mb-1.5 ${t.subTextColor}`}>
-                Handle / Slug <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.handle}
-                onChange={(e) => setFormData({ ...formData, handle: e.target.value })}
-                placeholder="e.g. science-fiction"
-                className={`w-full h-9 px-3 rounded-md text-xs border font-mono outline-none ${t.inputBg}`}
               />
             </div>
 

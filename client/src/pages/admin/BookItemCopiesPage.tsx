@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { useParams, Link, useOutletContext } from 'react-router-dom'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useParams, Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import {
   IconSearch,
   IconFilter2,
-  IconX,
   IconBook2,
   IconChevronDown,
+  IconArrowsUpDown,
 } from '@tabler/icons-react'
 import { useAdmin } from '@/components/admin/AdminContext'
+import { AdminFilterSelect } from '@/components/admin/AdminFilterSelect'
 import type { AdminLayoutOutletContext } from '@/components/admin/AdminLayout'
 import { api } from '@/services/api'
 import type { BookResponse, BookCopyResponse, BookCopyStatus } from '@/types/api'
@@ -23,55 +24,61 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
-function cleanCoverUrl(url: string) {
-  if (!url) return url
+function cleanCoverUrl(url?: string | null) {
+  if (!url) return undefined
   return url.replace(/\._[^.]*(\.[a-zA-Z0-9]+)$/, '$1')
 }
 
 export function BookItemCopiesPage() {
   const { id } = useParams<{ id: string }>()
   const bookId = Number(id)
+  const [searchParams, setSearchParams] = useSearchParams()
   const { t, isDark, showFeedback } = useAdmin()
   const { refreshCounts } = useOutletContext<AdminLayoutOutletContext>()
 
+  const initialKeyword = searchParams.get('search') || ''
+  const initialSort = (searchParams.get('sort') || 'default') as 'default' | 'barcode-asc' | 'barcode-desc' | 'status-asc' | 'location-asc'
+  const initialStatus = (searchParams.get('status') || '') as BookCopyStatus | ''
+
   const [book, setBook] = useState<BookResponse | null>(null)
   const [copies, setCopies] = useState<BookCopyResponse[]>([])
+  const [sortBy, setSortBy] = useState<typeof initialSort>(initialSort)
   const [selectedCopyIds, setSelectedCopyIds] = useState<number[]>([])
-  const [keyword, setKeyword] = useState('')
-  const [statusFilter, setStatusFilter] = useState<BookCopyStatus | ''>('')
-  const [loading, setLoading] = useState(true)
+  const [keyword, setKeyword] = useState(initialKeyword)
+  const [statusFilter, setStatusFilter] = useState<BookCopyStatus | ''>(initialStatus)
+  const [loading, setLoading] = useState(false)
+
+  // Sync state to URL search parameters
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (keyword.trim()) params.set('search', keyword.trim())
+    if (sortBy && sortBy !== 'default') params.set('sort', sortBy)
+    if (statusFilter) params.set('status', statusFilter)
+    setSearchParams(params, { replace: true })
+  }, [keyword, sortBy, statusFilter, setSearchParams])
 
   const [copyModalOpen, setCopyModalOpen] = useState(false)
-  const [newBarcode, setNewBarcode] = useState('')
+  const [newQuantity, setNewQuantity] = useState<number | ''>('')
   const [newLocation, setNewLocation] = useState('')
 
-  const getStatusBadge = (status: BookCopyStatus) => {
-    switch (status) {
-      case 'AVAILABLE':
-        return t.statusActive
-      case 'BORROWED':
-        return t.statusBorrowed
-      case 'LOST':
-        return t.statusOverdue
-      case 'RESERVED':
-        return isDark
-          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-          : 'bg-blue-50 text-blue-700 border border-blue-300'
-      case 'MAINTENANCE':
-      default:
-        return t.statusMuted
+  const sortedCopies = useMemo(() => {
+    const list = [...copies]
+    if (sortBy === 'barcode-asc') {
+      return list.sort((a, b) => a.barcode.localeCompare(b.barcode))
     }
-  }
+    if (sortBy === 'barcode-desc') {
+      return list.sort((a, b) => b.barcode.localeCompare(a.barcode))
+    }
+    if (sortBy === 'status-asc') {
+      return list.sort((a, b) => a.status.localeCompare(b.status))
+    }
+    if (sortBy === 'location-asc') {
+      return list.sort((a, b) => (a.location || '').localeCompare(b.location || ''))
+    }
+    return list
+  }, [copies, sortBy])
 
   const loadData = useCallback(async () => {
     if (!bookId) return
@@ -106,10 +113,10 @@ export function BookItemCopiesPage() {
   }
 
   const toggleSelectAll = () => {
-    if (selectedCopyIds.length === copies.length) {
+    if (selectedCopyIds.length === sortedCopies.length) {
       setSelectedCopyIds([])
     } else {
-      setSelectedCopyIds(copies.map((c) => c.id))
+      setSelectedCopyIds(sortedCopies.map((c) => c.id))
     }
   }
 
@@ -129,7 +136,7 @@ export function BookItemCopiesPage() {
   }
 
   const handleOpenAddCopy = () => {
-    setNewBarcode(`BC-${Math.floor(100000 + Math.random() * 900000)}`)
+    setNewQuantity('')
     setNewLocation('')
     setCopyModalOpen(true)
   }
@@ -137,18 +144,25 @@ export function BookItemCopiesPage() {
   const handleSaveCopy = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!book) return
+    if (!newQuantity || Number(newQuantity) <= 0) {
+      showFeedback('error', 'Please enter a valid quantity')
+      return
+    }
+    const qty = Math.max(1, Math.min(100, Number(newQuantity)))
     try {
-      await api.adminCreateBookCopy({
-        bookId: book.id,
-        barcode: newBarcode.trim(),
-        location: newLocation.trim() || undefined,
-      })
-      showFeedback('success', 'Physical copy added successfully!')
+      for (let i = 0; i < qty; i++) {
+        await api.adminCreateBookCopy({
+          bookId: book.id,
+          barcode: '',
+          location: newLocation.trim() || undefined,
+        })
+      }
+      showFeedback('success', `Added ${qty} copy(ies) for "${book.title}" successfully!`)
       setCopyModalOpen(false)
       loadData()
       refreshCounts()
     } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to create physical copy')
+      showFeedback('error', err.message || 'Failed to add book copies')
     }
   }
 
@@ -168,7 +182,7 @@ export function BookItemCopiesPage() {
 
   if (loading && !book) {
     return (
-      <div className={`p-12 text-center text-xs ${t.subTextColor}`}>
+      <div className={`p-10 text-center text-xs ${t.subTextColor}`}>
         Loading book copies...
       </div>
     )
@@ -176,42 +190,32 @@ export function BookItemCopiesPage() {
 
   if (!book) {
     return (
-      <div className="space-y-4 py-8 text-center">
-        <p className={`text-sm ${t.subTextColor}`}>Book not found or has been removed.</p>
-        <Link
-          to="/admin/books"
-          className={`px-4 py-2 text-xs font-medium rounded-md border ${t.secondaryBtn}`}
-        >
-          Back to Catalog
-        </Link>
+      <div className="p-8 text-center text-rose-500">
+        Book not found or failed to load.
       </div>
     )
   }
 
   const availableCount = copies.filter((c) => c.status === 'AVAILABLE').length
   const borrowedCount = copies.filter((c) => c.status === 'BORROWED').length
-  const maintenanceCount = copies.filter((c) => c.status === 'MAINTENANCE' || c.status === 'LOST').length
+  const maintenanceCount = copies.filter((c) => c.status === 'MAINTENANCE').length
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-150">
+    <div className="space-y-4">
       {/* Sub-Navigation Tabs */}
       <div className={`flex items-center gap-1 border-b pb-2 ${isDark ? 'border-[#22262e]' : 'border-gray-200'}`}>
         <Link
           to={`/admin/books/${book.id}`}
-          className={`px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            isDark
-              ? 'text-[#8c94a5] hover:text-white hover:bg-[#1f2228]'
-              : 'text-gray-600 hover:text-gray-950 hover:bg-gray-100'
+          className={`px-3.5 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors ${
+            isDark ? 'text-[#8c94a5] hover:text-white hover:bg-[#1f2228]' : 'text-gray-600 hover:text-gray-950 hover:bg-gray-100'
           }`}
         >
           Book Details
         </Link>
         <Link
           to={`/admin/books/${book.id}/copies`}
-          className={`px-3.5 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
-            isDark
-              ? 'bg-[#252a34] text-white border-[#333a48]'
-              : 'bg-gray-100 text-gray-900 border-gray-300'
+          className={`px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-md border transition-colors ${
+            isDark ? 'bg-[#252a34] text-white border-[#333a48]' : 'bg-gray-100 text-gray-900 border-gray-300'
           }`}
         >
           Copies ({copies.length})
@@ -234,12 +238,12 @@ export function BookItemCopiesPage() {
             </div>
           ) : (
             <div className="w-10 h-14 rounded-[2px] flex items-center justify-center shrink-0 border border-gray-300 dark:border-[#2c323e] bg-gray-100 dark:bg-[#16181d]">
-              <IconBook2 size={18} className={t.mutedColor} />
+              <IconBook2 size={20} className={t.mutedColor} />
             </div>
           )}
 
           <div className="min-w-0">
-            <h2 className={`font-sans font-semibold text-sm truncate ${t.titleColor}`}>
+            <h2 className={`font-sans font-semibold text-base truncate ${t.titleColor}`}>
               {book.title}
             </h2>
             <p className={`text-xs mt-0.5 ${t.subTextColor}`}>
@@ -269,21 +273,75 @@ export function BookItemCopiesPage() {
 
       {/* Search & Actions Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-        <div className="relative w-full sm:w-[60%]">
-          <IconSearch size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.mutedColor}`} />
-          <input
-            placeholder="Search barcode number..."
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && loadData()}
-            className={`h-9 pl-9 pr-3 text-xs w-full rounded-md border outline-none transition ${t.inputBg}`}
-          />
+        <div className="flex items-center gap-2 w-full sm:w-[60%]">
+          <div className="relative flex-1">
+            <IconSearch size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.mutedColor}`} />
+            <input
+              placeholder="Search barcode number..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && loadData()}
+              className={`h-9 pl-9 pr-3 text-sm w-full rounded-md border outline-none transition ${t.inputBg}`}
+            />
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                  sortBy !== 'default'
+                    ? isDark
+                      ? 'bg-[#252a34] border-blue-500/50 text-blue-400'
+                      : 'bg-blue-50 border-blue-300 text-blue-600'
+                    : isDark
+                    ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
+                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                title="Sort options"
+              >
+                <IconArrowsUpDown size={15} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => setSortBy('default')}
+                className={sortBy === 'default' ? 'font-semibold text-blue-500' : ''}
+              >
+                Default
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('barcode-asc')}
+                className={sortBy === 'barcode-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Barcode (A-Z)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('barcode-desc')}
+                className={sortBy === 'barcode-desc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Barcode (Z-A)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('location-asc')}
+                className={sortBy === 'location-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Location (A-Z)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('status-asc')}
+                className={sortBy === 'status-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Status
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="flex items-center gap-2 shrink-0 justify-end">
           <button
             onClick={handleOpenAddCopy}
-            className={`h-9 px-4 text-xs font-semibold rounded-md transition-all cursor-pointer ${t.primaryBtn}`}
+            className={`h-9 px-4 text-sm font-semibold rounded-md transition-all cursor-pointer ${t.primaryBtn}`}
           >
             Add Copy
           </button>
@@ -293,52 +351,35 @@ export function BookItemCopiesPage() {
       {/* Filter Section */}
       <div className="flex items-center gap-2 flex-wrap pt-0.5">
         <div
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-semibold select-none ${
+          className={`h-9 flex items-center gap-1.5 px-3 rounded-md border text-xs sm:text-[13px] font-semibold select-none ${
             isDark ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de]' : 'bg-gray-100 border-gray-300 text-gray-800'
           }`}
         >
-          <IconFilter2 size={14} className={isDark ? 'text-gray-300' : 'text-gray-600'} />
+          <IconFilter2 size={15} className={isDark ? 'text-gray-300' : 'text-gray-600'} />
           <span>Filter</span>
         </div>
 
         {/* Status Filter */}
-        <div className="flex items-center gap-1">
-          <Select
-            value={statusFilter || 'ALL'}
-            onValueChange={(val) => setStatusFilter(val === 'ALL' ? '' : (val as BookCopyStatus))}
-          >
-            <SelectTrigger className="w-auto min-w-[130px] h-8 text-xs">
-              <span className="opacity-70 mr-1">Status:</span>
-              <SelectValue placeholder="All" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Statuses</SelectItem>
-              <SelectItem value="AVAILABLE">AVAILABLE</SelectItem>
-              <SelectItem value="BORROWED">BORROWED</SelectItem>
-              <SelectItem value="MAINTENANCE">MAINTENANCE</SelectItem>
-              <SelectItem value="LOST">LOST</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {statusFilter && (
-            <button
-              type="button"
-              onClick={() => setStatusFilter('')}
-              className={`h-7 w-7 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
-                isDark ? 'text-[#8c94a5] hover:text-white hover:bg-[#252a34]' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
-              }`}
-              title="Clear status filter"
-            >
-              <IconX size={12} />
-            </button>
-          )}
-        </div>
+        <AdminFilterSelect
+          label="Status"
+          value={statusFilter}
+          options={[
+            { value: 'AVAILABLE', label: 'AVAILABLE' },
+            { value: 'BORROWED', label: 'BORROWED' },
+            { value: 'MAINTENANCE', label: 'MAINTENANCE' },
+            { value: 'LOST', label: 'LOST' },
+            { value: 'RESERVED', label: 'RESERVED' },
+          ]}
+          onChange={(val) => setStatusFilter(val as BookCopyStatus)}
+          onRemove={() => setStatusFilter('')}
+          allLabel="All Statuses"
+        />
 
         {/* Reset Button */}
         {statusFilter && (
           <button
             onClick={() => setStatusFilter('')}
-            className="text-xs text-blue-600 dark:text-blue-400 hover:underline px-1 cursor-pointer font-medium"
+            className="text-xs sm:text-[13px] text-blue-600 dark:text-blue-400 hover:underline px-1 cursor-pointer font-medium"
           >
             Reset
           </button>
@@ -353,7 +394,7 @@ export function BookItemCopiesPage() {
               <th className="w-10 px-3 text-center align-middle">
                 <Checkbox
                   checked={
-                    copies.length > 0 && selectedCopyIds.length === copies.length
+                    sortedCopies.length > 0 && selectedCopyIds.length === sortedCopies.length
                       ? true
                       : selectedCopyIds.length > 0
                       ? 'indeterminate'
@@ -371,14 +412,14 @@ export function BookItemCopiesPage() {
               <th className="px-4 text-left align-middle min-w-[200px]">
                 {selectedCopyIds.length > 0 ? (
                   <div className="flex items-center gap-2.5">
-                    <span className={`text-xs font-semibold normal-case whitespace-nowrap ${t.titleColor}`}>
+                    <span className={`text-xs sm:text-sm font-semibold normal-case whitespace-nowrap ${t.titleColor}`}>
                       {selectedCopyIds.length} selected
                     </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className={`h-6 px-2 rounded-md border text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer select-none normal-case whitespace-nowrap ${
+                          className={`h-6 px-2 rounded-md border text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer select-none normal-case whitespace-nowrap ${
                             isDark
                               ? 'bg-[#181a20] border-[#3e4756] text-[#cbd2de] hover:text-white hover:border-[#5a667b]'
                               : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400'
@@ -411,22 +452,51 @@ export function BookItemCopiesPage() {
                     </DropdownMenu>
                   </div>
                 ) : (
-                  <span className={`text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  <span className={`text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
                     Barcode
                   </span>
                 )}
               </th>
-              <th className={`py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+              <th className={`py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
                 Location
               </th>
-              <th className={`py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+              <th className={`py-3 px-4 text-xs sm:text-[13px] font-semibold text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
                 Last Borrowed
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-transparent">
-            {copies.map((c) => {
+            {sortedCopies.map((c) => {
               const isSelected = selectedCopyIds.includes(c.id)
+              const getStatusBadge = (status: BookCopyStatus) => {
+                switch (status) {
+                  case 'AVAILABLE':
+                    return isDark
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  case 'BORROWED':
+                    return isDark
+                      ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                      : 'bg-blue-50 text-blue-700 border-blue-200'
+                  case 'MAINTENANCE':
+                    return isDark
+                      ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                  case 'LOST':
+                    return isDark
+                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                      : 'bg-rose-50 text-rose-700 border-rose-200'
+                  case 'RESERVED':
+                    return isDark
+                      ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                      : 'bg-purple-50 text-purple-700 border-purple-200'
+                  default:
+                    return isDark
+                      ? 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                      : 'bg-gray-100 text-gray-600 border-gray-200'
+                }
+              }
+
               return (
                 <tr
                   key={c.id}
@@ -454,24 +524,20 @@ export function BookItemCopiesPage() {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
-                      <span className={`font-mono text-xs font-semibold ${t.titleColor}`}>
+                      <span className={`font-mono text-sm font-semibold ${t.titleColor}`}>
                         {c.barcode}
                       </span>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded font-medium shrink-0 uppercase tracking-wide ${getStatusBadge(
-                          c.status
-                        )}`}
-                      >
+                      <span className={`text-[11px] font-mono font-medium px-2 py-0.5 rounded border uppercase ${getStatusBadge(c.status)}`}>
                         {c.status}
                       </span>
                     </div>
                   </td>
                   <td className="py-3 px-4">
-                    <span className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       {c.location || '—'}
                     </span>
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-3 px-4 text-right">
                     <span className={`text-xs font-mono ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
                       {c.lastLoanDate || '—'}
                     </span>
@@ -481,7 +547,7 @@ export function BookItemCopiesPage() {
             })}
             {copies.length === 0 && (
               <tr>
-                <td colSpan={4} className={`py-10 text-center text-xs ${t.subTextColor}`}>
+                <td colSpan={4} className={`py-12 text-center text-sm ${t.subTextColor}`}>
                   No physical copies registered for this title yet.
                 </td>
               </tr>
@@ -490,50 +556,83 @@ export function BookItemCopiesPage() {
         </table>
       </div>
 
-      {/* Modal: Add Copy */}
+      {/* Modal: Add Copies */}
       <Dialog open={copyModalOpen} onOpenChange={setCopyModalOpen}>
-        <DialogContent onClose={() => setCopyModalOpen(false)} className={`sm:max-w-md rounded-xl shadow-2xl p-6 border ${t.modalBg}`}>
-          <DialogHeader>
-            <DialogTitle className={`font-sans font-bold text-lg ${t.titleColor}`}>
-              Add Physical Copy
+        <DialogContent onClose={() => setCopyModalOpen(false)} className={`sm:max-w-xl rounded-2xl shadow-2xl p-6 border ${t.modalBg}`}>
+          <DialogHeader className="mb-4">
+            <DialogTitle className={`font-sans font-bold text-base ${t.titleColor}`}>
+              Add Copies
             </DialogTitle>
-            <DialogDescription className={`text-xs ${t.subTextColor}`}>
-              Generates a unique barcode and shelf location for tracking physical inventory.
-            </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSaveCopy} className="space-y-4 pt-2">
+
+          <form onSubmit={handleSaveCopy} className="space-y-4 pt-1">
+            {/* Book Info Summary with Cover */}
+            <div className={`p-3 rounded-xl border flex items-center gap-3.5 ${isDark ? 'bg-[#181a20] border-[#2c323e]' : 'bg-gray-50 border-gray-200'}`}>
+              {book.cover ? (
+                <div className="w-10 h-14 rounded-[2px] overflow-hidden shrink-0 border border-gray-300 dark:border-[#2c323e] bg-gray-100 dark:bg-[#16181d]">
+                  <img
+                    src={cleanCoverUrl(book.cover)}
+                    alt={book.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none'
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="w-10 h-14 rounded-[2px] flex items-center justify-center shrink-0 border border-gray-300 dark:border-[#2c323e] bg-gray-100 dark:bg-[#16181d]">
+                  <IconBook2 size={20} className={t.mutedColor} />
+                </div>
+              )}
+              <div className="min-w-0">
+                <span className={`block font-semibold text-sm truncate ${t.titleColor}`}>{book.title}</span>
+                <span className={`block mt-1 text-xs ${t.subTextColor}`}>
+                  ISBN: {book.isbn || 'N/A'} • Format: {book.format || 'PAPERBACK'}
+                </span>
+              </div>
+            </div>
+
             <div>
-              <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>Barcode Identifier *</label>
+              <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>
+                Quantity *
+              </label>
               <input
+                type="number"
+                min={1}
+                max={100}
                 required
-                value={newBarcode}
-                onChange={(e) => setNewBarcode(e.target.value)}
-                placeholder="e.g. BC-123456"
-                className={`w-full h-9 px-3 text-xs font-mono rounded-md border outline-none ${t.inputBg}`}
+                value={newQuantity}
+                onChange={(e) =>
+                  setNewQuantity(e.target.value === '' ? '' : Number(e.target.value))
+                }
+                className={`w-full h-9 px-3 text-xs sm:text-sm rounded-md border outline-none ${t.inputBg}`}
               />
             </div>
+
             <div>
-              <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>Shelf / Physical Location</label>
+              <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>
+                Location
+              </label>
               <input
                 value={newLocation}
                 onChange={(e) => setNewLocation(e.target.value)}
-                placeholder="e.g. Shelf A-1, Stack 3, Floor 2"
-                className={`w-full h-9 px-3 text-xs rounded-md border outline-none ${t.inputBg}`}
+                className={`w-full h-9 px-3 text-xs sm:text-sm rounded-md border outline-none ${t.inputBg}`}
               />
             </div>
-            <div className={`flex justify-end gap-2 pt-2 border-t ${isDark ? 'border-[#2c323e]' : 'border-gray-200'}`}>
+
+            <div className="flex items-center justify-between pt-3">
               <button
                 type="button"
                 onClick={() => setCopyModalOpen(false)}
-                className={`px-3.5 py-1.5 text-xs font-medium rounded-md border cursor-pointer ${t.secondaryBtn}`}
+                className={`h-9 px-4 text-xs sm:text-sm font-medium rounded-lg border cursor-pointer ${t.secondaryBtn}`}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className={`px-3.5 py-1.5 text-xs font-medium rounded-md cursor-pointer ${t.primaryBtn}`}
+                className={`h-9 px-5 text-xs sm:text-sm font-semibold rounded-lg cursor-pointer ${t.primaryBtn}`}
               >
-                Create Copy
+                Accession
               </button>
             </div>
           </form>

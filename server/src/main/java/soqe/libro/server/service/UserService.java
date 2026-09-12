@@ -32,7 +32,17 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public Page<UserResponse> searchUsers(String keyword, User.Role role, User.Status status, Pageable pageable) {
-        return repository.findAll(UserSpecification.filter(keyword, role, status), pageable)
+        return searchUsersMulti(
+                keyword,
+                role != null ? java.util.List.of(role) : null,
+                status != null ? java.util.List.of(status) : null,
+                pageable
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UserResponse> searchUsersMulti(String keyword, java.util.List<User.Role> roles, java.util.List<User.Status> statuses, Pageable pageable) {
+        return repository.findAll(UserSpecification.filterMulti(keyword, roles, statuses), pageable)
                 .map(user -> UserResponse.builder()
                         .email(user.getEmail())
                         .fullName(user.getFullName())

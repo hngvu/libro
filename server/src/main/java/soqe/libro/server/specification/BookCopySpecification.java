@@ -9,6 +9,15 @@ import java.util.List;
 
 public class BookCopySpecification {
     public static Specification<BookCopy> filter(String keyword, BookCopy.Status status, Long bookId, BookCopy.Status excludeStatus) {
+        return filterMulti(
+                keyword,
+                status != null ? List.of(status) : null,
+                bookId != null ? List.of(bookId) : null,
+                excludeStatus != null ? List.of(excludeStatus) : null
+        );
+    }
+
+    public static Specification<BookCopy> filterMulti(String keyword, List<BookCopy.Status> statuses, List<Long> bookIds, List<BookCopy.Status> excludeStatuses) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (StringUtils.hasText(keyword)) {
@@ -18,14 +27,26 @@ public class BookCopySpecification {
                         cb.like(cb.lower(root.get("book").get("title")), kw)
                 ));
             }
-            if (status != null) {
-                predicates.add(cb.equal(root.get("status"), status));
+            if (statuses != null && !statuses.isEmpty()) {
+                if (statuses.size() == 1) {
+                    predicates.add(cb.equal(root.get("status"), statuses.get(0)));
+                } else {
+                    predicates.add(root.get("status").in(statuses));
+                }
             }
-            if (bookId != null) {
-                predicates.add(cb.equal(root.get("book").get("id"), bookId));
+            if (bookIds != null && !bookIds.isEmpty()) {
+                if (bookIds.size() == 1) {
+                    predicates.add(cb.equal(root.get("book").get("id"), bookIds.get(0)));
+                } else {
+                    predicates.add(root.get("book").get("id").in(bookIds));
+                }
             }
-            if (excludeStatus != null) {
-                predicates.add(cb.notEqual(root.get("status"), excludeStatus));
+            if (excludeStatuses != null && !excludeStatuses.isEmpty()) {
+                if (excludeStatuses.size() == 1) {
+                    predicates.add(cb.notEqual(root.get("status"), excludeStatuses.get(0)));
+                } else {
+                    predicates.add(cb.not(root.get("status").in(excludeStatuses)));
+                }
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

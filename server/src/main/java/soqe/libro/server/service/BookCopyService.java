@@ -15,6 +15,7 @@ import soqe.libro.server.exception.BusinessValidationException;
 import soqe.libro.server.exception.ResourceNotFoundException;
 import org.springframework.util.StringUtils;
 
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,7 +27,17 @@ public class BookCopyService {
 
     @Transactional(readOnly = true)
     public Page<BookCopyResponse> searchForAdmin(String keyword, BookCopy.Status status, Long bookId, Pageable pageable) {
-        return repository.findAll(BookCopySpecification.filter(keyword, status, bookId, null), pageable)
+        return searchForAdminMulti(
+                keyword,
+                status != null ? java.util.List.of(status) : null,
+                bookId != null ? java.util.List.of(bookId) : null,
+                pageable
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BookCopyResponse> searchForAdminMulti(String keyword, java.util.List<BookCopy.Status> statuses, java.util.List<Long> bookIds, Pageable pageable) {
+        return repository.findAll(BookCopySpecification.filterMulti(keyword, statuses, bookIds, null), pageable)
                 .map(this::toAdminResponse);
     }
 
@@ -38,10 +49,17 @@ public class BookCopyService {
 
     @Transactional
     public BookCopyResponse createByAdmin(BookCopyCreateRequest req) {
-        validateUnique(req.barcode(), null);
+        String barcode;
+        if (StringUtils.hasText(req.barcode())) {
+            barcode = req.barcode().trim();
+            validateUnique(barcode, null);
+        } else {
+            barcode = generateUniqueBarcode();
+        }
+
         Book book = bookRepository.findById(req.bookId()).orElseThrow(() -> new ResourceNotFoundException("Book not found"));
         BookCopy c = BookCopy.builder()
-                .barcode(req.barcode())
+                .barcode(barcode)
                 .book(book)
                 .status(BookCopy.Status.AVAILABLE)
                 .location(req.location())
@@ -54,6 +72,15 @@ public class BookCopyService {
         bookRepository.save(book);
 
         return toAdminResponse(c);
+    }
+
+    public String generateUniqueBarcode() {
+        long count = repository.count() + 1;
+        String code;
+        do {
+            code = String.format("BC%08d", count++);
+        } while (repository.findByBarcode(code).isPresent());
+        return code;
     }
 
     @Transactional

@@ -22,6 +22,8 @@ public class Author extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String biography;
 
+    private String image;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

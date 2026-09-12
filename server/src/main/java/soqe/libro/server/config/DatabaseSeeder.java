@@ -23,13 +23,17 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final AuthorRepository authorRepository;
     private final BookRepository bookRepository;
     private final BookCopyRepository bookCopyRepository;
+    private final MembershipPlanRepository membershipPlanRepository;
+    private final ReservationRepository reservationRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
     public void run(String... args) {
+        seedMembershipPlans();
+
         if (userRepository.count() > 0) {
-            log.info("Database already seeded. Skipping initial data population.");
+            log.info("Database users already seeded. Skipping initial user data population.");
             return;
         }
 
@@ -116,6 +120,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .name("Robert C. Martin")
                 .handle("robert-c-martin")
                 .biography("Uncle Bob is a legendary software craftsman and author of Clean Code and Clean Architecture.")
+                .image("https://images.gr-assets.com/authors/1490470967p8/45372.jpg")
                 .status(Author.Status.ACTIVE)
                 .build();
 
@@ -123,6 +128,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .name("J.K. Rowling")
                 .handle("j-k-rowling")
                 .biography("British author best known for the Harry Potter fantasy series.")
+                .image("https://images.gr-assets.com/authors/1596216614p8/1077326.jpg")
                 .status(Author.Status.ACTIVE)
                 .build();
 
@@ -169,18 +175,101 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .status(Book.Status.ACTIVE)
                 .build();
 
-        bookRepository.saveAll(List.of(cleanCode, harryPotter));
+        Book designPatterns = Book.builder()
+                .title("Design Patterns: Elements of Reusable Object-Oriented Software")
+                .handle("BK000003")
+                .slug("design-patterns-elements-of-reusable-object-oriented-software")
+                .isbn("9780201633610")
+                .publicationYear(1994)
+                .edition("1st Edition")
+                .format(Book.Format.HARDCOVER)
+                .pageCount(395)
+                .language("English")
+                .description("Capturing a wealth of experience about the design of object-oriented software.")
+                .cover("https://images-na.ssl-images-amazon.com/images/I/51szD9HC9pL.jpg")
+                .totalCopies(1)
+                .availableCopies(0)
+                .publisher(oreilly)
+                .authors(Set.of(uncleBob))
+                .genres(Set.of(techGenre))
+                .status(Book.Status.ACTIVE)
+                .build();
 
-        // 6. Book Copies
-        BookCopy cc1 = BookCopy.builder().barcode("BC-CC-001").status(BookCopy.Status.AVAILABLE).location("Shelf A-1").book(cleanCode).build();
-        BookCopy cc2 = BookCopy.builder().barcode("BC-CC-002").status(BookCopy.Status.AVAILABLE).location("Shelf A-1").book(cleanCode).build();
-        BookCopy cc3 = BookCopy.builder().barcode("BC-CC-003").status(BookCopy.Status.AVAILABLE).location("Shelf A-2").book(cleanCode).build();
+        bookRepository.saveAll(List.of(cleanCode, harryPotter, designPatterns));
 
-        BookCopy hp1 = BookCopy.builder().barcode("BC-HP-001").status(BookCopy.Status.AVAILABLE).location("Shelf B-1").book(harryPotter).build();
-        BookCopy hp2 = BookCopy.builder().barcode("BC-HP-002").status(BookCopy.Status.AVAILABLE).location("Shelf B-2").book(harryPotter).build();
+        // 6. Book Copies (Sequential Code 128 format: BC + 8 digits)
+        BookCopy cc1 = BookCopy.builder().barcode("BC00000001").status(BookCopy.Status.AVAILABLE).location("Shelf A-1").book(cleanCode).build();
+        BookCopy cc2 = BookCopy.builder().barcode("BC00000002").status(BookCopy.Status.AVAILABLE).location("Shelf A-1").book(cleanCode).build();
+        BookCopy cc3 = BookCopy.builder().barcode("BC00000003").status(BookCopy.Status.AVAILABLE).location("Shelf A-2").book(cleanCode).build();
 
-        bookCopyRepository.saveAll(List.of(cc1, cc2, cc3, hp1, hp2));
+        BookCopy hp1 = BookCopy.builder().barcode("BC00000004").status(BookCopy.Status.AVAILABLE).location("Shelf B-1").book(harryPotter).build();
+        BookCopy hp2 = BookCopy.builder().barcode("BC00000005").status(BookCopy.Status.AVAILABLE).location("Shelf B-2").book(harryPotter).build();
+
+        BookCopy dp1 = BookCopy.builder().barcode("BC00000006").status(BookCopy.Status.LOANED).location("Shelf A-3").book(designPatterns).build();
+
+        bookCopyRepository.saveAll(List.of(cc1, cc2, cc3, hp1, hp2, dp1));
+
+        // 7. Sample Reservation (Pending on out-of-stock Design Patterns)
+        Reservation sampleRes = Reservation.builder()
+                .reservationCode("RES202609120001")
+                .user(member)
+                .book(designPatterns)
+                .status(Reservation.ReservationStatus.PENDING)
+                .reservedAt(java.time.LocalDateTime.now().minusDays(1))
+                .queuePosition(1)
+                .build();
+        reservationRepository.save(sampleRes);
 
         log.info("Database seeding completed successfully!");
+    }
+
+    private void seedMembershipPlans() {
+        MembershipPlan freePlan = MembershipPlan.builder()
+                .name("Free Reader")
+                .code("FREE")
+                .description("Basic library access for occasional readers. 1 active book at a time.")
+                .price(java.math.BigDecimal.ZERO)
+                .billingCycle(MembershipPlan.BillingCycle.MONTHLY)
+                .maxActiveLoans(1)
+                .loanDurationDays(7)
+                .maxRenewals(0)
+                .status(MembershipPlan.Status.ACTIVE)
+                .build();
+
+        MembershipPlan standardPlan = MembershipPlan.builder()
+                .name("Standard Reader")
+                .code("STANDARD")
+                .description("Perfect for regular book lovers. Up to 3 active books with 14-day borrowing and 1 renewal.")
+                .price(new java.math.BigDecimal("5.00"))
+                .billingCycle(MembershipPlan.BillingCycle.MONTHLY)
+                .maxActiveLoans(3)
+                .loanDurationDays(14)
+                .maxRenewals(1)
+                .status(MembershipPlan.Status.ACTIVE)
+                .build();
+
+        MembershipPlan vipPlan = MembershipPlan.builder()
+                .name("VIP Reader")
+                .code("VIP")
+                .description("Unlimited passion for reading. Up to 8 active books, 30-day loans, and 3 renewals.")
+                .price(new java.math.BigDecimal("10.00"))
+                .billingCycle(MembershipPlan.BillingCycle.MONTHLY)
+                .maxActiveLoans(8)
+                .loanDurationDays(30)
+                .maxRenewals(3)
+                .status(MembershipPlan.Status.ACTIVE)
+                .build();
+
+        // Clean up extra plans if previously created in persistent DB
+        membershipPlanRepository.findByCode("STUDENT").ifPresent(membershipPlanRepository::delete);
+        membershipPlanRepository.findByCode("RESEARCHER").ifPresent(membershipPlanRepository::delete);
+
+        List<MembershipPlan> defaultPlans = List.of(freePlan, standardPlan, vipPlan);
+        for (MembershipPlan plan : defaultPlans) {
+            if (membershipPlanRepository.findByCode(plan.getCode()).isEmpty()) {
+                membershipPlanRepository.save(plan);
+                log.info("Seeded membership plan: {}", plan.getCode());
+            }
+        }
     }
 }

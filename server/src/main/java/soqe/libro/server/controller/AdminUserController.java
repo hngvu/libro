@@ -21,10 +21,10 @@ public class AdminUserController {
     @GetMapping
     public ResponseEntity<Page<UserResponse>> searchUsers(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) User.Role role,
-            @RequestParam(required = false) User.Status status,
+            @RequestParam(required = false) java.util.List<User.Role> role,
+            @RequestParam(required = false) java.util.List<User.Status> status,
             Pageable pageable) {
-        return ResponseEntity.ok(userService.searchUsers(keyword, role, status, pageable));
+        return ResponseEntity.ok(userService.searchUsersMulti(keyword, role, status, pageable));
     }
 
     @GetMapping("/{id}")

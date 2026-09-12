@@ -30,6 +30,6 @@ public class BookCopy extends BaseEntity {
     private List<Loan> loans;
 
     public enum Status {
-        AVAILABLE, LOANED, LOST, DAMAGED, ARCHIVED
+        AVAILABLE, LOANED, RESERVED, LOST, DAMAGED, ARCHIVED
     }
 }

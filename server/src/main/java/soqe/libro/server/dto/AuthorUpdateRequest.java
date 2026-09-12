@@ -10,5 +10,6 @@ public record AuthorUpdateRequest(
         @Size(max = 255)
         String handle,
         String biography,
+        String image,
         Author.Status status
 ) {}

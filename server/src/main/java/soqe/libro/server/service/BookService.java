@@ -39,7 +39,20 @@ public class BookService {
 
     @Transactional(readOnly = true)
     public Page<BookResponse> searchBooksForAdmin(String keyword, Book.Format format, Book.Status status, String genreHandle, Long authorId, Long genreId, Pageable pageable) {
-        return repository.findAll(BookSpecification.filter(keyword, format, status, genreHandle, authorId, genreId, null), pageable)
+        return searchBooksForAdminMulti(
+                keyword,
+                format != null ? java.util.List.of(format) : null,
+                status != null ? java.util.List.of(status) : null,
+                org.springframework.util.StringUtils.hasText(genreHandle) ? java.util.List.of(genreHandle) : null,
+                authorId != null ? java.util.List.of(authorId) : null,
+                genreId != null ? java.util.List.of(genreId) : null,
+                pageable
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BookResponse> searchBooksForAdminMulti(String keyword, java.util.List<Book.Format> formats, java.util.List<Book.Status> statuses, java.util.List<String> genreHandles, java.util.List<Long> authorIds, java.util.List<Long> genreIds, Pageable pageable) {
+        return repository.findAll(BookSpecification.filterMulti(keyword, formats, statuses, genreHandles, authorIds, genreIds, null), pageable)
                 .map(this::mapToAdminResponse);
     }
 
@@ -139,8 +152,19 @@ public class BookService {
 
     @Transactional(readOnly = true)
     public Page<BookPublicResponse> searchBooks(String keyword, Book.Format format, String genreHandle, String authorHandle, Pageable pageable) {
+        return searchBooksMulti(
+                keyword,
+                format != null ? java.util.List.of(format) : null,
+                org.springframework.util.StringUtils.hasText(genreHandle) ? java.util.List.of(genreHandle) : null,
+                org.springframework.util.StringUtils.hasText(authorHandle) ? java.util.List.of(authorHandle) : null,
+                pageable
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BookPublicResponse> searchBooksMulti(String keyword, java.util.List<Book.Format> formats, java.util.List<String> genreHandles, java.util.List<String> authorHandles, Pageable pageable) {
         // Users can only search for ACTIVE books
-        return repository.findAll(BookSpecification.filter(keyword, format, Book.Status.ACTIVE, genreHandle, null, null, authorHandle), pageable)
+        return repository.findAll(BookSpecification.filterMulti(keyword, formats, java.util.List.of(Book.Status.ACTIVE), genreHandles, null, null, authorHandles), pageable)
                 .map(this::mapToPublicResponse);
     }
 
@@ -182,6 +206,7 @@ public class BookService {
 
     private BookPublicResponse mapToPublicResponse(Book book) {
         return BookPublicResponse.builder()
+                .id(book.getId())
                 .title(book.getTitle())
                 .handle(book.getHandle())
                 .slug(book.getSlug())

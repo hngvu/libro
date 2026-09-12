@@ -19,11 +19,11 @@ public class BookController {
     @GetMapping
     public ResponseEntity<Page<BookPublicResponse>> searchBooks(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Book.Format format,
-            @RequestParam(required = false, name = "genre") String genreHandle,
-            @RequestParam(required = false, name = "author") String authorHandle,
+            @RequestParam(required = false) java.util.List<Book.Format> format,
+            @RequestParam(required = false, name = "genre") java.util.List<String> genreHandle,
+            @RequestParam(required = false, name = "author") java.util.List<String> authorHandle,
             Pageable pageable) {
-        return ResponseEntity.ok(bookService.searchBooks(keyword, format, genreHandle, authorHandle, pageable));
+        return ResponseEntity.ok(bookService.searchBooksMulti(keyword, format, genreHandle, authorHandle, pageable));
     }
 
     @GetMapping("/{handle}")

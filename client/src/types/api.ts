@@ -24,6 +24,7 @@ export type UserRole = 'ADMIN' | 'LIBRARIAN' | 'MEMBER'
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'BANNED'
 
 export interface BookPublicResponse {
+  id?: number
   title: string
   handle: string
   slug: string
@@ -89,6 +90,7 @@ export interface LoanPublicResponse {
   dueDate: string
   returnDate: string | null
   status: LoanStatus
+  renewalCount?: number
 }
 
 export interface LoanResponse {
@@ -106,6 +108,7 @@ export interface LoanResponse {
   dueDate: string
   returnDate: string | null
   status: LoanStatus
+  renewalCount?: number
   createdAt: string
   updatedAt: string
   createdBy: string | null
@@ -141,6 +144,7 @@ export interface AuthorPublicResponse {
   name: string
   handle: string
   biography: string | null
+  image?: string | null
 }
 
 export interface AuthorResponse {
@@ -148,6 +152,7 @@ export interface AuthorResponse {
   name: string
   handle: string
   biography: string | null
+  image?: string | null
   status: string
   bookCount?: number
 }
@@ -173,12 +178,14 @@ export interface AuthorCreateRequest {
   name: string
   handle?: string
   biography?: string
+  image?: string
 }
 
 export interface AuthorUpdateRequest {
   name: string
   handle: string
   biography?: string
+  image?: string
   status?: string
 }
 
@@ -205,8 +212,8 @@ export interface BookCreateRequest {
   title: string
   handle: string
   slug: string
-  isbn: string
-  publicationYear: number
+  isbn?: string
+  publicationYear?: number
   cover?: string
   edition?: string
   format: BookFormat
@@ -222,8 +229,8 @@ export interface BookCreateRequest {
 export interface BookUpdateRequest {
   title: string
   slug: string
-  isbn: string
-  publicationYear: number
+  isbn?: string
+  publicationYear?: number
   cover?: string
   edition?: string
   format: BookFormat
@@ -238,7 +245,7 @@ export interface BookUpdateRequest {
 }
 
 export interface BookCopyCreateRequest {
-  barcode: string
+  barcode?: string
   bookId: number
   location?: string
 }
@@ -250,9 +257,10 @@ export interface BookCopyUpdateRequest {
 
 export interface LoanCreateRequest {
   userId: number
-  bookCopyId: number
+  bookCopyId?: number
+  barcode?: string
   borrowDate?: string
-  dueDate: string
+  dueDate?: string
 }
 
 export interface LoanRenewRequest {
@@ -275,3 +283,221 @@ export interface UserUpdateRequest {
   role?: UserRole
   status?: UserStatus
 }
+
+export type FineReason = 'OVERDUE' | 'LOST_BOOK' | 'DAMAGED_BOOK' | 'OTHER'
+export type FineStatus = 'PENDING' | 'PAID' | 'WAIVED' | 'CANCELLED'
+export type PaymentMethod = 'CASH' | 'STRIPE' | 'WAIVED'
+
+export interface FineResponse {
+  id: number
+  fineCode: string
+  userId?: number
+  userEmail?: string
+  userFullName?: string
+  loanId?: number
+  loanCode?: string
+  bookId?: number
+  bookTitle?: string
+  bookHandle?: string
+  amount: number
+  reason: FineReason
+  daysOverdue?: number
+  status: FineStatus
+  paymentMethod?: PaymentMethod
+  stripeSessionId?: string
+  stripePaymentIntentId?: string
+  paidAt?: string
+  waivedAt?: string
+  waivedReason?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface FinePublicResponse {
+  fineCode: string
+  loanCode?: string
+  bookTitle?: string
+  bookHandle?: string
+  bookCover?: string
+  amount: number
+  reason: FineReason
+  daysOverdue?: number
+  status: FineStatus
+  paymentMethod?: PaymentMethod
+  paidAt?: string
+  createdAt?: string
+}
+
+export interface StripeCheckoutResponse {
+  checkoutUrl: string
+  sessionId: string
+}
+
+export interface MembershipPlanResponse {
+  id: number
+  name: string
+  code: string
+  description?: string
+  price: number
+  billingCycle: 'MONTHLY' | 'YEARLY' | 'LIFETIME'
+  stripePriceId?: string
+  stripeProductId?: string
+  maxActiveLoans: number
+  loanDurationDays: number
+  maxRenewals: number
+  status: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED'
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface UserSubscriptionResponse {
+  id?: number
+  userId?: number
+  userEmail?: string
+  planId?: number
+  planName: string
+  planCode: string
+  maxActiveLoans: number
+  loanDurationDays: number
+  maxRenewals: number
+  status: string
+  stripeCustomerId?: string
+  stripeSubscriptionId?: string
+  currentPeriodStart?: string
+  currentPeriodEnd?: string
+  cancelAtPeriodEnd?: boolean
+  canceledAt?: string
+}
+
+// Dashboard & Analytics Types
+export interface DashboardSummaryResponse {
+  totalBooks: number
+  totalCopies: number
+  availableCopies: number
+  activeLoans: number
+  overdueLoans: number
+  totalMembers: number
+  activeSubscriptions: number
+  pendingFinesCount: number
+  pendingFinesAmount: number
+  collectedFinesAmount: number
+  estimatedMonthlyRecurringRevenue: number
+}
+
+export interface CirculationTrendPoint {
+  label: string
+  checkouts: number
+  returns: number
+  overdues: number
+}
+
+export interface CirculationTrendResponse {
+  period: string
+  dataPoints: CirculationTrendPoint[]
+}
+
+export interface TopBorrowedBookResponse {
+  bookId: number
+  bookHandle: string
+  title: string
+  cover?: string
+  authors: string[]
+  totalCheckouts: number
+  totalCopies: number
+  availableCopies: number
+}
+
+export interface CategoryShare {
+  genreId: number
+  name: string
+  handle: string
+  bookCount: number
+  loanCount: number
+  percentage: number
+}
+
+export interface CategoryDistributionResponse {
+  categories: CategoryShare[]
+}
+
+export interface PlanRevenueBreakdown {
+  planCode: string
+  planName: string
+  subscribersCount: number
+  price: number
+  revenue: number
+}
+
+export interface RevenueReportResponse {
+  subscriptionRevenue: {
+    totalMRR: number
+    activeSubscribers: number
+    planBreakdown: PlanRevenueBreakdown[]
+  }
+  finesRevenue: {
+    totalCollected: number
+    totalPending: number
+    totalWaived: number
+    methodBreakdown: Record<string, number>
+    reasonBreakdown: Record<string, number>
+  }
+}
+
+export interface SevereOverdueAlert {
+  loanId: number
+  loanCode: string
+  bookTitle: string
+  bookHandle?: string
+  borrowerName: string
+  borrowerEmail?: string
+  dueDate: string
+  daysOverdue: number
+  estimatedFine: number
+}
+
+export interface OutOfStockBookAlert {
+  bookId: number
+  bookHandle: string
+  title: string
+  totalCopies: number
+}
+
+export interface OperationalAlertsResponse {
+  severeOverdues: SevereOverdueAlert[]
+  outOfStockBooks: OutOfStockBookAlert[]
+  totalSevereOverdues: number
+  totalOutOfStock: number
+}
+
+export type ReservationStatus = 'PENDING' | 'READY_FOR_PICKUP' | 'FULFILLED' | 'CANCELLED' | 'EXPIRED'
+
+export interface ReservationResponse {
+  id: number
+  reservationCode: string
+  userId?: number
+  userEmail?: string
+  userFullName?: string
+  userPhone?: string
+  bookId?: number
+  bookTitle?: string
+  bookHandle?: string
+  bookCover?: string
+  bookCopyId?: number
+  barcode?: string
+  location?: string
+  status: ReservationStatus
+  reservedAt: string
+  pickupDeadline?: string
+  fulfilledAt?: string
+  queuePosition?: number
+  cancellationReason?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ReservationCreateRequest {
+  bookId?: number
+  bookHandle?: string
+}
+
+

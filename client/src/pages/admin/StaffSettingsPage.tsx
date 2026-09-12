@@ -160,12 +160,12 @@ export function StaffSettingsPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className={`border-b ${t.tableHead}`}>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Username</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Staff Full Name</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Email Address</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Assigned Role</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Status</th>
-                    <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider text-right">Actions</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Username</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Staff Full Name</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Email Address</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Assigned Role</th>
+                    <th className="py-3 px-4 text-xs font-semibold">Status</th>
+                    <th className="py-3 px-4 text-xs font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-transparent">

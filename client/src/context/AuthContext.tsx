@@ -1,9 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import { api, getToken } from '@/services/api'
 import type { UserResponse } from '@/types/api'
 
 interface AuthContextType {
   user: UserResponse | null
+  rawUser: UserResponse | null
   token: string | null
   loading: boolean
   login: (email: string, password: string) => Promise<UserResponse | null>
@@ -24,22 +26,34 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserResponse | null>(null)
+  const location = useLocation()
+  const [rawUser, setRawUser] = useState<UserResponse | null>(null)
   const [token, setTokenState] = useState<string | null>(getToken())
   const [loading, setLoading] = useState(true)
+
+  const isStaffRoute = location.pathname.startsWith('/admin')
+
+  // Effective user: Outside of /admin/**, non-MEMBER accounts are treated as null (unauthenticated)
+  const user = useMemo(() => {
+    if (!rawUser) return null
+    if (!isStaffRoute && rawUser.role !== 'MEMBER') {
+      return null
+    }
+    return rawUser
+  }, [rawUser, isStaffRoute])
 
   const refreshUser = async (): Promise<UserResponse | null> => {
     try {
       if (getToken()) {
         const u = await api.getCurrentUser()
-        setUser(u)
+        setRawUser(u)
         return u
       } else {
-        setUser(null)
+        setRawUser(null)
         return null
       }
     } catch {
-      setUser(null)
+      setRawUser(null)
       api.logout()
       setTokenState(null)
       return null
@@ -70,18 +84,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     api.logout()
-    setUser(null)
+    setRawUser(null)
     setTokenState(null)
   }
 
-  const isAdmin = user?.role === 'ADMIN'
-  const isLibrarian = user?.role === 'LIBRARIAN'
+  const isAdmin = rawUser?.role === 'ADMIN'
+  const isLibrarian = rawUser?.role === 'LIBRARIAN'
   const canAccessAdmin = isAdmin || isLibrarian
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        rawUser,
         token,
         loading,
         login,

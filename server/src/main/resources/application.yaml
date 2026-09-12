@@ -42,3 +42,13 @@ spring:
 
 jwt:
   secret: 2p22zEkXJByQUna3k6Oum/ZHMhBdepWA2+JPLbfvFO8=
+
+stripe:
+  api-key: ${STRIPE_API_KEY:sk_test_placeholder_libro_development_key}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_placeholder_libro_development_secret}
+  currency: ${STRIPE_CURRENCY:usd}
+
+fine:
+  daily-rate: ${FINE_DAILY_RATE:0.50}
+  default-lost-fee: ${FINE_DEFAULT_LOST_FEE:20.00}
+  default-damaged-fee: ${FINE_DEFAULT_DAMAGED_FEE:10.00}
