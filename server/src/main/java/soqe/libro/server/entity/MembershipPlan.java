@@ -22,16 +22,6 @@ public class MembershipPlan extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal price;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "billing_cycle", nullable = false, length = 20)
-    private BillingCycle billingCycle;
-
-    @Column(name = "stripe_price_id", length = 100)
-    private String stripePriceId;
-
     @Column(name = "stripe_product_id", length = 100)
     private String stripeProductId;
 
@@ -52,9 +42,9 @@ public class MembershipPlan extends BaseEntity {
     @Builder.Default
     private Status status = Status.ACTIVE;
 
-    public enum BillingCycle {
-        MONTHLY, YEARLY, LIFETIME
-    }
+    @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private java.util.List<MembershipPlanPrice> prices = new java.util.ArrayList<>();
 
     public enum Status {
         ACTIVE, INACTIVE, ARCHIVED

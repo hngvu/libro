@@ -4,7 +4,7 @@ import { IconMenu2, IconX } from '@tabler/icons-react'
 import { useAdmin } from './AdminContext'
 
 export function AdminHeader() {
-  const { t, mobileSidebarOpen, setMobileSidebarOpen } = useAdmin()
+  const { t, mobileSidebarOpen, setMobileSidebarOpen, headerAction } = useAdmin()
   const location = useLocation()
 
   // Get Page Title based on Route
@@ -12,23 +12,30 @@ export function AdminHeader() {
     const path = location.pathname
     if (path === '/admin') return 'Dashboard'
     if (path === '/admin/books') return 'Catalog'
+    if (path === '/admin/books/new') return 'New Book'
     if (path.startsWith('/admin/books/') && path.endsWith('/copies')) return 'Book Copies'
-    if (path.startsWith('/admin/books/')) return 'Book Details'
+    if (path.startsWith('/admin/books/')) return 'Edit Book'
     if (path === '/admin/copies') return 'Copies'
-    if (path.startsWith('/admin/authors/')) return 'Author Details'
+    if (path === '/admin/authors/new') return 'New Author'
+    if (path.startsWith('/admin/authors/')) return 'Edit Author'
     if (path === '/admin/authors') return 'Authors'
-    if (path.startsWith('/admin/genres/')) return 'Genre Details'
+    if (path === '/admin/genres/new') return 'New Genre'
+    if (path.startsWith('/admin/genres/')) return 'Edit Genre'
     if (path === '/admin/genres') return 'Genres'
-    if (path === '/admin/circulation') return 'Checkout & Returns'
+    if (path === '/admin/circulation') return 'Desk'
     if (path === '/admin/overdue') return 'Overdue'
     if (path === '/admin/reservations') return 'Reservations'
+    if (path === '/admin/subscriptions/plans/new' || path === '/admin/membership-plans/new') return 'New Plan'
+    if (path.startsWith('/admin/subscriptions/plans/') || path.startsWith('/admin/membership-plans/')) return 'Edit Plan'
+    if (path === '/admin/subscriptions/plans' || path === '/admin/membership-plans') return 'Plans'
+    if (path === '/admin/subscriptions/history' || path === '/admin/user-subscriptions') return 'History'
     if (path === '/admin/members') return 'Members'
     if (path === '/admin/fines') return 'Fines'
     if (path === '/admin/reports') return 'Reports'
-    if (path === '/admin/staff-settings') return 'Staff & Roles'
-    if (path === '/admin/activity-log') return 'Activity Log'
+    if (path === '/admin/staff-settings') return 'Staff'
+    if (path === '/admin/activity-log') return 'Logs'
     if (path === '/admin/settings') return 'Settings'
-    return 'Administration'
+    return 'Admin'
   }
 
   return (
@@ -48,6 +55,12 @@ export function AdminHeader() {
           {getPageTitle()}
         </h1>
       </div>
+
+      {headerAction && (
+        <div className="flex items-center gap-2 shrink-0">
+          {headerAction}
+        </div>
+      )}
     </header>
   )
 }

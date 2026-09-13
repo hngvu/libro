@@ -10,6 +10,7 @@ interface SidebarNavItemProps {
   isSubItem?: boolean
   isOverdueAlert?: boolean
   end?: boolean
+  disableActive?: boolean
 }
 
 export function SidebarNavItem({
@@ -20,6 +21,7 @@ export function SidebarNavItem({
   isSubItem = false,
   isOverdueAlert = false,
   end = false,
+  disableActive = false,
 }: SidebarNavItemProps) {
   const { isDark, setMobileSidebarOpen } = useAdmin()
 
@@ -31,8 +33,9 @@ export function SidebarNavItem({
       to={to}
       end={shouldEnd}
       onClick={() => setMobileSidebarOpen(false)}
-      className={({ isActive }) =>
-        `flex items-center justify-between rounded-xl transition-colors duration-150 cursor-pointer group ${
+      className={({ isActive: navActive }) => {
+        const isActive = disableActive ? false : navActive
+        return `flex items-center justify-between rounded-xl transition-colors duration-150 cursor-pointer group ${
           isSubItem ? 'px-3 py-1.5 ml-3.5 text-[13px]' : 'px-3 py-2 text-[13.5px]'
         } ${
           isActive
@@ -43,7 +46,7 @@ export function SidebarNavItem({
             ? 'text-[#8c94a5] hover:text-white hover:bg-[#1f2228]'
             : 'text-gray-600 hover:text-gray-950 hover:bg-gray-100'
         }`
-      }
+      }}
     >
       <div className="flex items-center gap-2.5 truncate">
         {icon && <span className="shrink-0">{icon}</span>}

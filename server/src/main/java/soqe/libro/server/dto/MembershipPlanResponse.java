@@ -1,8 +1,8 @@
 package soqe.libro.server.dto;
 
 import lombok.Builder;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Builder
 public record MembershipPlanResponse(
@@ -10,14 +10,12 @@ public record MembershipPlanResponse(
         String name,
         String code,
         String description,
-        BigDecimal price,
-        String billingCycle,
-        String stripePriceId,
         String stripeProductId,
         Integer maxActiveLoans,
         Integer loanDurationDays,
         Integer maxRenewals,
         String status,
+        List<MembershipPlanPriceDTO> prices,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

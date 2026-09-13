@@ -11,6 +11,5 @@ import java.util.Optional;
 @Repository
 public interface MembershipPlanRepository extends JpaRepository<MembershipPlan, Long>, JpaSpecificationExecutor<MembershipPlan> {
     Optional<MembershipPlan> findByCode(String code);
-    Optional<MembershipPlan> findByStripePriceId(String stripePriceId);
     List<MembershipPlan> findByStatus(MembershipPlan.Status status);
 }

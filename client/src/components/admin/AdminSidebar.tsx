@@ -14,9 +14,13 @@ export function AdminSidebar() {
         t.sidebarBg
       } ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
     >
-      {/* Top: Brand Header & Grouped Navigation */}
-      <div className="flex-1 overflow-y-auto pr-1 -mr-1 space-y-3">
+      {/* Top: Fixed Brand Header (Logo) */}
+      <div className={`pb-3 border-b shrink-0 ${isDark ? 'border-[#22262e]' : 'border-gray-200'}`}>
         <SidebarHeader />
+      </div>
+
+      {/* Middle: Scrollable Grouped Navigation */}
+      <div className="flex-1 overflow-y-auto pr-1 -mr-1 space-y-3 min-h-0 pt-3">
         <SidebarNav />
       </div>
 

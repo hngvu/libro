@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate, useOutletContext, Link } from 'react-router-dom'
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom'
 import {
   IconExternalLink,
   IconBook2,
@@ -46,7 +46,7 @@ export function BookDetailPage() {
   const isNew = id === 'new'
   const bookId = isNew ? null : Number(id)
   const navigate = useNavigate()
-  const { t, isDark, showFeedback } = useAdmin()
+  const { t, isDark, showFeedback, setHeaderAction } = useAdmin()
   const { refreshCounts } = useOutletContext<AdminLayoutOutletContext>()
 
   const [book, setBook] = useState<BookResponse | null>(null)
@@ -247,8 +247,10 @@ export function BookDetailPage() {
         refreshCounts()
         navigate(`/admin/books/${created.id}`)
       } else if (book) {
+        const finalSlug = editForm.slug?.trim() || book.slug || editForm.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'book'
         await api.adminUpdateBook(book.id, {
           ...editForm,
+          slug: finalSlug,
           isbn: editForm.isbn.trim() || undefined,
           publicationYear: editForm.publicationYear ? Number(editForm.publicationYear) : undefined,
           cover: editForm.cover.trim() || undefined,
@@ -282,6 +284,49 @@ export function BookDetailPage() {
     }
   }
 
+  // Manage top header action: update on change, clear on unmount
+  useEffect(() => {
+    if (isNew) {
+      setHeaderAction(
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/admin/books')}
+            className={`h-8 px-3.5 text-xs font-medium rounded-md border transition-colors cursor-pointer ${t.secondaryBtn}`}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSaveBook()}
+            disabled={!editForm.title.trim() || saving}
+            className={`h-8 px-3.5 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
+          >
+            {saving ? 'Creating...' : 'Create Book'}
+          </button>
+        </div>
+      )
+    } else if (isDirty) {
+      setHeaderAction(
+        <button
+          type="button"
+          onClick={() => handleSaveBook()}
+          disabled={saving}
+          className={`h-8 px-4 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
+        >
+          {saving ? 'Updating...' : 'Update'}
+        </button>
+      )
+    } else {
+      setHeaderAction(null)
+    }
+  }, [isNew, isDirty, saving, editForm.title, t.secondaryBtn, t.primaryBtn, setHeaderAction])
+
+  // Clear header action on page unmount
+  useEffect(() => {
+    return () => setHeaderAction(null)
+  }, [setHeaderAction])
+
   if (loading) {
     return (
       <div className={`p-12 text-center text-xs ${t.subTextColor}`}>
@@ -305,102 +350,7 @@ export function BookDetailPage() {
   }
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-150">
-      {/* Sub-Navigation Tabs & Top Action Bar */}
-      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-2 ${isDark ? 'border-[#22262e]' : 'border-gray-200'}`}>
-        <div className="flex items-center gap-1">
-          {isNew ? (
-            <span
-              className={`px-3.5 py-1.5 text-xs font-semibold rounded-md border ${
-                isDark
-                  ? 'bg-[#252a34] text-white border-[#333a48]'
-                  : 'bg-gray-100 text-gray-900 border-gray-300'
-              }`}
-            >
-              New Book
-            </span>
-          ) : (
-            <>
-              <Link
-                to={`/admin/books/${book!.id}`}
-                className={`px-3.5 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
-                  isDark
-                    ? 'bg-[#252a34] text-white border-[#333a48]'
-                    : 'bg-gray-100 text-gray-900 border-gray-300'
-                }`}
-              >
-                Book Details
-              </Link>
-              <Link
-                to={`/admin/books/${book!.id}/copies`}
-                className={`px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  isDark
-                    ? 'text-[#8c94a5] hover:text-white hover:bg-[#1f2228]'
-                    : 'text-gray-600 hover:text-gray-950 hover:bg-gray-100'
-                }`}
-              >
-                Copies ({book!.totalCopies ?? 0})
-              </Link>
-            </>
-          )}
-        </div>
-
-        {/* Top Action Bar */}
-        <div className="flex items-center gap-2">
-          {isNew ? (
-            <>
-              <button
-                type="button"
-                onClick={() => navigate('/admin/books')}
-                className={`h-8 px-3.5 text-xs font-medium rounded-md border transition-colors cursor-pointer ${t.secondaryBtn}`}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSaveBook()}
-                disabled={!editForm.title.trim() || saving}
-                className={`h-8 px-3.5 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
-              >
-                {saving ? 'Creating...' : 'Create Book'}
-              </button>
-            </>
-          ) : (
-            <>
-              {isDirty && (
-                <button
-                  type="button"
-                  onClick={() => handleSaveBook()}
-                  disabled={saving}
-                  className={`h-8 px-3.5 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
-                >
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              )}
-              {book?.handle && (
-                <a
-                  href={`/book/${book.handle}/${book.slug || book.handle}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`h-8 px-2.5 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer ${t.secondaryBtn}`}
-                  title="Open public catalog page"
-                >
-                  <IconExternalLink size={14} />
-                  <span>View</span>
-                </a>
-              )}
-              <button
-                type="button"
-                onClick={handleArchiveBook}
-                className="h-8 px-3.5 rounded-md text-xs font-medium inline-flex items-center transition-colors cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
-                title="Delete this title"
-              >
-                <span>Delete</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+    <div className="space-y-4 pb-12 animate-in fade-in duration-150">
 
       {/* Top Book Overview (Direct Editable Form) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-y-6 lg:gap-0 items-start">
@@ -650,6 +600,58 @@ export function BookDetailPage() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Bottom Actions Bar (Luôn xuất hiện) */}
+      <div
+        className={`pt-5 mt-6 border-t flex items-center justify-between gap-4 ${
+          isDark ? 'border-[#22262e]' : 'border-gray-200'
+        }`}
+      >
+        {/* Góc trái: Nút Delete (hoặc Cancel khi mới) */}
+        {isNew ? (
+          <button
+            type="button"
+            onClick={() => navigate('/admin/books')}
+            className={`h-9 px-4 text-xs font-medium rounded-md border transition-colors cursor-pointer ${t.secondaryBtn}`}
+          >
+            Cancel
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleArchiveBook}
+              disabled={saving}
+              className="h-9 px-4 rounded-md text-xs font-medium inline-flex items-center transition-colors cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
+              title="Delete this book"
+            >
+              Delete
+            </button>
+            {book?.handle && (
+              <a
+                href={`/book/${book.handle}/${book.slug || book.handle}`}
+                target="_blank"
+                rel="noreferrer"
+                className={`h-9 px-3 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer ${t.secondaryBtn}`}
+                title="Open public catalog page"
+              >
+                <IconExternalLink size={14} />
+                <span>View</span>
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* Góc phải: Nút Update (hoặc Create Book khi mới) */}
+        <button
+          type="button"
+          onClick={() => handleSaveBook()}
+          disabled={isNew ? (!editForm.title.trim() || saving) : (!isDirty || saving)}
+          className={`h-9 px-5 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed ${t.primaryBtn}`}
+        >
+          {saving ? (isNew ? 'Creating...' : 'Updating...') : (isNew ? 'Create Book' : 'Update')}
+        </button>
       </div>
 
       {/* Modal: Preview Full Cover Image */}

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 
 export interface CirculationSettings {
   defaultLoanDays: number
@@ -41,6 +41,8 @@ interface AdminContextType {
   setCirculationSettings: React.Dispatch<React.SetStateAction<CirculationSettings>>
   mobileSidebarOpen: boolean
   setMobileSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
+  headerAction: React.ReactNode
+  setHeaderAction: React.Dispatch<React.SetStateAction<React.ReactNode>>
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined)
@@ -51,6 +53,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   })
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [headerAction, setHeaderAction] = useState<React.ReactNode>(null)
 
   const [circulationSettings, setCirculationSettings] = useState<CirculationSettings>({
     defaultLoanDays: 14,
@@ -61,15 +64,15 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  const showFeedback = (type: 'success' | 'error', text: string) => {
+  const showFeedback = useCallback((type: 'success' | 'error', text: string) => {
     setFeedback({ type, text })
     setTimeout(() => setFeedback(null), 4000)
-  }
+  }, [])
 
-  const toggleThemeMode = (mode: 'dark' | 'light') => {
+  const toggleThemeMode = useCallback((mode: 'dark' | 'light') => {
     setThemeMode(mode)
     localStorage.setItem('libro_admin_theme', mode)
-  }
+  }, [])
 
   useEffect(() => {
     if (themeMode === 'dark') {
@@ -81,7 +84,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const isDark = themeMode === 'dark'
 
-  const t: AdminThemeTokens = {
+  const t: AdminThemeTokens = useMemo(() => ({
     pageBg: isDark ? 'bg-[#16181d] text-[#cbd2de]' : 'bg-[#f8fafc] text-gray-900',
     sidebarBg: isDark ? 'bg-[#121316] border-[#22262e]' : 'bg-white border-gray-200',
     headerBorder: isDark ? 'border-[#262a34]' : 'border-gray-200',
@@ -116,23 +119,35 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       ? 'bg-[#16181d] text-[#7d8697] border border-[#2c323e]'
       : 'bg-gray-100 text-gray-700 border border-gray-300 font-medium',
     modalBg: isDark ? 'bg-[#1f232b] border-[#2c323e] text-[#cbd2de]' : 'bg-white border-gray-200 text-gray-900 shadow-xl',
-  }
+  }), [isDark])
+
+  const contextValue = useMemo(() => ({
+    themeMode,
+    isDark,
+    toggleThemeMode,
+    t,
+    feedback,
+    showFeedback,
+    circulationSettings,
+    setCirculationSettings,
+    mobileSidebarOpen,
+    setMobileSidebarOpen,
+    headerAction,
+    setHeaderAction,
+  }), [
+    themeMode,
+    isDark,
+    toggleThemeMode,
+    t,
+    feedback,
+    showFeedback,
+    circulationSettings,
+    mobileSidebarOpen,
+    headerAction,
+  ])
 
   return (
-    <AdminContext.Provider
-      value={{
-        themeMode,
-        isDark,
-        toggleThemeMode,
-        t,
-        feedback,
-        showFeedback,
-        circulationSettings,
-        setCirculationSettings,
-        mobileSidebarOpen,
-        setMobileSidebarOpen,
-      }}
-    >
+    <AdminContext.Provider value={contextValue}>
       {children}
     </AdminContext.Provider>
   )

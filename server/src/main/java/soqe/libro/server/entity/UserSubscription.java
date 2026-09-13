@@ -21,6 +21,10 @@ public class UserSubscription extends BaseEntity {
     @JoinColumn(name = "plan_id", nullable = false)
     private MembershipPlan plan;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_price_id")
+    private MembershipPlanPrice planPrice;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private SubscriptionStatus status;

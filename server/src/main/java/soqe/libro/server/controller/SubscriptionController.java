@@ -29,11 +29,12 @@ public class SubscriptionController {
     public ResponseEntity<StripeCheckoutResponse> createSubscriptionCheckoutSession(
             Principal principal,
             @RequestParam String planCode,
+            @RequestParam(required = false, defaultValue = "MONTHLY") String billingCycle,
             @RequestParam(required = false) String clientBaseUrl) {
         if (principal == null) {
             throw new AuthenticationCredentialsNotFoundException("Not authenticated");
         }
-        return ResponseEntity.ok(subscriptionService.createSubscriptionCheckoutSession(planCode, principal.getName(), clientBaseUrl));
+        return ResponseEntity.ok(subscriptionService.createSubscriptionCheckoutSession(planCode, billingCycle, principal.getName(), clientBaseUrl));
     }
 
     @PostMapping("/portal-session")

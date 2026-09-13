@@ -11,10 +11,10 @@ public record BookUpdateRequest(
         @Size(max = 255, message = "Title is too long")
         String title,
 
-        @NotBlank(message = "Slug cannot be empty")
+        @Size(max = 255)
         String slug,
 
-        @Pattern(regexp = "^(?:ISBN(?:-1[03])?:? )?(?=[0-9X]{10}$|(?=(?:[0-9]+[- ]){3})[- 0-9X]{13}$|97[89][0-9]{10}$|(?=(?:[0-9]+[- ]){4})[- 0-9]{17}$)(?:97[89][- ]?)?[0-9]{1,5}[- ]?[0-9]+[- ]?[0-9]+[- ]?[0-9X]$", message = "Invalid ISBN format")
+        @Size(max = 50, message = "ISBN is too long")
         String isbn,
 
         Integer publicationYear,

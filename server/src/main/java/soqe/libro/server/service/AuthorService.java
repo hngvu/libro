@@ -59,14 +59,24 @@ public class AuthorService {
     @Transactional
     public AuthorResponse updateByAdmin(Long id, AuthorUpdateRequest req) {
         Author a = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Author not found"));
-        validateUnique(req.handle(), id);
+        if (StringUtils.hasText(req.handle()) && !req.handle().equals(a.getHandle())) {
+            validateUnique(req.handle(), id);
+            a.setHandle(req.handle().trim());
+        }
         a.setName(req.name());
-        a.setHandle(req.handle());
         a.setBiography(req.biography());
         a.setImage(req.image());
         if (req.status() != null) a.setStatus(req.status());
         a = repository.save(a);
-        return AuthorResponse.builder().id(a.getId()).name(a.getName()).handle(a.getHandle()).biography(a.getBiography()).image(a.getImage()).status(a.getStatus().name()).bookCount(a.getBooks() != null ? a.getBooks().size() : 0).build();
+        return AuthorResponse.builder()
+                .id(a.getId())
+                .name(a.getName())
+                .handle(a.getHandle())
+                .biography(a.getBiography())
+                .image(a.getImage())
+                .status(a.getStatus() != null ? a.getStatus().name() : null)
+                .bookCount(a.getBooks() != null ? a.getBooks().size() : 0)
+                .build();
     }
 
     @Transactional

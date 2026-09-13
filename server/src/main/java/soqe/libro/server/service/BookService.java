@@ -104,18 +104,27 @@ public class BookService {
         Book book = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
 
-        validateUniqueConstraints(null, request.isbn(), id);
-
         book.setTitle(request.title());
-        book.setSlug(request.slug());
-        book.setIsbn(request.isbn());
+        if (StringUtils.hasText(request.slug())) {
+            book.setSlug(request.slug().trim());
+        } else if (!StringUtils.hasText(book.getSlug())) {
+            book.setSlug(toSlug(request.title()));
+        }
+
+        if (StringUtils.hasText(request.isbn())) {
+            validateUniqueConstraints(null, request.isbn().trim(), id);
+            book.setIsbn(request.isbn().trim());
+        } else {
+            book.setIsbn(null);
+        }
+
         book.setPublicationYear(request.publicationYear());
         book.setCover(request.cover());
         book.setEdition(request.edition());
-        book.setFormat(request.format());
+        if (request.format() != null) book.setFormat(request.format());
         book.setPageCount(request.pageCount());
         book.setLanguage(request.language());
-        book.setWork(request.work());
+        if (request.work() != null) book.setWork(request.work());
         book.setDescription(request.description());
         
         if (request.status() != null) book.setStatus(request.status());
@@ -317,6 +326,15 @@ public class BookService {
                 .website(publisher.getWebsite())
                 .status(publisher.getStatus() != null ? publisher.getStatus().name() : null)
                 .build();
+    }
+
+    private String toSlug(String input) {
+        if (!StringUtils.hasText(input)) return "book";
+        return java.text.Normalizer.normalize(input, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+                .toLowerCase()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
     }
 }
 

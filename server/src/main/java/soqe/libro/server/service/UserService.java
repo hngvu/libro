@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -93,13 +94,17 @@ public class UserService {
         User user = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
-        if (!user.getEmail().equals(request.email())) {
-            validateEmailUnique(request.email());
-            user.setEmail(request.email());
+        if (StringUtils.hasText(request.email()) && !user.getEmail().equalsIgnoreCase(request.email().trim())) {
+            validateEmailUnique(request.email().trim());
+            user.setEmail(request.email().trim());
         }
 
-        user.setFullName(request.fullName());
-        user.setPhone(request.phone());
+        if (StringUtils.hasText(request.fullName())) {
+            user.setFullName(request.fullName().trim());
+        }
+        if (request.phone() != null) {
+            user.setPhone(request.phone().trim());
+        }
         
         if (request.role() != null) user.setRole(request.role());
         if (request.status() != null) user.setStatus(request.status());

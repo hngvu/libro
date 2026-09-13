@@ -183,7 +183,7 @@ export interface AuthorCreateRequest {
 
 export interface AuthorUpdateRequest {
   name: string
-  handle: string
+  handle?: string
   biography?: string
   image?: string
   status?: string
@@ -203,7 +203,7 @@ export interface GenreCreateRequest {
 
 export interface GenreUpdateRequest {
   name: string
-  handle: string
+  handle?: string
   description?: string
   status?: string
 }
@@ -228,7 +228,7 @@ export interface BookCreateRequest {
 
 export interface BookUpdateRequest {
   title: string
-  slug: string
+  slug?: string
   isbn?: string
   publicationYear?: number
   cover?: string
@@ -251,7 +251,8 @@ export interface BookCopyCreateRequest {
 }
 
 export interface BookCopyUpdateRequest {
-  status: BookCopyStatus
+  barcode?: string
+  status?: BookCopyStatus
   location?: string
 }
 
@@ -333,19 +334,24 @@ export interface StripeCheckoutResponse {
   sessionId: string
 }
 
+export interface MembershipPlanPriceResponse {
+  id?: number
+  billingCycle: 'MONTHLY' | 'YEARLY' | 'LIFETIME'
+  price: number
+  stripePriceId?: string
+}
+
 export interface MembershipPlanResponse {
   id: number
   name: string
   code: string
   description?: string
-  price: number
-  billingCycle: 'MONTHLY' | 'YEARLY' | 'LIFETIME'
-  stripePriceId?: string
   stripeProductId?: string
   maxActiveLoans: number
   loanDurationDays: number
   maxRenewals: number
   status: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED'
+  prices: MembershipPlanPriceResponse[]
   createdAt?: string
   updatedAt?: string
 }
@@ -357,6 +363,9 @@ export interface UserSubscriptionResponse {
   planId?: number
   planName: string
   planCode: string
+  planPriceId?: number
+  billingCycle?: 'MONTHLY' | 'YEARLY' | 'LIFETIME'
+  price?: number
   maxActiveLoans: number
   loanDurationDays: number
   maxRenewals: number

@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +40,7 @@ import java.util.Optional;
 public class SubscriptionService {
 
     private final MembershipPlanRepository planRepository;
+    private final soqe.libro.server.repository.MembershipPlanPriceRepository priceRepository;
     private final UserSubscriptionRepository subscriptionRepository;
     private final UserRepository userRepository;
 
@@ -62,6 +64,13 @@ public class SubscriptionService {
     }
 
     @Transactional(readOnly = true)
+    public MembershipPlanResponse getPlanById(Long id) {
+        MembershipPlan plan = planRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Membership plan not found with id: " + id));
+        return toPlanResponse(plan);
+    }
+
+    @Transactional(readOnly = true)
     public MembershipPlanResponse getPlanByCode(String code) {
         MembershipPlan plan = planRepository.findByCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("Membership plan not found with code: " + code));
@@ -78,15 +87,25 @@ public class SubscriptionService {
                 .name(req.name())
                 .code(req.code())
                 .description(req.description())
-                .price(req.price())
-                .billingCycle(MembershipPlan.BillingCycle.valueOf(req.billingCycle().toUpperCase()))
-                .stripePriceId(req.stripePriceId())
                 .stripeProductId(req.stripeProductId())
                 .maxActiveLoans(req.maxActiveLoans())
                 .loanDurationDays(req.loanDurationDays())
                 .maxRenewals(req.maxRenewals())
                 .status(MembershipPlan.Status.ACTIVE)
+                .prices(new java.util.ArrayList<>())
                 .build();
+
+        if (req.prices() != null) {
+            for (soqe.libro.server.dto.MembershipPlanPriceDTO pDto : req.prices()) {
+                soqe.libro.server.entity.MembershipPlanPrice price = soqe.libro.server.entity.MembershipPlanPrice.builder()
+                        .plan(plan)
+                        .billingCycle(soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.valueOf(pDto.billingCycle().toUpperCase()))
+                        .price(pDto.price())
+                        .stripePriceId(pDto.stripePriceId())
+                        .build();
+                plan.getPrices().add(price);
+            }
+        }
 
         plan = planRepository.save(plan);
         return toPlanResponse(plan);
@@ -98,24 +117,57 @@ public class SubscriptionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Plan not found with id: " + id));
 
         // Check if code changes and conflicts
-        if (!plan.getCode().equalsIgnoreCase(req.code())) {
-            if (planRepository.findByCode(req.code()).isPresent()) {
+        if (StringUtils.hasText(req.code()) && !plan.getCode().equalsIgnoreCase(req.code().trim())) {
+            if (planRepository.findByCode(req.code().trim()).isPresent()) {
                 throw new BusinessValidationException("Validation failed", Map.of("code", "Plan code already exists"));
             }
-            plan.setCode(req.code());
+            plan.setCode(req.code().trim());
         }
 
         plan.setName(req.name());
         plan.setDescription(req.description());
-        plan.setPrice(req.price());
-        if (StringUtils.hasText(req.billingCycle())) {
-            plan.setBillingCycle(MembershipPlan.BillingCycle.valueOf(req.billingCycle().toUpperCase()));
-        }
-        plan.setStripePriceId(req.stripePriceId());
         plan.setStripeProductId(req.stripeProductId());
         plan.setMaxActiveLoans(req.maxActiveLoans());
         plan.setLoanDurationDays(req.loanDurationDays());
         plan.setMaxRenewals(req.maxRenewals());
+        if (StringUtils.hasText(req.status())) {
+            try {
+                plan.setStatus(MembershipPlan.Status.valueOf(req.status().toUpperCase()));
+            } catch (IllegalArgumentException ignored) {}
+        }
+
+        if (req.prices() != null) {
+            java.util.Set<soqe.libro.server.entity.MembershipPlanPrice.BillingCycle> newCycles = req.prices().stream()
+                    .map(p -> soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.valueOf(p.billingCycle().toUpperCase()))
+                    .collect(java.util.stream.Collectors.toSet());
+
+            // Only remove prices whose cycle is no longer configured
+            plan.getPrices().removeIf(p -> !newCycles.contains(p.getBillingCycle()));
+
+            for (soqe.libro.server.dto.MembershipPlanPriceDTO pDto : req.prices()) {
+                soqe.libro.server.entity.MembershipPlanPrice.BillingCycle cycle =
+                        soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.valueOf(pDto.billingCycle().toUpperCase());
+
+                java.util.Optional<soqe.libro.server.entity.MembershipPlanPrice> existingPrice = plan.getPrices().stream()
+                        .filter(p -> p.getBillingCycle() == cycle)
+                        .findFirst();
+
+                if (existingPrice.isPresent()) {
+                    existingPrice.get().setPrice(pDto.price());
+                    if (pDto.stripePriceId() != null) {
+                        existingPrice.get().setStripePriceId(pDto.stripePriceId());
+                    }
+                } else {
+                    soqe.libro.server.entity.MembershipPlanPrice price = soqe.libro.server.entity.MembershipPlanPrice.builder()
+                            .plan(plan)
+                            .billingCycle(cycle)
+                            .price(pDto.price())
+                            .stripePriceId(pDto.stripePriceId())
+                            .build();
+                    plan.getPrices().add(price);
+                }
+            }
+        }
 
         plan = planRepository.save(plan);
         return toPlanResponse(plan);
@@ -178,14 +230,23 @@ public class SubscriptionService {
     }
 
     @Transactional
-    public StripeCheckoutResponse createSubscriptionCheckoutSession(String planCode, String userEmail, String clientBaseUrl) {
+    public StripeCheckoutResponse createSubscriptionCheckoutSession(String planCode, String billingCycle, String userEmail, String clientBaseUrl) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         MembershipPlan plan = planRepository.findByCode(planCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Plan not found with code: " + planCode));
 
-        if (plan.getPrice().compareTo(BigDecimal.ZERO) == 0) {
+        soqe.libro.server.entity.MembershipPlanPrice.BillingCycle cycle = StringUtils.hasText(billingCycle)
+                ? soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.valueOf(billingCycle.toUpperCase())
+                : soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.MONTHLY;
+
+        soqe.libro.server.entity.MembershipPlanPrice priceObj = plan.getPrices().stream()
+                .filter(p -> p.getBillingCycle() == cycle)
+                .findFirst()
+                .orElseThrow(() -> new BusinessValidationException("Price error", Map.of("cycle", "Plan has no price configured for " + cycle)));
+
+        if (priceObj.getPrice().compareTo(BigDecimal.ZERO) == 0) {
             throw new BusinessValidationException("Subscription failed", Map.of("plan", "Free plan does not require checkout"));
         }
 
@@ -194,25 +255,27 @@ public class SubscriptionService {
         try {
             SessionCreateParams.Builder params = SessionCreateParams.builder()
                     .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-                    .setSuccessUrl(baseUrl + "/my-loans?subscription=success&session_id={CHECKOUT_SESSION_ID}")
-                    .setCancelUrl(baseUrl + "/my-loans?subscription=cancelled")
+                    .setSuccessUrl(baseUrl + "/loans?subscription=success&session_id={CHECKOUT_SESSION_ID}")
+                    .setCancelUrl(baseUrl + "/loans?subscription=cancelled")
                     .setCustomerEmail(userEmail)
                     .setClientReferenceId(String.valueOf(user.getId()))
                     .putMetadata("userId", String.valueOf(user.getId()))
                     .putMetadata("planCode", plan.getCode())
-                    .putMetadata("planId", String.valueOf(plan.getId()));
+                    .putMetadata("planId", String.valueOf(plan.getId()))
+                    .putMetadata("priceId", String.valueOf(priceObj.getId()))
+                    .putMetadata("billingCycle", priceObj.getBillingCycle().name());
 
-            if (StringUtils.hasText(plan.getStripePriceId())) {
+            if (StringUtils.hasText(priceObj.getStripePriceId())) {
                 params.addLineItem(
                         SessionCreateParams.LineItem.builder()
                                 .setQuantity(1L)
-                                .setPrice(plan.getStripePriceId())
+                                .setPrice(priceObj.getStripePriceId())
                                 .build()
                 );
             } else {
-                long unitAmountCents = plan.getPrice().multiply(BigDecimal.valueOf(100)).longValue();
+                long unitAmountCents = priceObj.getPrice().multiply(BigDecimal.valueOf(100)).longValue();
                 SessionCreateParams.LineItem.PriceData.Recurring.Interval interval =
-                        plan.getBillingCycle() == MembershipPlan.BillingCycle.YEARLY
+                        priceObj.getBillingCycle() == soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.YEARLY
                                 ? SessionCreateParams.LineItem.PriceData.Recurring.Interval.YEAR
                                 : SessionCreateParams.LineItem.PriceData.Recurring.Interval.MONTH;
 
@@ -230,7 +293,7 @@ public class SubscriptionService {
                                                 )
                                                 .setProductData(
                                                         SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                                                .setName("Libro Membership: " + plan.getName())
+                                                                .setName("Libro Membership: " + plan.getName() + " (" + priceObj.getBillingCycle() + ")")
                                                                 .setDescription(plan.getDescription())
                                                                 .build()
                                                 )
@@ -261,7 +324,7 @@ public class SubscriptionService {
         try {
             var params = com.stripe.param.billingportal.SessionCreateParams.builder()
                     .setCustomer(activeSub.get().getStripeCustomerId())
-                    .setReturnUrl(StringUtils.hasText(returnUrl) ? returnUrl : "http://localhost:5173/my-loans")
+                    .setReturnUrl(StringUtils.hasText(returnUrl) ? returnUrl : "http://localhost:5173/loans")
                     .build();
 
             com.stripe.model.billingportal.Session session = com.stripe.model.billingportal.Session.create(params);
@@ -306,6 +369,7 @@ public class SubscriptionService {
     private void handleCheckoutSessionCompleted(Session session) {
         String userIdStr = session.getMetadata() != null ? session.getMetadata().get("userId") : null;
         String planCode = session.getMetadata() != null ? session.getMetadata().get("planCode") : null;
+        String priceIdStr = session.getMetadata() != null ? session.getMetadata().get("priceId") : null;
 
         if (userIdStr == null || planCode == null) return;
 
@@ -313,19 +377,23 @@ public class SubscriptionService {
             Long userId = Long.parseLong(userIdStr);
             User user = userRepository.findById(userId).orElse(null);
             MembershipPlan plan = planRepository.findByCode(planCode).orElse(null);
+            soqe.libro.server.entity.MembershipPlanPrice price = null;
+            if (priceIdStr != null) {
+                price = priceRepository.findById(Long.parseLong(priceIdStr)).orElse(null);
+            }
 
             if (user != null && plan != null) {
                 String stripeSubId = session.getSubscription();
                 String stripeCustId = session.getCustomer();
 
                 LocalDateTime periodStart = LocalDateTime.now();
-                LocalDateTime periodEnd = plan.getBillingCycle() == MembershipPlan.BillingCycle.YEARLY
-                        ? periodStart.plusYears(1)
-                        : periodStart.plusMonths(1);
+                boolean isYearly = price != null && price.getBillingCycle() == soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.YEARLY;
+                LocalDateTime periodEnd = isYearly ? periodStart.plusYears(1) : periodStart.plusMonths(1);
 
                 UserSubscription sub = UserSubscription.builder()
                         .user(user)
                         .plan(plan)
+                        .planPrice(price)
                         .status(UserSubscription.SubscriptionStatus.ACTIVE)
                         .stripeCustomerId(stripeCustId)
                         .stripeSubscriptionId(stripeSubId)
@@ -367,19 +435,27 @@ public class SubscriptionService {
     }
 
     private MembershipPlanResponse toPlanResponse(MembershipPlan p) {
+        List<soqe.libro.server.dto.MembershipPlanPriceDTO> priceDTOs = p.getPrices() == null ? Collections.emptyList() :
+                p.getPrices().stream()
+                        .map(pr -> soqe.libro.server.dto.MembershipPlanPriceDTO.builder()
+                                .id(pr.getId())
+                                .billingCycle(pr.getBillingCycle().name())
+                                .price(pr.getPrice())
+                                .stripePriceId(pr.getStripePriceId())
+                                .build())
+                        .toList();
+
         return MembershipPlanResponse.builder()
                 .id(p.getId())
                 .name(p.getName())
                 .code(p.getCode())
                 .description(p.getDescription())
-                .price(p.getPrice())
-                .billingCycle(p.getBillingCycle() != null ? p.getBillingCycle().name() : null)
-                .stripePriceId(p.getStripePriceId())
                 .stripeProductId(p.getStripeProductId())
                 .maxActiveLoans(p.getMaxActiveLoans())
                 .loanDurationDays(p.getLoanDurationDays())
                 .maxRenewals(p.getMaxRenewals())
                 .status(p.getStatus() != null ? p.getStatus().name() : null)
+                .prices(priceDTOs)
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .build();
@@ -393,6 +469,10 @@ public class SubscriptionService {
                 .planId(s.getPlan() != null ? s.getPlan().getId() : null)
                 .planName(s.getPlan() != null ? s.getPlan().getName() : null)
                 .planCode(s.getPlan() != null ? s.getPlan().getCode() : null)
+                .planPriceId(s.getPlanPrice() != null ? s.getPlanPrice().getId() : null)
+                .billingCycle(s.getPlanPrice() != null && s.getPlanPrice().getBillingCycle() != null
+                        ? s.getPlanPrice().getBillingCycle().name() : "MONTHLY")
+                .price(s.getPlanPrice() != null ? s.getPlanPrice().getPrice() : BigDecimal.ZERO)
                 .maxActiveLoans(s.getPlan() != null ? s.getPlan().getMaxActiveLoans() : 1)
                 .loanDurationDays(s.getPlan() != null ? s.getPlan().getLoanDurationDays() : 7)
                 .maxRenewals(s.getPlan() != null ? s.getPlan().getMaxRenewals() : 0)

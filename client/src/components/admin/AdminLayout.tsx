@@ -1,9 +1,7 @@
 import React, { useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import {
-  IconShieldLock,
   IconAlertTriangle,
-  IconKey,
   IconCheck,
 } from '@tabler/icons-react'
 import { useAuth } from '@/context/AuthContext'
@@ -77,146 +75,90 @@ function AdminLayoutInner() {
     )
   }
 
-  // Gate 1: Unauthenticated -> Staff Portal Sign In
+  // Gate 1: Unauthenticated -> Staff Sign In
   if (!user) {
     return (
-      <div className={`min-h-screen flex items-center justify-center py-10 px-4 ${t.pageBg}`}>
-        <div className={`border rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 max-w-md w-full ${t.modalBg}`}>
-          <div className="text-center space-y-2">
-            <div
-              className={`inline-flex p-3 rounded-full border mb-1 ${
-                isDark ? 'bg-[#16181d] border-[#2c323e] text-blue-400' : 'bg-blue-50 border-blue-100 text-blue-600'
-              }`}
-            >
-              <IconShieldLock size={30} />
+      <div className={`min-h-screen flex items-center justify-center py-12 px-4 ${t.pageBg}`}>
+        <div className={`border rounded-2xl p-6 sm:p-8 shadow-xl max-w-sm w-full space-y-5 ${t.modalBg}`}>
+          <div className="flex items-center justify-center gap-2.5 select-none pt-1">
+            <div className="relative">
+              <img
+                src="/favicon.svg"
+                alt="Libro"
+                className="w-8 h-8 rounded-xl object-contain bg-blue-600/10 p-1"
+              />
             </div>
-            <h2 className={`text-xl font-bold font-sans ${t.titleColor}`}>
-              Staff Administration Portal
-            </h2>
-            <p className={`text-xs leading-relaxed ${t.subTextColor}`}>
-              Circulation desk, barcode tracking, and library cataloging are restricted to authorized staff (Librarians & Administrators).
-            </p>
+            <span
+              className={`font-serif text-[22px] font-bold tracking-[0.12em] lowercase leading-none ${t.titleColor}`}
+              style={{ fontFamily: "'Playfair Display', 'Merriweather', Georgia, serif" }}
+            >
+              libro
+            </span>
           </div>
 
           {gateError && (
             <div className="p-3 rounded-xl text-xs bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-2">
-              <IconAlertTriangle size={16} className="shrink-0" />
+              <IconAlertTriangle size={15} className="shrink-0" />
               <span>{gateError}</span>
             </div>
           )}
 
-          {/* Quick 1-Click Demo Logins */}
-          <div className="space-y-2.5">
-            <div className={`text-[11px] font-semibold uppercase tracking-wider ${t.subTextColor}`}>
-              Quick 1-Click Staff Access (Demo)
+          <form onSubmit={handleGateSubmit} className="space-y-3.5">
+            <div>
+              <label className={`block text-xs font-medium mb-1.5 ${t.subTextColor}`}>Email</label>
+              <input
+                type="email"
+                required
+                autoFocus
+                value={gateEmail}
+                onChange={(e) => setGateEmail(e.target.value)}
+                className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+              />
             </div>
+            <div>
+              <label className={`block text-xs font-medium mb-1.5 ${t.subTextColor}`}>Password</label>
+              <input
+                type="password"
+                required
+                value={gatePassword}
+                onChange={(e) => setGatePassword(e.target.value)}
+                className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+              />
+            </div>
+            <div className="pt-1.5">
+              <button
+                type="submit"
+                disabled={gateLoading}
+                className={`w-full h-9 text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-60 ${t.primaryBtn}`}
+              >
+                {gateLoading ? 'Logging in...' : 'Login'}
+              </button>
+            </div>
+          </form>
+
+          {/* Quick Demo Access */}
+          <div className="pt-2 flex items-center justify-center gap-2 text-xs">
+            <span className={`text-[11px] ${t.mutedColor}`}>Demo:</span>
             <button
               type="button"
               disabled={gateLoading}
               onClick={() => handleQuickLogin('admin')}
-              className={`w-full text-left p-3 rounded-xl border transition flex items-center justify-between group cursor-pointer disabled:opacity-60 ${
-                isDark
-                  ? 'bg-[#16181d] border-[#2c323e] hover:border-[#3e4757]'
-                  : 'bg-gray-50 border-gray-200 hover:border-gray-300 hover:bg-gray-100/70'
+              className={`text-[11px] font-medium hover:underline cursor-pointer ${
+                isDark ? 'text-blue-400' : 'text-blue-600'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                  A
-                </div>
-                <div>
-                  <div className={`text-xs font-semibold flex items-center gap-1.5 ${t.titleColor}`}>
-                    Sign in as Administrator
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-semibold border border-blue-500/20">
-                      Full Access
-                    </span>
-                  </div>
-                  <div className={`text-[11px] font-mono ${t.subTextColor}`}>admin@libro.com</div>
-                </div>
-              </div>
-              <IconKey size={16} className="text-gray-400 group-hover:text-blue-400 transition-colors" />
+              Admin
             </button>
-
+            <span className={t.mutedColor}>·</span>
             <button
               type="button"
               disabled={gateLoading}
               onClick={() => handleQuickLogin('librarian')}
-              className={`w-full text-left p-3 rounded-xl border transition flex items-center justify-between group cursor-pointer disabled:opacity-60 ${
-                isDark
-                  ? 'bg-[#16181d] border-[#2c323e] hover:border-[#3e4757]'
-                  : 'bg-gray-50 border-gray-200 hover:border-gray-300 hover:bg-gray-100/70'
+              className={`text-[11px] font-medium hover:underline cursor-pointer ${
+                isDark ? 'text-emerald-400' : 'text-emerald-600'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                  L
-                </div>
-                <div>
-                  <div className={`text-xs font-semibold flex items-center gap-1.5 ${t.titleColor}`}>
-                    Sign in as Librarian
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">
-                      Circulation Desk
-                    </span>
-                  </div>
-                  <div className={`text-[11px] font-mono ${t.subTextColor}`}>lucia@libro.com</div>
-                </div>
-              </div>
-              <IconKey size={16} className="text-gray-400 group-hover:text-emerald-400 transition-colors" />
-            </button>
-          </div>
-
-          <div className="relative my-4 text-center">
-            <div className="absolute inset-0 flex items-center">
-              <div className={`w-full border-t ${isDark ? 'border-[#2c323e]' : 'border-gray-200'}`} />
-            </div>
-            <span
-              className={`relative px-2 text-[10px] uppercase font-semibold ${
-                isDark ? 'bg-[#1f232b] text-[#5d6575]' : 'bg-white text-gray-400'
-              }`}
-            >
-              or custom credentials
-            </span>
-          </div>
-
-          <form onSubmit={handleGateSubmit} className="space-y-3">
-            <div>
-              <label className={`text-xs font-medium ${t.subTextColor}`}>Staff Email</label>
-              <input
-                type="email"
-                required
-                placeholder="staff@libro.com"
-                value={gateEmail}
-                onChange={(e) => setGateEmail(e.target.value)}
-                className={`w-full mt-1 h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
-              />
-            </div>
-            <div>
-              <label className={`text-xs font-medium ${t.subTextColor}`}>Password</label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={gatePassword}
-                onChange={(e) => setGatePassword(e.target.value)}
-                className={`w-full mt-1 h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={gateLoading}
-              className={`w-full h-9 text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-60 ${t.primaryBtn}`}
-            >
-              {gateLoading ? 'Authenticating...' : 'Sign In to Staff Desk'}
-            </button>
-          </form>
-
-          <div className="text-center pt-1">
-            <button
-              type="button"
-              onClick={() => navigate('/')}
-              className={`text-xs hover:underline cursor-pointer transition-colors ${t.subTextColor}`}
-            >
-              ← Return to Reader Public Catalog
+              Librarian
             </button>
           </div>
         </div>
@@ -228,37 +170,22 @@ function AdminLayoutInner() {
   if (!canAccessAdmin) {
     return (
       <div className={`min-h-screen flex items-center justify-center py-12 px-4 ${t.pageBg}`}>
-        <div className={`border rounded-2xl p-6 sm:p-8 shadow-xl text-center space-y-5 max-w-md w-full ${t.modalBg}`}>
-          <div className="inline-flex p-3 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <IconAlertTriangle size={30} />
-          </div>
-          <div>
-            <h2 className={`text-xl font-bold font-sans ${t.titleColor}`}>
-              Staff Clearance Required
+        <div className={`border rounded-2xl p-6 sm:p-8 shadow-xl text-center space-y-4 max-w-sm w-full ${t.modalBg}`}>
+          <div className="space-y-1">
+            <h2 className={`text-lg font-bold font-sans ${t.titleColor}`}>
+              Access Denied
             </h2>
-            <p className={`text-xs mt-2 leading-relaxed ${t.subTextColor}`}>
-              You are signed in as <strong className={t.titleColor}>{user.fullName || user.username}</strong> (<code className="text-xs font-mono">{user.email}</code>) with role{' '}
-              <span className="ml-1 text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 font-mono font-semibold">
-                {user.role}
-              </span>.
-            </p>
-            <p className={`text-xs mt-1.5 ${t.subTextColor}`}>
-              The circulation desk and administration console are only accessible by Librarians and System Administrators.
+            <p className={`text-xs ${t.subTextColor}`}>
+              Account <span className={`font-medium ${t.titleColor}`}>{user.email}</span> does not have staff permissions.
             </p>
           </div>
 
-          <div className="space-y-2 pt-2">
+          <div className="pt-2">
             <button
               onClick={() => logout()}
               className={`w-full h-9 text-xs font-semibold rounded-xl transition-colors cursor-pointer ${t.primaryBtn}`}
             >
-              Switch to Staff Account
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className={`w-full h-9 text-xs rounded-xl transition-colors cursor-pointer ${t.secondaryBtn}`}
-            >
-              Return to Reader Public Catalog
+              Sign Out
             </button>
           </div>
         </div>

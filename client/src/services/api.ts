@@ -634,9 +634,10 @@ export const api = {
     return request<UserSubscriptionResponse>('/subscriptions/my-subscription')
   },
 
-  async createSubscriptionCheckoutSession(planCode: string, clientBaseUrl?: string): Promise<StripeCheckoutResponse> {
+  async createSubscriptionCheckoutSession(planCode: string, billingCycle: string = 'MONTHLY', clientBaseUrl?: string): Promise<StripeCheckoutResponse> {
     const search = new URLSearchParams()
     search.set('planCode', planCode)
+    search.set('billingCycle', billingCycle)
     if (clientBaseUrl) search.set('clientBaseUrl', clientBaseUrl)
     return request<StripeCheckoutResponse>(`/subscriptions/checkout-session?${search.toString()}`, {
       method: 'POST',
@@ -655,6 +656,10 @@ export const api = {
   // Admin Membership & Subscriptions Management
   async adminGetMembershipPlans(): Promise<MembershipPlanResponse[]> {
     return request<MembershipPlanResponse[]>('/admin/membership-plans')
+  },
+
+  async adminGetMembershipPlan(id: number): Promise<MembershipPlanResponse> {
+    return request<MembershipPlanResponse>(`/admin/membership-plans/${id}`)
   },
 
   async adminCreateMembershipPlan(data: Partial<MembershipPlanResponse>): Promise<MembershipPlanResponse> {

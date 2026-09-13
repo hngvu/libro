@@ -19,10 +19,10 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
     long countByStatus(UserSubscription.SubscriptionStatus status);
 
     @org.springframework.data.jpa.repository.Query("""
-        SELECT s.plan.code, s.plan.name, s.plan.price, COUNT(s) 
+        SELECT s.plan.code, s.plan.name, COALESCE(s.planPrice.price, 0), COUNT(s) 
         FROM UserSubscription s 
         WHERE s.status = 'ACTIVE' 
-        GROUP BY s.plan.code, s.plan.name, s.plan.price
+        GROUP BY s.plan.code, s.plan.name, s.planPrice.price
     """)
     List<Object[]> countActiveSubscribersPerPlan();
 }

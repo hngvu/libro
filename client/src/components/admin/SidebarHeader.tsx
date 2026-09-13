@@ -6,7 +6,7 @@ export function SidebarHeader() {
   const { t } = useAdmin()
 
   return (
-    <div className="px-3 pt-2 pb-3">
+    <div className="px-3 py-1">
       <NavLink
         to="/admin"
         className="flex items-center gap-2.5 select-none group w-fit cursor-pointer"

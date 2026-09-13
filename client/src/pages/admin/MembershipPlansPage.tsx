@@ -1,46 +1,42 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
+  IconSearch,
   IconPlus,
-  IconRefresh,
-  IconCrown,
-  IconCheck,
-  IconEdit,
-  IconTrash,
-  IconClock,
-  IconRotateClockwise,
+  IconFilter2,
+  IconArrowsUpDown,
+  IconChevronDown,
 } from '@tabler/icons-react'
 import { useAdmin } from '@/components/admin/AdminContext'
+import { AdminFilterSelect } from '@/components/admin/AdminFilterSelect'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { api } from '@/services/api'
 import type { MembershipPlanResponse } from '@/types/api'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 
 export function MembershipPlansPage() {
+  const navigate = useNavigate()
   const { t, isDark, showFeedback } = useAdmin()
 
   const [plans, setPlans] = useState<MembershipPlanResponse[]>([])
   const [loading, setLoading] = useState(false)
 
-  // Modal: Create / Edit Plan
-  const [planModalOpen, setPlanModalOpen] = useState(false)
-  const [editingPlan, setEditingPlan] = useState<MembershipPlanResponse | null>(null)
-  const [planForm, setPlanForm] = useState({
-    name: '',
-    code: '',
-    description: '',
-    price: 0,
-    billingCycle: 'MONTHLY' as 'MONTHLY' | 'YEARLY' | 'LIFETIME',
-    stripePriceId: '',
-    stripeProductId: '',
-    maxActiveLoans: 3,
-    loanDurationDays: 14,
-    maxRenewals: 1,
-  })
-  const [savingPlan, setSavingPlan] = useState(false)
+  // Selection & Bulk Actions
+  const [selectedPlanIds, setSelectedPlanIds] = useState<number[]>([])
+
+  // Filters & Sorting
+  const [keyword, setKeyword] = useState('')
+  const [sortBy, setSortBy] = useState<
+    'default' | 'name-asc' | 'name-desc' | 'loans-desc' | 'duration-desc'
+  >('default')
+  const [statusFilter, setStatusFilter] = useState<string>('')
+  const [cycleFilter, setCycleFilter] = useState<string>('')
+  const [activeFilterFields, setActiveFilterFields] = useState<string[]>([])
 
   const fetchPlans = useCallback(async () => {
     setLoading(true)
@@ -58,410 +54,423 @@ export function MembershipPlansPage() {
     fetchPlans()
   }, [fetchPlans])
 
-  const handleOpenCreatePlan = () => {
-    setEditingPlan(null)
-    setPlanForm({
-      name: '',
-      code: '',
-      description: '',
-      price: 0,
-      billingCycle: 'MONTHLY',
-      stripePriceId: '',
-      stripeProductId: '',
-      maxActiveLoans: 3,
-      loanDurationDays: 14,
-      maxRenewals: 1,
-    })
-    setPlanModalOpen(true)
+  const toggleSelectPlan = (id: number) => {
+    setSelectedPlanIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
   }
 
-  const handleOpenEditPlan = (p: MembershipPlanResponse) => {
-    setEditingPlan(p)
-    setPlanForm({
-      name: p.name,
-      code: p.code,
-      description: p.description || '',
-      price: p.price,
-      billingCycle: p.billingCycle || 'MONTHLY',
-      stripePriceId: p.stripePriceId || '',
-      stripeProductId: p.stripeProductId || '',
-      maxActiveLoans: p.maxActiveLoans,
-      loanDurationDays: p.loanDurationDays,
-      maxRenewals: p.maxRenewals,
-    })
-    setPlanModalOpen(true)
+  const toggleSelectAll = () => {
+    if (selectedPlanIds.length === sortedPlans.length) {
+      setSelectedPlanIds([])
+    } else {
+      setSelectedPlanIds(sortedPlans.map((p) => p.id))
+    }
   }
 
-  const handleSavePlan = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSavingPlan(true)
+  const handleBulkArchive = async () => {
+    if (!confirm(`Are you sure you want to archive ${selectedPlanIds.length} selected plan(s)?`)) return
     try {
-      if (editingPlan) {
-        await api.adminUpdateMembershipPlan(editingPlan.id, planForm)
-        showFeedback('success', `Plan "${planForm.name}" updated successfully!`)
-      } else {
-        await api.adminCreateMembershipPlan(planForm)
-        showFeedback('success', `Plan "${planForm.name}" created successfully!`)
+      for (const id of selectedPlanIds) {
+        await api.adminDeleteMembershipPlan(id)
       }
-      setPlanModalOpen(false)
+      showFeedback('success', `${selectedPlanIds.length} plan(s) archived successfully!`)
+      setSelectedPlanIds([])
       fetchPlans()
     } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to save membership plan')
-    } finally {
-      setSavingPlan(false)
+      showFeedback('error', err.message || 'Failed to archive selected plans')
     }
   }
 
-  const handleDeletePlan = async (id: number, name: string) => {
-    if (!confirm(`Are you sure you want to archive membership plan "${name}"?`)) return
-    try {
-      await api.adminDeleteMembershipPlan(id)
-      showFeedback('success', `Plan "${name}" archived!`)
-      fetchPlans()
-    } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to archive plan')
-    }
+  const removeFilterField = (field: string) => {
+    setActiveFilterFields((prev) => prev.filter((f) => f !== field))
+    if (field === 'status') setStatusFilter('')
+    if (field === 'cycle') setCycleFilter('')
   }
+
+  const resetAllFilters = () => {
+    setActiveFilterFields([])
+    setStatusFilter('')
+    setCycleFilter('')
+  }
+
+  // Filtered & Sorted Plans
+  const filteredPlans = useMemo(() => {
+    return plans.filter((p) => {
+      if (keyword.trim()) {
+        const q = keyword.toLowerCase()
+        const nameMatch = p.name?.toLowerCase().includes(q)
+        const codeMatch = p.code?.toLowerCase().includes(q)
+        const descMatch = p.description?.toLowerCase().includes(q)
+        if (!nameMatch && !codeMatch && !descMatch) return false
+      }
+      if (statusFilter && p.status !== statusFilter) {
+        return false
+      }
+      if (cycleFilter && !p.prices?.some((pr) => pr.billingCycle === cycleFilter)) {
+        return false
+      }
+      return true
+    })
+  }, [plans, keyword, statusFilter, cycleFilter])
+
+  const sortedPlans = useMemo(() => {
+    const list = [...filteredPlans]
+    if (sortBy === 'name-asc') {
+      return list.sort((a, b) => a.name.localeCompare(b.name))
+    }
+    if (sortBy === 'name-desc') {
+      return list.sort((a, b) => b.name.localeCompare(a.name))
+    }
+    if (sortBy === 'loans-desc') {
+      return list.sort((a, b) => (b.maxActiveLoans || 0) - (a.maxActiveLoans || 0))
+    }
+    if (sortBy === 'duration-desc') {
+      return list.sort((a, b) => (b.loanDurationDays || 0) - (a.loanDurationDays || 0))
+    }
+    return list
+  }, [filteredPlans, sortBy])
 
   return (
     <div className="space-y-4">
-      {/* Header & Main Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className={`font-sans font-bold text-lg xl:text-xl tracking-tight ${t.titleColor}`}>
-            Membership Plans
-          </h1>
-          <p className={`text-xs mt-0.5 ${t.subTextColor}`}>
-            Configure subscription tiers, borrowing limits, renewal rules, and Stripe billing prices.
-          </p>
+      {/* Search & Actions Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="flex items-center gap-2 w-full sm:w-[60%]">
+          <div className="relative flex-1">
+            <IconSearch size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.mutedColor}`} />
+            <input
+              placeholder="Search plan name, code, description..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              className={`h-9 pl-9 pr-3 text-sm w-full rounded-md border outline-none transition ${t.inputBg}`}
+            />
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                  sortBy !== 'default'
+                    ? isDark
+                      ? 'bg-[#252a34] border-blue-500/50 text-blue-400'
+                      : 'bg-blue-50 border-blue-300 text-blue-600'
+                    : isDark
+                    ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
+                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                title="Sort options"
+              >
+                <IconArrowsUpDown size={15} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => setSortBy('default')}
+                className={sortBy === 'default' ? 'font-semibold text-blue-500' : ''}
+              >
+                Default
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('name-asc')}
+                className={sortBy === 'name-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Name (A-Z)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('name-desc')}
+                className={sortBy === 'name-desc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Name (Z-A)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('loans-desc')}
+                className={sortBy === 'loans-desc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Limit (High to Low)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('duration-desc')}
+                className={sortBy === 'duration-desc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Duration (Longest First)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 justify-end">
           <button
-            onClick={fetchPlans}
-            disabled={loading}
-            className={`h-9 px-3 text-xs font-medium rounded-md border transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${t.secondaryBtn}`}
+            onClick={() => navigate('/admin/subscriptions/plans/new')}
+            className={`h-9 px-4 text-sm font-semibold rounded-md transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${t.primaryBtn}`}
           >
-            <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-          <button
-            onClick={handleOpenCreatePlan}
-            className={`h-9 px-4 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${t.primaryBtn}`}
-          >
-            <IconPlus size={15} />
-            Create Plan
+            <span>Add Plan</span>
           </button>
         </div>
       </div>
 
-      {/* Pricing Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
-        {plans.map((p) => {
-          const isFree = Number(p.price) === 0
-          return (
-            <div
-              key={p.id}
-              className={`p-5 rounded-2xl border flex flex-col justify-between transition-all ${
-                isDark ? 'bg-[#1f232b] border-[#2c323e]' : 'bg-white border-gray-200 shadow-xs'
-              }`}
-            >
-              <div>
-                {/* Top Tier Header */}
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <IconCrown size={18} className={isFree ? 'text-gray-400' : 'text-amber-400'} />
-                      <h3 className={`font-sans font-bold text-base ${t.titleColor}`}>{p.name}</h3>
-                    </div>
-                    <span
-                      className={`inline-block font-mono text-[10px] uppercase font-semibold px-2 py-0.5 rounded mt-1.5 ${
-                        isDark
-                          ? 'bg-[#16181d] text-blue-400 border border-[#2c323e]'
-                          : 'bg-blue-50 text-blue-700 border border-blue-100'
-                      }`}
-                    >
-                      {p.code}
-                    </span>
-                  </div>
+      {/* Filter Section Under Searchbar */}
+      <div className="flex items-center gap-2 flex-wrap pt-0.5">
+        <div
+          className={`h-9 flex items-center gap-1.5 px-3 rounded-md border text-xs sm:text-[13px] font-semibold select-none ${
+            isDark ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de]' : 'bg-gray-100 border-gray-300 text-gray-800'
+          }`}
+        >
+          <IconFilter2 size={15} className={isDark ? 'text-gray-300' : 'text-gray-600'} />
+          <span>Filter</span>
+        </div>
 
-                  <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded border uppercase ${
-                      p.status === 'ACTIVE'
-                        ? isDark
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : isDark
-                        ? 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-                        : 'bg-gray-100 text-gray-600 border-gray-200'
-                    }`}
-                  >
-                    {p.status}
-                  </span>
-                </div>
+        {/* Status Filter */}
+        {activeFilterFields.includes('status') && (
+          <AdminFilterSelect
+            label="Status"
+            value={statusFilter}
+            options={[
+              { value: 'ACTIVE', label: 'Active' },
+              { value: 'ARCHIVED', label: 'Archived' },
+            ]}
+            onChange={(val) => setStatusFilter(val)}
+            onRemove={() => removeFilterField('status')}
+            allLabel="All Status"
+          />
+        )}
 
-                {/* Price Header */}
-                <div className="mt-4 pb-3 border-b border-gray-200 dark:border-[#2c323e]">
-                  <div className="flex items-baseline gap-1">
-                    <span className={`text-2xl font-bold font-sans ${t.titleColor}`}>
-                      ${Number(p.price).toFixed(2)}
-                    </span>
-                    <span className={`text-xs ${t.mutedColor}`}>
-                      /{p.billingCycle?.toLowerCase() || 'month'}
-                    </span>
-                  </div>
-                  {p.description && (
-                    <p className={`text-xs mt-2 line-clamp-2 ${t.subTextColor}`}>{p.description}</p>
-                  )}
-                </div>
+        {/* Billing Cycle Filter */}
+        {activeFilterFields.includes('cycle') && (
+          <AdminFilterSelect
+            label="Cycle"
+            value={cycleFilter}
+            options={[
+              { value: 'MONTHLY', label: 'Monthly' },
+              { value: 'YEARLY', label: 'Yearly' },
+              { value: 'LIFETIME', label: 'Lifetime' },
+            ]}
+            onChange={(val) => setCycleFilter(val)}
+            onRemove={() => removeFilterField('cycle')}
+            allLabel="All Cycles"
+          />
+        )}
 
-                {/* Feature Matrix */}
-                <div className="mt-3.5 space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className={`flex items-center gap-1.5 ${t.subTextColor}`}>
-                      <IconCheck size={14} className="text-emerald-400 shrink-0" />
-                      Max Active Loans:
-                    </span>
-                    <span className={`font-semibold font-mono ${t.titleColor}`}>{p.maxActiveLoans} books</span>
-                  </div>
+        {/* Add Filter Plus Button */}
+        {activeFilterFields.length < 2 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                  isDark
+                    ? 'bg-[#181a20] border-[#2c323e] text-[#8c94a5] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
+                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                title="Add filter"
+              >
+                <IconPlus size={15} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {!activeFilterFields.includes('status') && (
+                <DropdownMenuItem onClick={() => setActiveFilterFields([...activeFilterFields, 'status'])}>
+                  Status
+                </DropdownMenuItem>
+              )}
+              {!activeFilterFields.includes('cycle') && (
+                <DropdownMenuItem onClick={() => setActiveFilterFields([...activeFilterFields, 'cycle'])}>
+                  Billing Cycle
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
-                  <div className="flex items-center justify-between">
-                    <span className={`flex items-center gap-1.5 ${t.subTextColor}`}>
-                      <IconClock size={14} className="text-blue-400 shrink-0" />
-                      Borrow Duration:
-                    </span>
-                    <span className={`font-semibold font-mono ${t.titleColor}`}>{p.loanDurationDays} days</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className={`flex items-center gap-1.5 ${t.subTextColor}`}>
-                      <IconRotateClockwise size={14} className="text-purple-400 shrink-0" />
-                      Max Loan Renewals:
-                    </span>
-                    <span className={`font-semibold font-mono ${t.titleColor}`}>{p.maxRenewals} times</span>
-                  </div>
-
-                  {p.stripePriceId && (
-                    <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-[#262a34]">
-                      <span className={`text-[10px] ${t.mutedColor}`}>Stripe Price ID:</span>
-                      <span className={`text-[10px] font-mono truncate max-w-[120px] ${t.subTextColor}`}>
-                        {p.stripePriceId}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Plan Card Actions */}
-              <div className="flex items-center justify-end gap-2 pt-4 mt-3 border-t border-gray-100 dark:border-[#262a34]">
-                <button
-                  onClick={() => handleOpenEditPlan(p)}
-                  className={`h-8 px-3 text-xs font-medium rounded-md border transition-colors flex items-center gap-1 cursor-pointer ${t.secondaryBtn}`}
-                >
-                  <IconEdit size={13} />
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDeletePlan(p.id, p.name)}
-                  className={`h-8 px-3 text-xs font-medium rounded-md border transition-colors flex items-center gap-1 cursor-pointer text-rose-500 hover:bg-rose-500/10 ${
-                    isDark ? 'border-[#2c323e]' : 'border-gray-200'
-                  }`}
-                >
-                  <IconTrash size={13} />
-                  Archive
-                </button>
-              </div>
-            </div>
-          )
-        })}
-
-        {plans.length === 0 && !loading && (
-          <div className="col-span-full py-12 text-center text-xs text-gray-500">
-            No membership plans found. Click "Create Plan" to create the first subscription plan.
-          </div>
+        {/* Reset Button */}
+        {activeFilterFields.length > 0 && (
+          <button
+            onClick={resetAllFilters}
+            className="text-xs sm:text-[13px] text-blue-600 dark:text-blue-400 hover:underline px-1 cursor-pointer font-medium"
+          >
+            Reset
+          </button>
         )}
       </div>
 
-      {/* Modal: Create / Edit Membership Plan */}
-      <Dialog open={planModalOpen} onOpenChange={setPlanModalOpen}>
-        <DialogContent
-          onClose={() => setPlanModalOpen(false)}
-          className={`sm:max-w-xl rounded-2xl shadow-2xl p-6 border ${t.modalBg}`}
-        >
-          <DialogHeader className="mb-4">
-            <DialogTitle className={`font-sans font-bold text-base ${t.titleColor}`}>
-              {editingPlan ? `Edit Plan: ${editingPlan.name}` : 'Create Membership Plan'}
-            </DialogTitle>
-          </DialogHeader>
+      {/* Frameless Table */}
+      {loading ? (
+        <div className={`p-10 text-center text-sm ${t.subTextColor}`}>
+          Loading membership plans...
+        </div>
+      ) : (
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className={`h-11 border-b ${isDark ? 'border-[#22262e]' : 'border-gray-200'} ${t.tableHead}`}>
+                {/* Column 1: Checkbox */}
+                <th className="w-10 px-3 text-center align-middle">
+                  <Checkbox
+                    checked={
+                      sortedPlans.length > 0 && selectedPlanIds.length === sortedPlans.length
+                        ? true
+                        : selectedPlanIds.length > 0
+                        ? 'indeterminate'
+                        : false
+                    }
+                    onCheckedChange={toggleSelectAll}
+                    title="Select all"
+                    className={
+                      isDark
+                        ? '!border-[#3e4756] hover:!border-[#5a667b]'
+                        : '!border-gray-400 hover:!border-gray-500'
+                    }
+                  />
+                </th>
 
-          <form onSubmit={handleSavePlan} className="space-y-4 pt-1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>
-                  Plan Name *
-                </label>
-                <input
-                  required
-                  value={planForm.name}
-                  onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
-                  placeholder="e.g. Pro Scholar"
-                  className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none ${t.inputBg}`}
-                />
-              </div>
+                {/* Column 2: Plan Name / Selected Action */}
+                <th className="px-4 text-left align-middle min-w-[200px]">
+                  {selectedPlanIds.length > 0 ? (
+                    <div className="flex items-center gap-2.5">
+                      <span className={`text-xs sm:text-sm font-semibold normal-case whitespace-nowrap ${t.titleColor}`}>
+                        {selectedPlanIds.length} selected
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className={`h-6 px-2 rounded-md border text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer select-none normal-case whitespace-nowrap ${
+                              isDark
+                                ? 'bg-[#181a20] border-[#3e4756] text-[#cbd2de] hover:text-white hover:border-[#5a667b]'
+                                : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400'
+                            }`}
+                          >
+                            <span>Actions</span>
+                            <IconChevronDown size={12} className="opacity-60" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem
+                            onClick={handleBulkArchive}
+                            className="text-rose-500 focus:text-rose-400 cursor-pointer"
+                          >
+                            Archive Selected ({selectedPlanIds.length})
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSelectedPlanIds([])} className="cursor-pointer">
+                            Deselect all
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ) : (
+                    <span className={`text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                      Name
+                    </span>
+                  )}
+                </th>
 
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>
-                  Plan Code * (Unique)
-                </label>
-                <input
-                  required
-                  value={planForm.code}
-                  onChange={(e) => setPlanForm({ ...planForm, code: e.target.value.toUpperCase() })}
-                  placeholder="e.g. PRO_MONTHLY"
-                  className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm font-mono border outline-none ${t.inputBg}`}
-                />
-              </div>
-            </div>
+                {/* Column 3: Limit */}
+                <th className={`w-28 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Limit
+                </th>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>
-                  Price (USD) *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  required
-                  value={planForm.price}
-                  onChange={(e) => setPlanForm({ ...planForm, price: parseFloat(e.target.value) || 0 })}
-                  className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none ${t.inputBg}`}
-                />
-              </div>
+                {/* Column 4: Duration */}
+                <th className={`w-28 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Duration
+                </th>
 
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>
-                  Billing Cycle *
-                </label>
-                <select
-                  value={planForm.billingCycle}
-                  onChange={(e) => setPlanForm({ ...planForm, billingCycle: e.target.value as any })}
-                  className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none ${t.inputBg}`}
-                >
-                  <option value="MONTHLY">MONTHLY</option>
-                  <option value="YEARLY">YEARLY</option>
-                  <option value="LIFETIME">LIFETIME</option>
-                </select>
-              </div>
-            </div>
+                {/* Column 5: Renewal */}
+                <th className={`w-24 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Renewal
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-transparent">
+              {sortedPlans.map((p) => {
+                const isSelected = selectedPlanIds.includes(p.id)
 
-            <div>
-              <label className={`block text-xs font-medium mb-1 ${t.subTextColor}`}>
-                Description
-              </label>
-              <textarea
-                rows={2}
-                value={planForm.description}
-                onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
-                placeholder="Key benefits and target readers..."
-                className={`w-full p-2.5 rounded-md text-xs border outline-none resize-none ${t.inputBg}`}
-              />
-            </div>
+                return (
+                  <tr
+                    key={p.id}
+                    onClick={() => navigate(`/admin/subscriptions/plans/${p.id}`)}
+                    className={`group border-b transition-colors cursor-pointer ${
+                      isDark ? 'border-[#20242c]' : 'border-gray-200'
+                    } ${
+                      isSelected
+                        ? isDark
+                          ? 'bg-[#1e232b]'
+                          : 'bg-blue-50/60'
+                        : t.tableRow
+                    }`}
+                  >
+                    {/* Checkbox Column */}
+                    <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectPlan(p.id)}
+                        className={
+                          isDark
+                            ? '!border-[#3e4756] hover:!border-[#5a667b]'
+                            : '!border-gray-400 hover:!border-gray-500'
+                        }
+                      />
+                    </td>
 
-            {/* Privilege Limits */}
-            <div className="grid grid-cols-3 gap-3 pt-1">
-              <div>
-                <label className={`block text-[11px] font-medium mb-1 ${t.subTextColor}`}>
-                  Max Loans *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="50"
-                  required
-                  value={planForm.maxActiveLoans}
-                  onChange={(e) => setPlanForm({ ...planForm, maxActiveLoans: parseInt(e.target.value) || 1 })}
-                  className={`w-full h-9 px-2.5 rounded-md text-xs border outline-none ${t.inputBg}`}
-                />
-              </div>
+                    {/* Name Column: Name + Special Status Badge */}
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`font-semibold text-xs sm:text-sm ${t.titleColor}`}>
+                          {p.name}
+                        </span>
 
-              <div>
-                <label className={`block text-[11px] font-medium mb-1 ${t.subTextColor}`}>
-                  Duration (Days) *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="90"
-                  required
-                  value={planForm.loanDurationDays}
-                  onChange={(e) => setPlanForm({ ...planForm, loanDurationDays: parseInt(e.target.value) || 1 })}
-                  className={`w-full h-9 px-2.5 rounded-md text-xs border outline-none ${t.inputBg}`}
-                />
-              </div>
+                        {p.status && p.status !== 'ACTIVE' && (
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase ${
+                              p.status === 'INACTIVE'
+                                ? isDark
+                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                                : isDark
+                                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                : 'bg-rose-50 text-rose-700 border-rose-200'
+                            }`}
+                          >
+                            {p.status}
+                          </span>
+                        )}
+                      </div>
+                    </td>
 
-              <div>
-                <label className={`block text-[11px] font-medium mb-1 ${t.subTextColor}`}>
-                  Max Renewals *
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="10"
-                  required
-                  value={planForm.maxRenewals}
-                  onChange={(e) => setPlanForm({ ...planForm, maxRenewals: parseInt(e.target.value) || 0 })}
-                  className={`w-full h-9 px-2.5 rounded-md text-xs border outline-none ${t.inputBg}`}
-                />
-              </div>
-            </div>
+                    {/* Limit Column */}
+                    <td className="py-3 px-4 text-right">
+                      <span className={`text-xs sm:text-[13px] font-mono font-medium ${t.titleColor}`}>
+                        {p.maxActiveLoans}
+                      </span>
+                    </td>
 
-            {/* Stripe Integration IDs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-              <div>
-                <label className={`block text-[11px] font-medium mb-1 ${t.subTextColor}`}>
-                  Stripe Price ID (Optional)
-                </label>
-                <input
-                  value={planForm.stripePriceId}
-                  onChange={(e) => setPlanForm({ ...planForm, stripePriceId: e.target.value })}
-                  placeholder="price_1N..."
-                  className={`w-full h-9 px-3 rounded-md text-xs font-mono border outline-none ${t.inputBg}`}
-                />
-              </div>
+                    {/* Duration Column */}
+                    <td className="py-3 px-4 text-right">
+                      <span className={`text-xs sm:text-[13px] font-mono font-medium ${t.titleColor}`}>
+                        {p.loanDurationDays}
+                      </span>
+                    </td>
 
-              <div>
-                <label className={`block text-[11px] font-medium mb-1 ${t.subTextColor}`}>
-                  Stripe Product ID (Optional)
-                </label>
-                <input
-                  value={planForm.stripeProductId}
-                  onChange={(e) => setPlanForm({ ...planForm, stripeProductId: e.target.value })}
-                  placeholder="prod_1N..."
-                  className={`w-full h-9 px-3 rounded-md text-xs font-mono border outline-none ${t.inputBg}`}
-                />
-              </div>
-            </div>
+                    {/* Renewal Column */}
+                    <td className="py-3 px-4 text-right">
+                      <span className={`text-xs sm:text-[13px] font-mono font-medium ${t.titleColor}`}>
+                        {p.maxRenewals ?? 0}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
 
-            <div className="flex items-center justify-between pt-3">
-              <button
-                type="button"
-                onClick={() => setPlanModalOpen(false)}
-                className={`h-9 px-4 text-xs sm:text-sm font-medium rounded-lg border transition-colors cursor-pointer ${t.secondaryBtn}`}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={savingPlan}
-                className={`h-9 px-5 text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${t.primaryBtn}`}
-              >
-                {savingPlan ? 'Saving...' : editingPlan ? 'Save Changes' : 'Create Plan'}
-              </button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+              {sortedPlans.length === 0 && (
+                <tr>
+                  <td colSpan={5} className={`py-12 text-center text-xs sm:text-sm ${t.subTextColor}`}>
+                    No membership plans found matching filter.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

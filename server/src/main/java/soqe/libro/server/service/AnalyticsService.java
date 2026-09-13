@@ -246,14 +246,18 @@ public class AnalyticsService {
         for (MembershipPlan plan : planRepository.findByStatus(MembershipPlan.Status.ACTIVE)) {
             long count = planCountMap.getOrDefault(plan.getCode(), 0L);
             totalActiveSubs += count;
-            BigDecimal rev = plan.getPrice().multiply(BigDecimal.valueOf(count));
+            BigDecimal defaultPrice = plan.getPrices().stream()
+                    .map(soqe.libro.server.entity.MembershipPlanPrice::getPrice)
+                    .findFirst()
+                    .orElse(BigDecimal.ZERO);
+            BigDecimal rev = defaultPrice.multiply(BigDecimal.valueOf(count));
             totalMRR = totalMRR.add(rev);
 
             planBreakdowns.add(RevenueReportResponse.PlanRevenueBreakdown.builder()
                     .planCode(plan.getCode())
                     .planName(plan.getName())
                     .subscribersCount(count)
-                    .price(plan.getPrice())
+                    .price(defaultPrice)
                     .revenue(rev)
                     .build());
         }
@@ -380,7 +384,7 @@ public class AnalyticsService {
                     sb.append(escapeCsv(s.getUser() != null ? s.getUser().getEmail() : "")).append(",")
                             .append(escapeCsv(s.getPlan() != null ? s.getPlan().getCode() : "")).append(",")
                             .append(escapeCsv(s.getPlan() != null ? s.getPlan().getName() : "")).append(",")
-                            .append(s.getPlan() != null ? s.getPlan().getPrice() : 0).append(",")
+                            .append(s.getPlanPrice() != null ? s.getPlanPrice().getPrice() : 0).append(",")
                             .append(s.getStatus()).append(",")
                             .append(s.getStartDate() != null ? s.getStartDate().toString() : "").append(",")
                             .append(s.getCurrentPeriodEnd() != null ? s.getCurrentPeriodEnd().toString() : "").append("\n");

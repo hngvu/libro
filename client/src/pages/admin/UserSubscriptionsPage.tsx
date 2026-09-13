@@ -2,13 +2,19 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   IconSearch,
   IconRefresh,
-  IconSparkles,
-  IconUsers,
-  IconTrendingUp,
-  IconReceipt2,
-  IconHistory,
+  IconFilter2,
+  IconArrowsUpDown,
+  IconPlus,
+  IconVip,
 } from '@tabler/icons-react'
 import { useAdmin } from '@/components/admin/AdminContext'
+import { AdminFilterSelect } from '@/components/admin/AdminFilterSelect'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { api } from '@/services/api'
 import type { MembershipPlanResponse, UserSubscriptionResponse } from '@/types/api'
 
@@ -19,10 +25,14 @@ export function UserSubscriptionsPage() {
   const [userSubscriptions, setUserSubscriptions] = useState<UserSubscriptionResponse[]>([])
   const [loading, setLoading] = useState(false)
 
-  // Filters
+  // Filters & Sorting
   const [keyword, setKeyword] = useState('')
+  const [sortBy, setSortBy] = useState<
+    'default' | 'user-asc' | 'user-desc' | 'date-desc' | 'date-asc' | 'plan-asc'
+  >('default')
   const [planFilter, setPlanFilter] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [activeFilterFields, setActiveFilterFields] = useState<string[]>([])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -31,8 +41,8 @@ export function UserSubscriptionsPage() {
         api.adminGetMembershipPlans().catch(() => []),
         api.adminGetUserSubscriptions().catch(() => []),
       ])
-      setPlans(plansData)
-      setUserSubscriptions(subsData)
+      setPlans(plansData || [])
+      setUserSubscriptions(subsData || [])
     } catch (err: any) {
       showFeedback('error', err.message || 'Failed to load user subscriptions')
     } finally {
@@ -44,24 +54,30 @@ export function UserSubscriptionsPage() {
     fetchData()
   }, [fetchData])
 
-  // Computed KPIs
-  const activeSubsCount = useMemo(
-    () => userSubscriptions.filter((s) => s.status === 'ACTIVE').length,
-    [userSubscriptions]
-  )
+  const handleCancelUserSubscription = async (id: number, userEmail?: string) => {
+    if (!confirm(`Are you sure you want to cancel the subscription for ${userEmail || 'this user'}?`)) return
+    try {
+      await api.adminCancelUserSubscription(id)
+      showFeedback('success', 'Subscription canceled successfully!')
+      fetchData()
+    } catch (err: any) {
+      showFeedback('error', err.message || 'Failed to cancel subscription')
+    }
+  }
 
-  const monthlyRevenueEstimate = useMemo(() => {
-    return userSubscriptions
-      .filter((s) => s.status === 'ACTIVE')
-      .reduce((acc, s) => {
-        const p = plans.find((plan) => plan.code === s.planCode || plan.id === s.planId)
-        if (!p) return acc
-        const price = Number(p.price) || 0
-        if (p.billingCycle === 'YEARLY') return acc + price / 12
-        return acc + price
-      }, 0)
-  }, [userSubscriptions, plans])
+  const removeFilterField = (field: string) => {
+    setActiveFilterFields((prev) => prev.filter((f) => f !== field))
+    if (field === 'plan') setPlanFilter('')
+    if (field === 'status') setStatusFilter('')
+  }
 
+  const resetAllFilters = () => {
+    setActiveFilterFields([])
+    setPlanFilter('')
+    setStatusFilter('')
+  }
+
+  // Filtered subscriptions
   const filteredSubscriptions = useMemo(() => {
     return userSubscriptions.filter((sub) => {
       if (keyword.trim()) {
@@ -84,16 +100,26 @@ export function UserSubscriptionsPage() {
     })
   }, [userSubscriptions, keyword, planFilter, statusFilter])
 
-  const handleCancelUserSubscription = async (id: number, userEmail?: string) => {
-    if (!confirm(`Are you sure you want to cancel the subscription for ${userEmail || 'this user'}?`)) return
-    try {
-      await api.adminCancelUserSubscription(id)
-      showFeedback('success', 'Subscription canceled successfully!')
-      fetchData()
-    } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to cancel subscription')
+  // Sorted subscriptions
+  const sortedSubscriptions = useMemo(() => {
+    const list = [...filteredSubscriptions]
+    if (sortBy === 'user-asc') {
+      return list.sort((a, b) => (a.userEmail || '').localeCompare(b.userEmail || ''))
     }
-  }
+    if (sortBy === 'user-desc') {
+      return list.sort((a, b) => (b.userEmail || '').localeCompare(a.userEmail || ''))
+    }
+    if (sortBy === 'date-desc') {
+      return list.sort((a, b) => (b.currentPeriodStart || '').localeCompare(a.currentPeriodStart || ''))
+    }
+    if (sortBy === 'date-asc') {
+      return list.sort((a, b) => (a.currentPeriodStart || '').localeCompare(b.currentPeriodStart || ''))
+    }
+    if (sortBy === 'plan-asc') {
+      return list.sort((a, b) => (a.planName || a.planCode || '').localeCompare(b.planName || b.planCode || ''))
+    }
+    return list
+  }, [filteredSubscriptions, sortBy])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -118,191 +144,275 @@ export function UserSubscriptionsPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header & Main Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className={`font-sans font-bold text-lg xl:text-xl tracking-tight ${t.titleColor}`}>
-            User Subscriptions History
-          </h1>
-          <p className={`text-xs mt-0.5 ${t.subTextColor}`}>
-            Track member subscription orders, active statuses, billing cycles, and cancellation actions.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className={`h-9 px-3 text-xs font-medium rounded-md border transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${t.secondaryBtn}`}
-          >
-            <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* KPI Cards Overview */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className={`p-4 rounded-xl border ${t.cardBg}`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-medium ${t.subTextColor}`}>Active Subscribers</span>
-            <div className={`p-1.5 rounded-lg ${isDark ? 'bg-blue-950/40 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
-              <IconUsers size={16} />
-            </div>
-          </div>
-          <p className={`text-xl font-bold font-sans mt-2 ${t.titleColor}`}>{activeSubsCount}</p>
-          <p className={`text-[11px] mt-1 ${t.mutedColor}`}>Active membership holders</p>
-        </div>
-
-        <div className={`p-4 rounded-xl border ${t.cardBg}`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-medium ${t.subTextColor}`}>Est. Monthly Revenue</span>
-            <div className={`p-1.5 rounded-lg ${isDark ? 'bg-emerald-950/40 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
-              <IconTrendingUp size={16} />
-            </div>
-          </div>
-          <p className={`text-xl font-bold font-sans mt-2 ${t.titleColor}`}>
-            ${monthlyRevenueEstimate.toFixed(2)}
-          </p>
-          <p className={`text-[11px] mt-1 ${t.mutedColor}`}>Recurring membership MRR</p>
-        </div>
-
-        <div className={`p-4 rounded-xl border ${t.cardBg}`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-medium ${t.subTextColor}`}>Total Subscriptions</span>
-            <div className={`p-1.5 rounded-lg ${isDark ? 'bg-amber-950/40 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
-              <IconHistory size={16} />
-            </div>
-          </div>
-          <p className={`text-xl font-bold font-sans mt-2 ${t.titleColor}`}>{userSubscriptions.length}</p>
-          <p className={`text-[11px] mt-1 ${t.mutedColor}`}>Lifetime subscription records</p>
-        </div>
-
-        <div className={`p-4 rounded-xl border ${t.cardBg}`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-medium ${t.subTextColor}`}>Canceled / Inactive</span>
-            <div className={`p-1.5 rounded-lg ${isDark ? 'bg-rose-950/40 text-rose-400' : 'bg-rose-50 text-rose-600'}`}>
-              <IconReceipt2 size={16} />
-            </div>
-          </div>
-          <p className={`text-xl font-bold font-sans mt-2 ${t.titleColor}`}>
-            {userSubscriptions.filter((s) => s.status === 'CANCELED' || s.status === 'EXPIRED').length}
-          </p>
-          <p className={`text-[11px] mt-1 ${t.mutedColor}`}>Past due or canceled accounts</p>
-        </div>
-      </div>
-
-      {/* Toolbar: Search & Filter */}
-      <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between pt-1">
-        <div className="flex items-center gap-2 w-full sm:w-80">
+      {/* Search & Actions Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="flex items-center gap-2 w-full sm:w-[60%]">
           <div className="relative flex-1">
             <IconSearch size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.mutedColor}`} />
             <input
               placeholder="Search user email, plan, stripe ID..."
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              className={`h-9 pl-9 pr-3 text-xs w-full rounded-md border outline-none transition ${t.inputBg}`}
+              className={`h-9 pl-9 pr-3 text-sm w-full rounded-md border outline-none transition ${t.inputBg}`}
             />
           </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                  sortBy !== 'default'
+                    ? isDark
+                      ? 'bg-[#252a34] border-blue-500/50 text-blue-400'
+                      : 'bg-blue-50 border-blue-300 text-blue-600'
+                    : isDark
+                    ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
+                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                title="Sort options"
+              >
+                <IconArrowsUpDown size={15} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => setSortBy('default')}
+                className={sortBy === 'default' ? 'font-semibold text-blue-500' : ''}
+              >
+                Default
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('date-desc')}
+                className={sortBy === 'date-desc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Start Date (Newest)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('date-asc')}
+                className={sortBy === 'date-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Start Date (Oldest)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('user-asc')}
+                className={sortBy === 'user-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Subscriber (A-Z)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('user-desc')}
+                className={sortBy === 'user-desc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Subscriber (Z-A)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('plan-asc')}
+                className={sortBy === 'plan-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Plan Name (A-Z)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <select
-            value={planFilter}
-            onChange={(e) => setPlanFilter(e.target.value)}
-            className={`h-9 px-3 rounded-md text-xs border outline-none cursor-pointer ${t.inputBg}`}
+        <div className="flex items-center gap-2 shrink-0 justify-end">
+          <button
+            onClick={fetchData}
+            disabled={loading}
+            className={`h-9 px-3 text-xs font-medium rounded-md border transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${t.secondaryBtn}`}
           >
-            <option value="">All Plans</option>
-            {plans.map((p) => (
-              <option key={p.id} value={p.code}>
-                {p.name} ({p.code})
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className={`h-9 px-3 rounded-md text-xs border outline-none cursor-pointer ${t.inputBg}`}
-          >
-            <option value="">All Statuses</option>
-            <option value="ACTIVE">ACTIVE</option>
-            <option value="PAST_DUE">PAST_DUE</option>
-            <option value="CANCELED">CANCELED</option>
-          </select>
+            <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
 
-      {/* Subscriptions Table */}
-      <div className={`rounded-xl border overflow-hidden shadow-xs ${t.tableWrapper}`}>
-        <div className="overflow-x-auto">
+      {/* Filter Section Under Searchbar */}
+      <div className="flex items-center gap-2 flex-wrap pt-0.5">
+        <div
+          className={`h-9 flex items-center gap-1.5 px-3 rounded-md border text-xs sm:text-[13px] font-semibold select-none ${
+            isDark ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de]' : 'bg-gray-100 border-gray-300 text-gray-800'
+          }`}
+        >
+          <IconFilter2 size={15} className={isDark ? 'text-gray-300' : 'text-gray-600'} />
+          <span>Filter</span>
+        </div>
+
+        {/* Plan Filter */}
+        {activeFilterFields.includes('plan') && (
+          <AdminFilterSelect
+            label="Plan"
+            value={planFilter}
+            options={plans.map((p) => ({ value: p.code, label: p.name }))}
+            onChange={(val) => setPlanFilter(val)}
+            onRemove={() => removeFilterField('plan')}
+            allLabel="All Plans"
+          />
+        )}
+
+        {/* Status Filter */}
+        {activeFilterFields.includes('status') && (
+          <AdminFilterSelect
+            label="Status"
+            value={statusFilter}
+            options={[
+              { value: 'ACTIVE', label: 'Active' },
+              { value: 'PAST_DUE', label: 'Past Due' },
+              { value: 'CANCELED', label: 'Canceled' },
+            ]}
+            onChange={(val) => setStatusFilter(val)}
+            onRemove={() => removeFilterField('status')}
+            allLabel="All Status"
+          />
+        )}
+
+        {/* Add Filter Plus Button */}
+        {activeFilterFields.length < 2 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                  isDark
+                    ? 'bg-[#181a20] border-[#2c323e] text-[#8c94a5] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
+                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                title="Add filter"
+              >
+                <IconPlus size={15} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {!activeFilterFields.includes('plan') && (
+                <DropdownMenuItem onClick={() => setActiveFilterFields([...activeFilterFields, 'plan'])}>
+                  Plan
+                </DropdownMenuItem>
+              )}
+              {!activeFilterFields.includes('status') && (
+                <DropdownMenuItem onClick={() => setActiveFilterFields([...activeFilterFields, 'status'])}>
+                  Status
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Reset Button */}
+        {activeFilterFields.length > 0 && (
+          <button
+            onClick={resetAllFilters}
+            className="text-xs sm:text-[13px] text-blue-600 dark:text-blue-400 hover:underline px-1 cursor-pointer font-medium"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
+      {/* Frameless Table */}
+      {loading ? (
+        <div className={`p-10 text-center text-sm ${t.subTextColor}`}>
+          Loading user subscriptions...
+        </div>
+      ) : (
+        <div className="overflow-x-auto w-full">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className={`border-b ${t.tableHead}`}>
-                <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Subscriber</th>
-                <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Plan</th>
-                <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Privileges</th>
-                <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Billing Period</th>
-                <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Status</th>
-                <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider text-right">Actions</th>
+              <tr className={`h-11 border-b ${isDark ? 'border-[#22262e]' : 'border-gray-200'} ${t.tableHead}`}>
+                <th className={`px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Subscriber
+                </th>
+                <th className={`w-48 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Plan
+                </th>
+                <th className={`w-44 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Borrow Limits
+                </th>
+                <th className={`w-48 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Billing Period
+                </th>
+                <th className={`w-28 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Status
+                </th>
+                <th className={`w-24 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-transparent">
-              {filteredSubscriptions.map((sub) => (
+              {sortedSubscriptions.map((sub) => (
                 <tr
-                  key={sub.id || Math.random()}
-                  className={`border-b transition-colors ${
+                  key={sub.id || `${sub.userId}-${sub.planCode}`}
+                  className={`group border-b transition-colors ${
                     isDark ? 'border-[#20242c]' : 'border-gray-200'
                   } ${t.tableRow}`}
                 >
-                  <td className="py-3 px-4 text-xs">
-                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                  {/* Subscriber Column */}
+                  <td className="py-3 px-4">
+                    <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">
                       {sub.userEmail || `User #${sub.userId}`}
                     </div>
                     {sub.stripeSubscriptionId && (
-                      <span className={`block font-mono text-[10px] mt-0.5 ${t.mutedColor}`}>
+                      <span className={`block font-mono text-[11px] mt-0.5 ${t.mutedColor}`}>
                         {sub.stripeSubscriptionId}
                       </span>
                     )}
                   </td>
 
-                  <td className="py-3 px-4 text-xs">
+                  {/* Plan Column */}
+                  <td className="py-3 px-4">
                     <div className="flex items-center gap-1.5">
-                      <IconSparkles size={14} className="text-amber-400" />
-                      <span className={`font-semibold ${t.titleColor}`}>{sub.planName || sub.planCode}</span>
+                      <IconVip size={15} className="text-amber-500 shrink-0" />
+                      <span className={`font-semibold text-xs sm:text-[13px] ${t.titleColor}`}>
+                        {sub.planName || sub.planCode}
+                      </span>
                     </div>
-                    <span className={`text-[10px] font-mono block ${t.mutedColor}`}>
-                      Code: {sub.planCode}
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span
+                        className={`inline-block font-mono text-[10px] uppercase font-semibold px-1.5 py-0.2 rounded border ${
+                          isDark
+                            ? 'bg-[#16181d] text-blue-400 border-[#2c323e]'
+                            : 'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}
+                      >
+                        {sub.planCode}
+                      </span>
+                      {sub.billingCycle && (
+                        <span className={`font-mono text-[10px] ${t.mutedColor}`}>
+                          · {sub.billingCycle} {sub.price != null && Number(sub.price) > 0 ? `($${Number(sub.price).toFixed(2)})` : ''}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Privileges Column */}
+                  <td className="py-3 px-4">
+                    <div className="text-xs sm:text-[13px] font-medium text-gray-900 dark:text-gray-100">
+                      {sub.maxActiveLoans} active loans
+                    </div>
+                    <span className={`block text-[11px] mt-0.5 ${t.mutedColor}`}>
+                      {sub.loanDurationDays}d duration · {sub.maxRenewals} renewals
                     </span>
                   </td>
 
-                  <td className="py-3 px-4 text-xs">
-                    <div className="space-y-0.5">
-                      <span className={`block text-[11px] ${t.subTextColor}`}>
-                        Max: <strong className={t.titleColor}>{sub.maxActiveLoans}</strong> active loans
-                      </span>
-                      <span className={`block text-[10px] ${t.mutedColor}`}>
-                        {sub.loanDurationDays}d duration · {sub.maxRenewals} renewals
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="py-3 px-4 text-xs">
-                    <div className="text-[11px] font-mono">
+                  {/* Billing Period Column */}
+                  <td className="py-3 px-4">
+                    <div className="text-xs font-mono text-gray-700 dark:text-gray-300">
                       {sub.currentPeriodStart ? sub.currentPeriodStart.split('T')[0] : '—'}
                       <span className="mx-1 text-gray-400">→</span>
                       {sub.currentPeriodEnd ? sub.currentPeriodEnd.split('T')[0] : '—'}
                     </div>
                     {sub.cancelAtPeriodEnd && (
-                      <span className="text-[10px] text-amber-500 font-medium block mt-0.5">
+                      <span className="text-[11px] text-amber-500 font-medium block mt-0.5">
                         Cancels at period end
                       </span>
                     )}
                   </td>
 
+                  {/* Status Column */}
                   <td className="py-3 px-4">
                     <span
-                      className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border uppercase ${getStatusBadge(
+                      className={`text-[11px] font-semibold px-2 py-0.5 rounded border uppercase ${getStatusBadge(
                         sub.status
                       )}`}
                     >
@@ -310,11 +420,12 @@ export function UserSubscriptionsPage() {
                     </span>
                   </td>
 
+                  {/* Actions Column */}
                   <td className="py-3 px-4 text-right">
                     {sub.status === 'ACTIVE' && sub.id && (
                       <button
                         onClick={() => handleCancelUserSubscription(sub.id!, sub.userEmail)}
-                        className={`h-7 px-2.5 text-[11px] font-medium rounded-md border transition-colors cursor-pointer text-rose-500 hover:bg-rose-500/10 ${
+                        className={`h-7 px-2.5 text-xs font-medium rounded-md border transition-colors cursor-pointer text-rose-500 hover:bg-rose-500/10 ${
                           isDark ? 'border-[#2c323e]' : 'border-gray-200'
                         }`}
                       >
@@ -325,9 +436,9 @@ export function UserSubscriptionsPage() {
                 </tr>
               ))}
 
-              {filteredSubscriptions.length === 0 && (
+              {sortedSubscriptions.length === 0 && (
                 <tr>
-                  <td colSpan={6} className={`py-12 text-center text-xs ${t.subTextColor}`}>
+                  <td colSpan={6} className={`py-12 text-center text-xs sm:text-sm ${t.subTextColor}`}>
                     No user subscriptions found matching filter.
                   </td>
                 </tr>
@@ -335,7 +446,7 @@ export function UserSubscriptionsPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      )}
     </div>
   )
 }

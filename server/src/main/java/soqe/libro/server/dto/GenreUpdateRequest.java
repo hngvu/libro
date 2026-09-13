@@ -9,7 +9,6 @@ public record GenreUpdateRequest(
         @Size(max = 255)
         String name,
         
-        @NotBlank(message = "Handle cannot be empty")
         @Size(max = 255)
         String handle,
         

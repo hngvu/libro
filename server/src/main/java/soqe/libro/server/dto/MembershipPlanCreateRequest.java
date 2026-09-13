@@ -1,9 +1,9 @@
 package soqe.libro.server.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
-import java.math.BigDecimal;
+import java.util.List;
 
 public record MembershipPlanCreateRequest(
         @NotBlank(message = "Plan name is required")
@@ -14,14 +14,6 @@ public record MembershipPlanCreateRequest(
 
         String description,
 
-        @NotNull(message = "Price is required")
-        @PositiveOrZero(message = "Price must be non-negative")
-        BigDecimal price,
-
-        @NotBlank(message = "Billing cycle is required")
-        String billingCycle,
-
-        String stripePriceId,
         String stripeProductId,
 
         @NotNull(message = "Max active loans is required")
@@ -31,5 +23,10 @@ public record MembershipPlanCreateRequest(
         Integer loanDurationDays,
 
         @NotNull(message = "Max renewals is required")
-        Integer maxRenewals
+        Integer maxRenewals,
+
+        String status,
+
+        @Valid
+        List<MembershipPlanPriceDTO> prices
 ) {}

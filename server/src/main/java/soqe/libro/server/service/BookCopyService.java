@@ -86,11 +86,13 @@ public class BookCopyService {
     @Transactional
     public BookCopyResponse updateByAdmin(Long id, BookCopyUpdateRequest req) {
         BookCopy c = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("BookCopy not found"));
-        validateUnique(req.barcode(), id);
+        if (StringUtils.hasText(req.barcode())) {
+            validateUnique(req.barcode().trim(), id);
+            c.setBarcode(req.barcode().trim());
+        }
         
         BookCopy.Status oldStatus = c.getStatus();
         
-        c.setBarcode(req.barcode());
         if (req.status() != null) c.setStatus(req.status());
         if (req.location() != null) c.setLocation(req.location());
         c = repository.save(c);

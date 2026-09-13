@@ -224,52 +224,82 @@ public class DatabaseSeeder implements CommandLineRunner {
     }
 
     private void seedMembershipPlans() {
-        MembershipPlan freePlan = MembershipPlan.builder()
-                .name("Free Reader")
-                .code("FREE")
-                .description("Basic library access for occasional readers. 1 active book at a time.")
-                .price(java.math.BigDecimal.ZERO)
-                .billingCycle(MembershipPlan.BillingCycle.MONTHLY)
-                .maxActiveLoans(1)
-                .loanDurationDays(7)
-                .maxRenewals(0)
-                .status(MembershipPlan.Status.ACTIVE)
-                .build();
+        if (membershipPlanRepository.findByCode("FREE").isEmpty()) {
+            MembershipPlan freePlan = MembershipPlan.builder()
+                    .name("Free Reader")
+                    .code("FREE")
+                    .description("Basic library access for occasional readers. 1 active book at a time.")
+                    .maxActiveLoans(1)
+                    .loanDurationDays(7)
+                    .maxRenewals(0)
+                    .status(MembershipPlan.Status.ACTIVE)
+                    .prices(new java.util.ArrayList<>())
+                    .build();
 
-        MembershipPlan standardPlan = MembershipPlan.builder()
-                .name("Standard Reader")
-                .code("STANDARD")
-                .description("Perfect for regular book lovers. Up to 3 active books with 14-day borrowing and 1 renewal.")
-                .price(new java.math.BigDecimal("5.00"))
-                .billingCycle(MembershipPlan.BillingCycle.MONTHLY)
-                .maxActiveLoans(3)
-                .loanDurationDays(14)
-                .maxRenewals(1)
-                .status(MembershipPlan.Status.ACTIVE)
-                .build();
+            freePlan.getPrices().add(soqe.libro.server.entity.MembershipPlanPrice.builder()
+                    .plan(freePlan)
+                    .billingCycle(soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.MONTHLY)
+                    .price(java.math.BigDecimal.ZERO)
+                    .build());
 
-        MembershipPlan vipPlan = MembershipPlan.builder()
-                .name("VIP Reader")
-                .code("VIP")
-                .description("Unlimited passion for reading. Up to 8 active books, 30-day loans, and 3 renewals.")
-                .price(new java.math.BigDecimal("10.00"))
-                .billingCycle(MembershipPlan.BillingCycle.MONTHLY)
-                .maxActiveLoans(8)
-                .loanDurationDays(30)
-                .maxRenewals(3)
-                .status(MembershipPlan.Status.ACTIVE)
-                .build();
+            membershipPlanRepository.save(freePlan);
+            log.info("Seeded membership plan: FREE");
+        }
 
-        // Clean up extra plans if previously created in persistent DB
-        membershipPlanRepository.findByCode("STUDENT").ifPresent(membershipPlanRepository::delete);
-        membershipPlanRepository.findByCode("RESEARCHER").ifPresent(membershipPlanRepository::delete);
+        if (membershipPlanRepository.findByCode("STANDARD").isEmpty()) {
+            MembershipPlan standardPlan = MembershipPlan.builder()
+                    .name("Standard Reader")
+                    .code("STANDARD")
+                    .description("Perfect for regular book lovers. Up to 3 active books with 14-day borrowing and 1 renewal.")
+                    .maxActiveLoans(3)
+                    .loanDurationDays(14)
+                    .maxRenewals(1)
+                    .status(MembershipPlan.Status.ACTIVE)
+                    .prices(new java.util.ArrayList<>())
+                    .build();
 
-        List<MembershipPlan> defaultPlans = List.of(freePlan, standardPlan, vipPlan);
-        for (MembershipPlan plan : defaultPlans) {
-            if (membershipPlanRepository.findByCode(plan.getCode()).isEmpty()) {
-                membershipPlanRepository.save(plan);
-                log.info("Seeded membership plan: {}", plan.getCode());
-            }
+            standardPlan.getPrices().add(soqe.libro.server.entity.MembershipPlanPrice.builder()
+                    .plan(standardPlan)
+                    .billingCycle(soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.MONTHLY)
+                    .price(new java.math.BigDecimal("5.00"))
+                    .build());
+
+            standardPlan.getPrices().add(soqe.libro.server.entity.MembershipPlanPrice.builder()
+                    .plan(standardPlan)
+                    .billingCycle(soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.YEARLY)
+                    .price(new java.math.BigDecimal("50.00"))
+                    .build());
+
+            membershipPlanRepository.save(standardPlan);
+            log.info("Seeded membership plan: STANDARD");
+        }
+
+        if (membershipPlanRepository.findByCode("VIP").isEmpty()) {
+            MembershipPlan vipPlan = MembershipPlan.builder()
+                    .name("VIP Reader")
+                    .code("VIP")
+                    .description("Unlimited passion for reading. Up to 8 active books, 30-day loans, and 3 renewals.")
+                    .maxActiveLoans(8)
+                    .loanDurationDays(30)
+                    .maxRenewals(3)
+                    .status(MembershipPlan.Status.ACTIVE)
+                    .prices(new java.util.ArrayList<>())
+                    .build();
+
+            vipPlan.getPrices().add(soqe.libro.server.entity.MembershipPlanPrice.builder()
+                    .plan(vipPlan)
+                    .billingCycle(soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.MONTHLY)
+                    .price(new java.math.BigDecimal("10.00"))
+                    .build());
+
+            vipPlan.getPrices().add(soqe.libro.server.entity.MembershipPlanPrice.builder()
+                    .plan(vipPlan)
+                    .billingCycle(soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.YEARLY)
+                    .price(new java.math.BigDecimal("100.00"))
+                    .build());
+
+            membershipPlanRepository.save(vipPlan);
+            log.info("Seeded membership plan: VIP");
         }
     }
 }

@@ -52,6 +52,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
   const [subscription, setSubscription] = useState<UserSubscriptionResponse | null>(null)
   const [plans, setPlans] = useState<MembershipPlanResponse[]>([])
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false)
+  const [selectedCycle, setSelectedCycle] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY')
   const [subscribingCode, setSubscribingCode] = useState<string | null>(null)
   const [openingPortal, setOpeningPortal] = useState(false)
   const [payingFineCode, setPayingFineCode] = useState<string | null>(null)
@@ -105,10 +106,10 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
     }
   }
 
-  const handleSubscribe = async (planCode: string) => {
+  const handleSubscribe = async (planCode: string, cycle: 'MONTHLY' | 'YEARLY' = 'MONTHLY') => {
     setSubscribingCode(planCode)
     try {
-      const res = await api.createSubscriptionCheckoutSession(planCode, window.location.origin)
+      const res = await api.createSubscriptionCheckoutSession(planCode, cycle, window.location.origin)
       if (res.checkoutUrl) {
         window.location.href = res.checkoutUrl
       }
@@ -592,19 +593,55 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
       <Dialog open={isPlanModalOpen} onOpenChange={setIsPlanModalOpen}>
         <DialogContent className="max-w-4xl" onClose={() => setIsPlanModalOpen(false)}>
           <div className="space-y-4">
-            <div className="border-b border-gray-100 dark:border-zinc-800 pb-3">
-              <h3 className="font-serif font-bold text-xl text-[#1e2320] dark:text-[#f5f3e6] flex items-center gap-2">
-                <IconCrown size={22} className="text-amber-500" />
-                Choose Your Libro Membership Tier
-              </h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Unlock higher concurrent borrowing limits, extended loan durations, and renewals with Stripe.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-3">
+              <div>
+                <h3 className="font-serif font-bold text-xl text-[#1e2320] dark:text-[#f5f3e6] flex items-center gap-2">
+                  <IconCrown size={22} className="text-amber-500" />
+                  Choose Your Libro Membership Tier
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Unlock higher concurrent borrowing limits, extended loan durations, and renewals with Stripe.
+                </p>
+              </div>
+
+              {/* Billing Cycle Toggle */}
+              <div className="inline-flex items-center p-1 rounded-lg bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shrink-0 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCycle('MONTHLY')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                    selectedCycle === 'MONTHLY'
+                      ? 'bg-white dark:bg-zinc-900 text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCycle('YEARLY')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                    selectedCycle === 'YEARLY'
+                      ? 'bg-white dark:bg-zinc-900 text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <span>Yearly</span>
+                  <span className="text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold px-1.5 py-0.2 rounded">
+                    Save ~20%
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
               {plans.map((p) => {
                 const isCurrent = subscription?.planCode === p.code || (!subscription?.planCode && p.code === 'FREE')
+                const matchedPrice = p.prices?.find((pr) => pr.billingCycle === selectedCycle) 
+                  || p.prices?.[0]
+                const priceValue = matchedPrice ? Number(matchedPrice.price) : 0
+                const cycleText = matchedPrice?.billingCycle === 'YEARLY' ? 'year' : 'month'
+
                 return (
                   <div
                     key={p.code}
@@ -631,8 +668,8 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                         )}
                       </div>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-black">${p.price}</span>
-                        <span className="text-xs text-muted-foreground">/{p.billingCycle.toLowerCase()}</span>
+                        <span className="text-2xl font-black">${priceValue.toFixed(2)}</span>
+                        <span className="text-xs text-muted-foreground">/{cycleText}</span>
                       </div>
                       <p className="text-xs text-muted-foreground min-h-[36px]">{p.description}</p>
                       <ul className="space-y-2 text-xs text-foreground/80 border-t border-border pt-3">
@@ -656,7 +693,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                         <Button variant="outline" size="sm" disabled className="w-full text-xs">
                           Current Plan
                         </Button>
-                      ) : p.price === 0 ? (
+                      ) : priceValue === 0 ? (
                         <Button variant="outline" size="sm" disabled className="w-full text-xs">
                           Free Base Tier
                         </Button>
@@ -664,11 +701,11 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                         <Button
                           size="sm"
                           disabled={subscribingCode === p.code}
-                          onClick={() => handleSubscribe(p.code)}
+                          onClick={() => handleSubscribe(p.code, selectedCycle)}
                           className="w-full text-xs gap-1.5 bg-[#3d4b3e] hover:bg-[#2b352c] text-white"
                         >
                           <IconCreditCard size={14} />
-                          {subscribingCode === p.code ? 'Redirecting...' : `Subscribe for $${p.price}`}
+                          {subscribingCode === p.code ? 'Redirecting...' : `Subscribe for $${priceValue.toFixed(2)}`}
                         </Button>
                       )}
                     </div>

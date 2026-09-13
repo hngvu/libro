@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import {
   IconExternalLink,
   IconBook2,
@@ -15,7 +15,7 @@ export function AdminGenreDetailPage() {
   const { id } = useParams<{ id: string }>()
   const genreId = Number(id)
   const navigate = useNavigate()
-  const { t, isDark, showFeedback } = useAdmin()
+  const { t, isDark, showFeedback, setHeaderAction } = useAdmin()
 
   const [genre, setGenre] = useState<GenreResponse | null>(null)
   const [books, setBooks] = useState<BookResponse[]>([])
@@ -71,9 +71,10 @@ export function AdminGenreDetailPage() {
     if (!genre) return
     setSaving(true)
     try {
+      const finalHandle = editForm.handle?.trim() || genre.handle || editForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || ''
       await api.adminUpdateGenre(genre.id, {
         name: editForm.name.trim(),
-        handle: editForm.handle.trim(),
+        handle: finalHandle,
         description: editForm.description.trim() || undefined,
         status: editForm.status,
       })
@@ -103,6 +104,28 @@ export function AdminGenreDetailPage() {
     }
   }
 
+  // Manage top header action: update on change, clear on unmount
+  useEffect(() => {
+    if (isDirty) {
+      setHeaderAction(
+        <button
+          type="button"
+          onClick={() => handleSaveGenre()}
+          disabled={saving}
+          className={`h-8 px-4 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
+        >
+          {saving ? 'Updating...' : 'Update'}
+        </button>
+      )
+    } else {
+      setHeaderAction(null)
+    }
+  }, [isDirty, saving, t.primaryBtn, setHeaderAction])
+
+  // Clear header action on page unmount
+  useEffect(() => {
+    return () => setHeaderAction(null)
+  }, [setHeaderAction])
 
   if (loading) {
     return (
@@ -127,72 +150,7 @@ export function AdminGenreDetailPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
-      {/* Sub-Navigation Tabs & Top Action Bar */}
-      <div
-        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-2 ${
-          isDark ? 'border-[#22262e]' : 'border-gray-200'
-        }`}
-      >
-        <div className="flex items-center gap-1">
-          <Link
-            to={`/admin/genres/${genre.id}`}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
-              isDark
-                ? 'bg-[#252a34] text-white border-[#333a48]'
-                : 'bg-gray-100 text-gray-900 border-gray-300'
-            }`}
-          >
-            Genre Details
-          </Link>
-          <a
-            href="#books-section"
-            className={`px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              isDark
-                ? 'text-[#8c94a5] hover:text-white hover:bg-[#1f2228]'
-                : 'text-gray-600 hover:text-gray-950 hover:bg-gray-100'
-            }`}
-          >
-            Books ({books.length})
-          </a>
-        </div>
-
-        {/* Top Action Bar (Save Changes, Public View, Delete) */}
-        <div className="flex items-center gap-2">
-          {isDirty && (
-            <button
-              type="button"
-              onClick={() => handleSaveGenre()}
-              disabled={saving}
-              className={`h-8 px-3.5 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
-          )}
-
-          {genre.handle && (
-            <a
-              href={`/genre/${genre.handle}`}
-              target="_blank"
-              rel="noreferrer"
-              className={`h-8 px-2.5 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer ${t.secondaryBtn}`}
-              title="Open public genre page"
-            >
-              <IconExternalLink size={14} />
-              <span>View</span>
-            </a>
-          )}
-
-          <button
-            type="button"
-            onClick={handleDeleteGenre}
-            className="h-8 px-3.5 rounded-md text-xs font-medium inline-flex items-center transition-colors cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
-            title="Delete this genre"
-          >
-            <span>Delete</span>
-          </button>
-        </div>
-      </div>
+    <div className="space-y-4 pb-12 animate-in fade-in duration-150">
 
       {/* Main Genre Overview (Direct Frameless Form matching Book Style) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-y-6 lg:gap-0 items-start">
@@ -335,6 +293,48 @@ export function AdminGenreDetailPage() {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Bottom Actions Bar (Luôn xuất hiện) */}
+      <div
+        className={`pt-5 mt-6 border-t flex items-center justify-between gap-4 ${
+          isDark ? 'border-[#22262e]' : 'border-gray-200'
+        }`}
+      >
+        {/* Góc trái: Nút Delete và View (nếu có handle) */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDeleteGenre}
+            disabled={saving}
+            className="h-9 px-4 rounded-md text-xs font-medium inline-flex items-center transition-colors cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
+            title="Delete this genre"
+          >
+            Delete
+          </button>
+          {genre?.handle && (
+            <a
+              href={`/genre/${genre.handle}`}
+              target="_blank"
+              rel="noreferrer"
+              className={`h-9 px-3 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer ${t.secondaryBtn}`}
+              title="Open public genre page"
+            >
+              <IconExternalLink size={14} />
+              <span>View</span>
+            </a>
+          )}
+        </div>
+
+        {/* Góc phải: Nút Update (luôn xuất hiện, disable khi !isDirty) */}
+        <button
+          type="button"
+          onClick={() => handleSaveGenre()}
+          disabled={!isDirty || saving}
+          className={`h-9 px-5 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed ${t.primaryBtn}`}
+        >
+          {saving ? 'Updating...' : 'Update'}
+        </button>
       </div>
     </div>
   )

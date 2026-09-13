@@ -30,6 +30,7 @@ import { OverduePage } from '@/pages/admin/OverduePage'
 import { ReservationsPage } from '@/pages/admin/ReservationsPage'
 import { MemberListPage } from '@/pages/admin/MemberListPage'
 import { MembershipPlansPage } from '@/pages/admin/MembershipPlansPage'
+import { AdminPlanDetailPage } from '@/pages/admin/AdminPlanDetailPage'
 import { UserSubscriptionsPage } from '@/pages/admin/UserSubscriptionsPage'
 import { FinesPage } from '@/pages/admin/FinesPage'
 import { ReportsPage } from '@/pages/admin/ReportsPage'
@@ -194,8 +195,10 @@ function AppContent() {
             <Route path="members" element={<MemberListPage />} />
             <Route path="subscriptions" element={<Navigate to="plans" replace />} />
             <Route path="subscriptions/plans" element={<MembershipPlansPage />} />
+            <Route path="subscriptions/plans/:id" element={<AdminPlanDetailPage />} />
             <Route path="subscriptions/history" element={<UserSubscriptionsPage />} />
             <Route path="membership-plans" element={<MembershipPlansPage />} />
+            <Route path="membership-plans/:id" element={<AdminPlanDetailPage />} />
             <Route path="user-subscriptions" element={<UserSubscriptionsPage />} />
             <Route path="fines" element={<FinesPage />} />
             <Route path="reports" element={<ReportsPage />} />

@@ -6,7 +6,6 @@ public record AuthorUpdateRequest(
         @NotBlank(message = "Name cannot be empty")
         @Size(max = 255)
         String name,
-        @NotBlank(message = "Handle cannot be empty")
         @Size(max = 255)
         String handle,
         String biography,

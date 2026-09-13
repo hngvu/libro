@@ -24,6 +24,11 @@ public class AdminMembershipPlanController {
         return ResponseEntity.ok(subscriptionService.getAllPlansAdmin());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<MembershipPlanResponse> getPlanById(@PathVariable Long id) {
+        return ResponseEntity.ok(subscriptionService.getPlanById(id));
+    }
+
     @PostMapping
     public ResponseEntity<MembershipPlanResponse> createPlan(@Valid @RequestBody MembershipPlanCreateRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(subscriptionService.createPlan(req));

@@ -63,13 +63,24 @@ public class GenreService {
     @Transactional
     public GenreResponse updateGenreByAdmin(Long id, GenreUpdateRequest req) {
         Genre g = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Genre not found"));
-        validateUniqueConstraints(req.name(), req.handle(), id);
+        if (StringUtils.hasText(req.handle()) && !req.handle().equals(g.getHandle())) {
+            validateUniqueConstraints(req.name(), req.handle(), id);
+            g.setHandle(req.handle().trim());
+        } else {
+            validateUniqueConstraints(req.name(), null, id);
+        }
         g.setName(req.name());
-        g.setHandle(req.handle());
         g.setDescription(req.description());
         if (req.status() != null) g.setStatus(req.status());
         g = repository.save(g);
-        return GenreResponse.builder().id(g.getId()).name(g.getName()).handle(g.getHandle()).description(g.getDescription()).status(g.getStatus().name()).bookCount(g.getBooks() != null ? g.getBooks().size() : 0).build();
+        return GenreResponse.builder()
+                .id(g.getId())
+                .name(g.getName())
+                .handle(g.getHandle())
+                .description(g.getDescription())
+                .status(g.getStatus() != null ? g.getStatus().name() : null)
+                .bookCount(g.getBooks() != null ? g.getBooks().size() : 0)
+                .build();
     }
 
     @Transactional

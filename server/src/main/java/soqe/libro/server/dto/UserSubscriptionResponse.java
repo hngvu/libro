@@ -1,6 +1,7 @@
 package soqe.libro.server.dto;
 
 import lombok.Builder;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Builder
@@ -11,6 +12,9 @@ public record UserSubscriptionResponse(
         Long planId,
         String planName,
         String planCode,
+        Long planPriceId,
+        String billingCycle,
+        BigDecimal price,
         Integer maxActiveLoans,
         Integer loanDurationDays,
         Integer maxRenewals,
