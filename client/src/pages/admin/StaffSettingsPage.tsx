@@ -360,7 +360,6 @@ export function StaffSettingsPage() {
               <label className={`text-xs font-medium ${t.subTextColor}`}>Password</label>
               <input
                 type="password"
-                placeholder="Default: libro123"
                 value={staffFormData.password}
                 onChange={(e) => setStaffFormData({ ...staffFormData, password: e.target.value })}
                 className={`w-full mt-1 h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}

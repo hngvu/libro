@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   IconSearch,
   IconPlus,
-  IconLock,
-  IconLockOpen,
   IconArrowsUpDown,
   IconUser,
   IconFilter2,
@@ -17,9 +15,10 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { useAdmin } from '@/components/admin/AdminContext'
 import { useAuth } from '@/context/AuthContext'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { AdminFilterSelect } from '@/components/admin/AdminFilterSelect'
 import { api } from '@/services/api'
-import type { UserResponse, LoanResponse } from '@/types/api'
+import type { UserResponse } from '@/types/api'
 import {
   Dialog,
   DialogContent,
@@ -29,12 +28,15 @@ import {
 } from '@/components/ui/dialog'
 
 export function MemberListPage() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { t, isDark, showFeedback } = useAdmin()
   const { isAdmin } = useAuth()
 
+  const initialKeyword = searchParams.get('search') || searchParams.get('keyword') || ''
   const [users, setUsers] = useState<UserResponse[]>([])
   const [loading, setLoading] = useState(false)
-  const [keyword, setKeyword] = useState('')
+  const [keyword, setKeyword] = useState(initialKeyword)
   const [sortBy, setSortBy] = useState<'default' | 'name-asc' | 'name-desc'>('default')
   const [activeFilterFields, setActiveFilterFields] = useState<string[]>([])
   const [statusFilter, setStatusFilter] = useState<string>('')
@@ -49,12 +51,6 @@ export function MemberListPage() {
     setStatusFilter('')
     setActiveFilterFields([])
   }
-
-  // Member Detail Modal State
-  const [detailModalOpen, setDetailModalOpen] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<UserResponse | null>(null)
-  const [userLoans, setUserLoans] = useState<LoanResponse[]>([])
-  const [loadingLoans, setLoadingLoans] = useState(false)
 
   // Add Member Modal State
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -115,44 +111,6 @@ export function MemberListPage() {
       setSelectedUserIds([])
     } else {
       setSelectedUserIds(validIds)
-    }
-  }
-
-  const handleOpenDetail = async (user: UserResponse) => {
-    setSelectedUser(user)
-    setDetailModalOpen(true)
-    setLoadingLoans(true)
-    try {
-      const res = await api.adminGetLoans({ userId: user.id, page: 1, size: 20 })
-      setUserLoans(res.content || [])
-    } catch {
-      setUserLoans([])
-    } finally {
-      setLoadingLoans(false)
-    }
-  }
-
-  const handleToggleCardLock = async (user: UserResponse) => {
-    const newStatus = user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
-    const confirmMsg =
-      newStatus === 'INACTIVE'
-        ? `Are you sure you want to lock the library card for ${user.fullName || user.username}? They won't be able to borrow books.`
-        : `Unlock and activate the library card for ${user.fullName || user.username}?`
-
-    if (!confirm(confirmMsg)) return
-
-    try {
-      if (user.id) await api.adminUpdateUser(user.id, { status: newStatus as any })
-      showFeedback(
-        'success',
-        `Library card for ${user.fullName || user.username} is now ${newStatus === 'ACTIVE' ? 'ACTIVATED' : 'LOCKED'}!`
-      )
-      if (selectedUser && selectedUser.id === user.id) {
-        setSelectedUser({ ...selectedUser, status: newStatus as any })
-      }
-      fetchUsers()
-    } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to change card status')
     }
   }
 
@@ -357,7 +315,7 @@ export function MemberListPage() {
               {filteredUsers.map((u) => (
                 <tr
                   key={u.id}
-                  onClick={() => handleOpenDetail(u)}
+                  onClick={() => u.id && navigate(`/admin/members/${u.id}`)}
                   className={`group border-b transition-colors cursor-pointer ${
                     isDark ? 'border-[#20242c]' : 'border-gray-200'
                   } ${t.tableRow}`}
@@ -422,121 +380,6 @@ export function MemberListPage() {
         </div>
       )}
 
-      {/* MEMBER DETAIL MODAL (Profile + Loan History + Lock Toggle) */}
-      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent onClose={() => setDetailModalOpen(false)} className={`sm:max-w-xl rounded-xl shadow-2xl p-6 border ${t.modalBg}`}>
-          <DialogHeader>
-            <DialogTitle className={`font-sans font-bold text-lg flex items-center justify-between ${t.titleColor}`}>
-              <span>Patron Profile & Reading History</span>
-              {selectedUser && selectedUser.status !== 'ACTIVE' && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                  {selectedUser.status === 'BANNED' ? 'Banned' : 'Locked'}
-                </span>
-              )}
-            </DialogTitle>
-            <DialogDescription className={`text-xs ${t.subTextColor}`}>
-              Member card information, contact details, and lifetime borrowing record
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedUser && (
-            <div className="space-y-4 pt-2">
-              {/* Profile Card */}
-              <div className={`p-4 rounded-md border flex items-center justify-between ${isDark ? 'bg-[#16181d] border-[#2c323e]' : 'bg-gray-50 border-gray-200'}`}>
-                <div>
-                  <h4 className={`text-sm font-semibold ${t.titleColor}`}>{selectedUser.fullName || selectedUser.username}</h4>
-                  <div className={`text-xs mt-0.5 ${t.subTextColor}`}>{selectedUser.email}</div>
-                  <div className={`text-[11px] mt-0.5 font-mono ${t.mutedColor}`}>Phone: {selectedUser.phone || 'None'} · User ID #{selectedUser.id}</div>
-                </div>
-
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCardLock(selectedUser)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium border flex items-center gap-1.5 cursor-pointer transition-colors ${
-                      selectedUser.status === 'ACTIVE'
-                        ? 'border-amber-500/30 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'
-                        : 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
-                    }`}
-                  >
-                    {selectedUser.status === 'ACTIVE' ? (
-                      <>
-                        <IconLock size={14} /> Lock Card
-                      </>
-                    ) : (
-                      <>
-                        <IconLockOpen size={14} /> Unlock Card
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-
-              {/* Borrowing History */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h5 className={`text-xs font-semibold uppercase tracking-wider ${t.titleColor}`}>Borrowing History</h5>
-                  <span className={`text-xs ${t.subTextColor}`}>{userLoans.length} total loans</span>
-                </div>
-
-                {loadingLoans ? (
-                  <div className={`p-6 text-center text-xs ${t.subTextColor}`}>Loading history...</div>
-                ) : userLoans.length > 0 ? (
-                  <div className={`rounded-md border overflow-hidden max-h-56 overflow-y-auto ${isDark ? 'border-[#2c323e]' : 'border-gray-200'}`}>
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className={`border-b ${t.tableHead}`}>
-                          <th className="py-2.5 px-3 font-semibold">Loan</th>
-                          <th className="py-2.5 px-3 font-semibold">Book Title</th>
-                          <th className="py-2.5 px-3 font-semibold">Due Date</th>
-                          <th className="py-2.5 px-3 font-semibold text-right">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-transparent">
-                        {userLoans.map((l) => (
-                          <tr key={l.id} className={`border-b ${t.tableRow}`}>
-                            <td className="py-2 px-3 font-mono">{l.loanCode}</td>
-                            <td className={`py-2 px-3 font-medium ${t.titleColor}`}>{l.bookTitle || l.barcode}</td>
-                            <td className={`py-2 px-3 ${t.subTextColor}`}>{l.dueDate}</td>
-                            <td className="py-2 px-3 text-right">
-                              <span
-                                className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
-                                  l.status === 'RETURNED'
-                                    ? t.statusMuted
-                                    : l.status === 'OVERDUE'
-                                    ? t.statusOverdue
-                                    : t.statusBorrowed
-                                }`}
-                              >
-                                {l.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className={`p-6 text-center text-xs rounded-md border ${isDark ? 'border-[#2c323e] bg-[#16181d]' : 'border-gray-200 bg-gray-50'} ${t.subTextColor}`}>
-                    No loans on record for this member.
-                  </div>
-                )}
-              </div>
-
-              <div className={`flex justify-end pt-3 border-t ${isDark ? 'border-[#2c323e]' : 'border-gray-200'}`}>
-                <button
-                  type="button"
-                  onClick={() => setDetailModalOpen(false)}
-                  className={`px-4 py-2 text-xs font-semibold rounded-md border transition-colors cursor-pointer ${t.secondaryBtn}`}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* CREATE MEMBER MODAL */}
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
         <DialogContent onClose={() => setAddModalOpen(false)} className={`sm:max-w-md rounded-xl shadow-2xl p-6 border ${t.modalBg}`}>
@@ -556,7 +399,6 @@ export function MemberListPage() {
                 required
                 value={formData.fullName}
                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                placeholder="e.g. John Doe"
                 className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none transition ${t.inputBg}`}
               />
             </div>
@@ -566,7 +408,6 @@ export function MemberListPage() {
                 required
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                placeholder="e.g. johndoe"
                 className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none transition ${t.inputBg}`}
               />
             </div>
@@ -577,7 +418,6 @@ export function MemberListPage() {
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="e.g. john@example.com"
                 className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none transition ${t.inputBg}`}
               />
             </div>
@@ -585,7 +425,6 @@ export function MemberListPage() {
               <label className={`block text-xs font-medium ${t.subTextColor}`}>Initial Password</label>
               <input
                 type="password"
-                placeholder="Default: libro123"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none transition ${t.inputBg}`}
@@ -596,7 +435,6 @@ export function MemberListPage() {
               <input
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="e.g. +1 555-0199"
                 className={`w-full h-9 px-3 rounded-md text-xs sm:text-sm border outline-none transition ${t.inputBg}`}
               />
             </div>

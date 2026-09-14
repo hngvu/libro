@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   IconSearch,
@@ -15,25 +15,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useAdmin } from '@/components/admin/AdminContext'
 import { api } from '@/services/api'
 import type { AuthorResponse } from '@/types/api'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
-
-function slugify(text: string): string {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
 
 export function AdminAuthorsPage() {
   const navigate = useNavigate()
@@ -48,15 +29,6 @@ export function AdminAuthorsPage() {
   const [keyword, setKeyword] = useState(initialKeyword)
   const [selectedAuthorIds, setSelectedAuthorIds] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
-
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editingAuthor, setEditingAuthor] = useState<AuthorResponse | null>(null)
-  const [formData, setFormData] = useState({
-    name: '',
-    handle: '',
-    biography: '',
-    image: '',
-  })
 
   // Sync state to URL search parameters
   useEffect(() => {
@@ -123,7 +95,7 @@ export function AdminAuthorsPage() {
       for (const id of selectedAuthorIds) {
         await api.adminDeleteAuthor(id)
       }
-      showFeedback('success', `${selectedAuthorIds.length} author(s) deleted successfully!`)
+      showFeedback('success', 'Deleted successfully')
       setSelectedAuthorIds([])
       fetchAuthors()
     } catch (err: any) {
@@ -131,70 +103,7 @@ export function AdminAuthorsPage() {
     }
   }
 
-  const handleDeleteCurrent = async () => {
-    if (!editingAuthor) return
-    if (!confirm(`Are you sure you want to delete author "${editingAuthor.name}"?`)) return
-    try {
-      await api.adminDeleteAuthor(editingAuthor.id)
-      showFeedback('success', `Author "${editingAuthor.name}" deleted successfully!`)
-      setModalOpen(false)
-      fetchAuthors()
-    } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to delete author')
-    }
-  }
 
-  const handleOpenCreate = () => {
-    setEditingAuthor(null)
-    setFormData({
-      name: '',
-      handle: '',
-      biography: '',
-      image: '',
-    })
-    setModalOpen(true)
-  }
-
-  const handleNameChange = (val: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      name: val,
-      handle: editingAuthor ? prev.handle : slugify(val),
-    }))
-  }
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!formData.name.trim()) {
-      showFeedback('error', 'Author name is required')
-      return
-    }
-    const finalHandle = formData.handle.trim() || slugify(formData.name)
-
-    try {
-      if (editingAuthor) {
-        await api.adminUpdateAuthor(editingAuthor.id, {
-          name: formData.name.trim(),
-          handle: finalHandle,
-          biography: formData.biography.trim() || undefined,
-          image: formData.image.trim() || undefined,
-        })
-        showFeedback('success', 'Author profile updated successfully!')
-      } else {
-        await api.adminCreateAuthor({
-          name: formData.name.trim(),
-          handle: finalHandle,
-          biography: formData.biography.trim() || undefined,
-          image: formData.image.trim() || undefined,
-        })
-        showFeedback('success', 'New author added successfully!')
-      }
-      setModalOpen(false)
-      fetchAuthors()
-    } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to save author')
-    }
-  }
 
   return (
     <div className="space-y-4">
@@ -267,7 +176,7 @@ export function AdminAuthorsPage() {
 
         <div className="flex items-center gap-2 shrink-0 justify-end">
           <button
-            onClick={handleOpenCreate}
+            onClick={() => navigate('/admin/authors/new')}
             className={`h-9 px-4 text-sm font-semibold rounded-md transition-all cursor-pointer ${t.primaryBtn}`}
           >
             Add Author
@@ -433,92 +342,6 @@ export function AdminAuthorsPage() {
           </table>
         </div>
       )}
-
-      {/* Add / Edit Author Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className={isDark ? 'bg-[#1c2027] border-[#2c323e]' : 'bg-white border-gray-200'}>
-          <DialogHeader>
-            <DialogTitle className={`text-base ${t.titleColor}`}>
-              {editingAuthor ? 'Edit Author Profile' : 'Add New Author'}
-            </DialogTitle>
-            <DialogDescription className={`text-xs ${t.subTextColor}`}>
-              {editingAuthor
-                ? 'Update author details, biography, and catalog affiliation.'
-                : 'Create a new author profile to link with books in your library.'}
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSave} className="space-y-4 pt-2">
-            <div>
-              <label className={`block text-xs font-semibold mb-1.5 ${t.subTextColor}`}>
-                Full Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="e.g. Robert C. Martin"
-                className={`w-full h-9 px-3 rounded-md text-xs border outline-none ${t.inputBg}`}
-              />
-            </div>
-
-            <div>
-              <label className={`block text-xs font-semibold mb-1.5 ${t.subTextColor}`}>
-                Profile Image URL
-              </label>
-              <input
-                type="text"
-                value={formData.image}
-                onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                placeholder="https://..."
-                className={`w-full h-9 px-3 rounded-md text-xs font-mono border outline-none ${t.inputBg}`}
-              />
-            </div>
-
-            <div>
-              <label className={`block text-xs font-semibold mb-1.5 ${t.subTextColor}`}>
-                Biography
-              </label>
-              <textarea
-                rows={3}
-                value={formData.biography}
-                onChange={(e) => setFormData({ ...formData, biography: e.target.value })}
-                placeholder="Brief bio, awards, notable background..."
-                className={`w-full p-2.5 rounded-md text-xs border outline-none resize-none ${t.inputBg}`}
-              />
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              {editingAuthor ? (
-                <button
-                  type="button"
-                  onClick={handleDeleteCurrent}
-                  className="h-9 px-3 text-xs font-medium text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer"
-                >
-                  Delete Author
-                </button>
-              ) : <div />}
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className={`h-9 px-4 text-xs font-medium rounded-md transition-colors cursor-pointer ${t.secondaryBtn}`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className={`h-9 px-4 text-xs font-semibold rounded-md transition-all cursor-pointer ${t.primaryBtn}`}
-                >
-                  {editingAuthor ? 'Save Changes' : 'Create Author'}
-                </button>
-              </div>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

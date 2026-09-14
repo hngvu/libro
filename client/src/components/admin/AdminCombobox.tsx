@@ -4,6 +4,7 @@ import {
   IconCirclePlus,
   IconX,
   IconLoader2,
+  IconBook2,
 } from '@tabler/icons-react'
 import { useAdmin } from './AdminContext'
 
@@ -425,16 +426,20 @@ export function AdminCombobox({
                           : 'hover:bg-gray-100 text-gray-800 cursor-pointer'
                       }`}
                     >
-                      {opt.image && (
-                        <div className="w-7 h-10 rounded-[2px] overflow-hidden shrink-0 border border-gray-200 dark:border-[#333a48] bg-gray-100 dark:bg-[#16181d]">
-                          <img
-                            src={opt.image}
-                            alt=""
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = 'none'
-                            }}
-                          />
+                      {opt.image !== undefined && (
+                        <div className="w-7 h-10 rounded-[2px] overflow-hidden shrink-0 border border-gray-200 dark:border-[#333a48] bg-gray-100 dark:bg-[#16181d] flex items-center justify-center">
+                          {opt.image ? (
+                            <img
+                              src={opt.image}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <IconBook2 size={15} className="opacity-40" />
+                          )}
                         </div>
                       )}
                       <div className="flex flex-col min-w-0 flex-1 pr-2">

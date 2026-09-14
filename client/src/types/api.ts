@@ -19,7 +19,7 @@ export interface Page<T> {
 export type BookFormat = 'PAPERBACK' | 'HARDCOVER' | 'EBOOK' | 'AUDIOBOOK'
 export type BookStatus = 'ACTIVE' | 'ARCHIVED' | 'HIDDEN'
 export type BookCopyStatus = 'AVAILABLE' | 'BORROWED' | 'MAINTENANCE' | 'LOST' | 'RESERVED'
-export type LoanStatus = 'BORROWED' | 'RETURNED' | 'OVERDUE'
+export type LoanStatus = 'ONGOING' | 'BORROWED' | 'RETURNED' | 'OVERDUE' | 'CANCELLED'
 export type UserRole = 'ADMIN' | 'LIBRARIAN' | 'MEMBER'
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'BANNED'
 
@@ -77,6 +77,8 @@ export interface BookCopyResponse {
   location?: string | null
   bookId: number
   bookTitle?: string
+  bookCover?: string | null
+  authors?: string[]
   lastLoanDate?: string | null
 }
 
@@ -97,7 +99,7 @@ export interface LoanResponse {
   id: number
   loanCode: string
   userId: number
-  username: string
+  userEmail?: string
   userFullName: string
   bookCopyId: number
   barcode: string

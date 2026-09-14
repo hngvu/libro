@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import {
   IconAlertTriangle,
   IconCheck,
+  IconX,
 } from '@tabler/icons-react'
 import { useAuth } from '@/context/AuthContext'
 import { AdminProvider, useAdmin } from './AdminContext'
@@ -23,7 +24,7 @@ export interface AdminLayoutOutletContext {
 function AdminLayoutInner() {
   const navigate = useNavigate()
   const { user, login, logout, canAccessAdmin, loading: authLoading } = useAuth()
-  const { t, isDark, feedback, mobileSidebarOpen, setMobileSidebarOpen } = useAdmin()
+  const { t, isDark, feedback, dismissFeedback, mobileSidebarOpen, setMobileSidebarOpen } = useAdmin()
 
   // Gate 1: Login form state
   const [gateEmail, setGateEmail] = useState('')
@@ -223,34 +224,51 @@ function AdminLayoutInner() {
           {/* Top Header */}
           <AdminHeader />
 
-          {/* Global Feedback Banner */}
-          {feedback && (
-            <div
-              className={`p-3.5 rounded-2xl text-xs font-medium flex items-center gap-2.5 transition-all shadow-xs ${
-                feedback.type === 'success'
-                  ? isDark
-                    ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
-                    : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                  : isDark
-                  ? 'bg-rose-500/10 text-rose-300 border border-rose-500/20'
-                  : 'bg-rose-50 text-rose-800 border border-rose-200'
-              }`}
-            >
-              {feedback.type === 'success' ? (
-                <IconCheck size={16} className="text-emerald-400 shrink-0" />
-              ) : (
-                <IconAlertTriangle size={16} className="text-rose-400 shrink-0" />
-              )}
-              <span>{feedback.text}</span>
-            </div>
-          )}
-
           {/* Route Content Outlet */}
           <div className="w-full">
             <Outlet context={outletContext} />
           </div>
         </div>
       </main>
+
+      {/* Floating Global Toast Notification */}
+      {feedback && (
+        <aside
+          aria-label="Notification"
+          className="fixed bottom-6 right-6 z-50 max-w-sm pointer-events-auto transition-all animate-in fade-in slide-in-from-bottom-3 duration-200"
+        >
+          <div
+            className={`p-3 pr-4 rounded-xl text-xs font-medium flex items-center gap-3 shadow-xl backdrop-blur-md border select-none ${
+              feedback.type === 'success'
+                ? isDark
+                  ? 'bg-[#181d24]/95 text-emerald-300 border-emerald-500/30 shadow-black/40'
+                  : 'bg-white/95 text-emerald-800 border-emerald-200 shadow-gray-200/80'
+                : isDark
+                ? 'bg-[#181d24]/95 text-rose-300 border-rose-500/30 shadow-black/40'
+                : 'bg-white/95 text-rose-800 border-rose-200 shadow-gray-200/80'
+            }`}
+          >
+            {feedback.type === 'success' ? (
+              <div className="w-6 h-6 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+                <IconCheck size={14} />
+              </div>
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-rose-500/15 text-rose-400 flex items-center justify-center shrink-0">
+                <IconAlertTriangle size={14} />
+              </div>
+            )}
+            <span className="flex-1 leading-snug pr-1">{feedback.text}</span>
+            <button
+              type="button"
+              onClick={dismissFeedback}
+              className="p-1 -mr-1 rounded-md opacity-70 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+              title="Dismiss"
+            >
+              <IconX size={13} />
+            </button>
+          </div>
+        </aside>
+      )}
     </div>
   )
 }

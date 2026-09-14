@@ -37,6 +37,7 @@ interface AdminContextType {
   t: AdminThemeTokens
   feedback: { type: 'success' | 'error'; text: string } | null
   showFeedback: (type: 'success' | 'error', text: string) => void
+  dismissFeedback: () => void
   circulationSettings: CirculationSettings
   setCirculationSettings: React.Dispatch<React.SetStateAction<CirculationSettings>>
   mobileSidebarOpen: boolean
@@ -67,6 +68,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const showFeedback = useCallback((type: 'success' | 'error', text: string) => {
     setFeedback({ type, text })
     setTimeout(() => setFeedback(null), 4000)
+  }, [])
+
+  const dismissFeedback = useCallback(() => {
+    setFeedback(null)
   }, [])
 
   const toggleThemeMode = useCallback((mode: 'dark' | 'light') => {
@@ -128,6 +133,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     t,
     feedback,
     showFeedback,
+    dismissFeedback,
     circulationSettings,
     setCirculationSettings,
     mobileSidebarOpen,
@@ -141,6 +147,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     t,
     feedback,
     showFeedback,
+    dismissFeedback,
     circulationSettings,
     mobileSidebarOpen,
     headerAction,

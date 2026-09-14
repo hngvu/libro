@@ -1,24 +1,87 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
 import {
+  IconSearch,
+  IconPlus,
+  IconFilter2,
+  IconChevronDown,
+  IconArrowsUpDown,
   IconAlertTriangle,
   IconRefresh,
-  IconArrowBackUp,
-  IconBell,
-  IconSearch,
 } from '@tabler/icons-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useAdmin } from '@/components/admin/AdminContext'
+import { AdminFilterCombobox } from '@/components/admin/AdminFilterCombobox'
 import type { AdminLayoutOutletContext } from '@/components/admin/AdminLayout'
 import { api } from '@/services/api'
-import type { LoanResponse } from '@/types/api'
+import type { LoanResponse, UserResponse } from '@/types/api'
+
+function formatDate(dateStr?: string) {
+  if (!dateStr) return '—'
+  const clean = dateStr.split('T')[0]
+  const parts = clean.split('-')
+  if (parts.length === 3) {
+    const [year, month, day] = parts
+    return `${day}/${month}/${year}`
+  }
+  return dateStr
+}
 
 export function OverduePage() {
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { t, isDark, showFeedback, circulationSettings } = useAdmin()
   const { refreshCounts } = useOutletContext<AdminLayoutOutletContext>()
 
+  const initialKeyword = searchParams.get('search') || ''
+  const initialSort = (searchParams.get('sort') || 'default') as
+    | 'default'
+    | 'days-desc'
+    | 'days-asc'
+    | 'due-asc'
+    | 'fine-desc'
+    | 'borrower-asc'
+    | 'title-asc'
+  const initialUsers = searchParams.get('user') ? searchParams.get('user')!.split(',').filter(Boolean) : []
+
   const [overdueLoans, setOverdueLoans] = useState<LoanResponse[]>([])
+  const [users, setUsers] = useState<UserResponse[]>([])
   const [loading, setLoading] = useState(false)
-  const [keyword, setKeyword] = useState('')
+
+  // Filters & Sorting state
+  const [keyword, setKeyword] = useState(initialKeyword)
+  const [sortBy, setSortBy] = useState<typeof initialSort>(initialSort)
+  const [userFilter, setUserFilter] = useState<string[]>(initialUsers)
+  const [activeFilterFields, setActiveFilterFields] = useState<string[]>(() => {
+    const fields: string[] = []
+    if (initialUsers.length > 0) fields.push('user')
+    return fields
+  })
+
+  // Selection for bulk actions
+  const [selectedLoanIds, setSelectedLoanIds] = useState<number[]>([])
+
+  // Sync state to URL search parameters
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (keyword.trim()) params.set('search', keyword.trim())
+    if (sortBy && sortBy !== 'default') params.set('sort', sortBy)
+    if (userFilter.length > 0) params.set('user', userFilter.join(','))
+    setSearchParams(params, { replace: true })
+  }, [keyword, sortBy, userFilter, setSearchParams])
+
+  // Load patrons for filter
+  useEffect(() => {
+    api.adminGetUsers({ page: 1, size: 100 })
+      .then((res) => setUsers(res.content || []))
+      .catch(() => {})
+  }, [])
 
   const fetchOverdueLoans = useCallback(async () => {
     setLoading(true)
@@ -26,8 +89,9 @@ export function OverduePage() {
       const res = await api.adminGetLoans({
         status: 'OVERDUE',
         keyword: keyword || undefined,
+        userId: userFilter.length > 0 ? userFilter.map(Number).filter(Boolean) : undefined,
         page: 1,
-        size: 50,
+        size: 100,
       })
       setOverdueLoans(res.content || [])
     } catch (err: any) {
@@ -35,7 +99,7 @@ export function OverduePage() {
     } finally {
       setLoading(false)
     }
-  }, [keyword])
+  }, [keyword, userFilter, showFeedback])
 
   useEffect(() => {
     fetchOverdueLoans()
@@ -48,33 +112,85 @@ export function OverduePage() {
     return diffDays
   }
 
-  const handleReturn = async (id: number) => {
-    if (!confirm('Confirm return processing for this overdue book?')) return
-    try {
-      await api.adminReturnLoan(id)
-      showFeedback('success', 'Book returned and checked in!')
-      fetchOverdueLoans()
-      refreshCounts()
-    } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to return loan')
+  const sortedOverdueLoans = useMemo(() => {
+    let list = [...overdueLoans]
+    if (sortBy === 'days-desc') {
+      return list.sort((a, b) => calculateDaysOverdue(b.dueDate) - calculateDaysOverdue(a.dueDate))
+    }
+    if (sortBy === 'days-asc') {
+      return list.sort((a, b) => calculateDaysOverdue(a.dueDate) - calculateDaysOverdue(b.dueDate))
+    }
+    if (sortBy === 'due-asc') {
+      return list.sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''))
+    }
+    if (sortBy === 'fine-desc') {
+      return list.sort((a, b) => calculateDaysOverdue(b.dueDate) - calculateDaysOverdue(a.dueDate))
+    }
+    if (sortBy === 'borrower-asc') {
+      return list.sort((a, b) => (a.userFullName || a.userEmail || '').localeCompare(b.userFullName || b.userEmail || ''))
+    }
+    if (sortBy === 'title-asc') {
+      return list.sort((a, b) => (a.bookTitle || '').localeCompare(b.bookTitle || ''))
+    }
+    return list
+  }, [overdueLoans, sortBy])
+
+  const removeFilterField = (field: string) => {
+    setActiveFilterFields((prev) => prev.filter((f) => f !== field))
+    if (field === 'user') setUserFilter([])
+  }
+
+  const resetAllFilters = () => {
+    setActiveFilterFields([])
+    setUserFilter([])
+  }
+
+  const toggleSelectLoan = (id: number) => {
+    setSelectedLoanIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedLoanIds.length === sortedOverdueLoans.length) {
+      setSelectedLoanIds([])
+    } else {
+      setSelectedLoanIds(sortedOverdueLoans.map((l) => l.id))
     }
   }
 
-  const handleSendReminder = (loan: LoanResponse) => {
-    showFeedback('success', `Reminder notification sent to ${loan.userFullName || loan.username}!`)
+  const handleBulkReturn = async () => {
+    if (selectedLoanIds.length === 0) return
+    if (!confirm(`Return ${selectedLoanIds.length} selected overdue book(s)?`)) return
+    try {
+      for (const id of selectedLoanIds) {
+        await api.adminReturnLoan(id)
+      }
+      showFeedback('success', `${selectedLoanIds.length} overdue book(s) checked back in!`)
+      setSelectedLoanIds([])
+      fetchOverdueLoans()
+      refreshCounts()
+    } catch (err: any) {
+      showFeedback('error', err.message || 'Failed to return selected books')
+    }
+  }
+
+  const handleBulkSendReminders = () => {
+    if (selectedLoanIds.length === 0) return
+    showFeedback('success', `Reminder notices sent to ${selectedLoanIds.length} overdue borrower(s)!`)
   }
 
   return (
     <div className="space-y-4">
       {/* Priority Notice Banner */}
       <div
-        className={`p-4 rounded-2xl border flex items-start sm:items-center justify-between gap-3 ${
+        className={`p-3.5 rounded-xl border flex items-start sm:items-center justify-between gap-3 ${
           isDark ? 'bg-rose-500/10 border-rose-500/20 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-800'
         }`}
       >
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-rose-500/20 shrink-0">
-            <IconAlertTriangle size={22} className="text-rose-400" />
+          <div className="p-2 rounded-lg bg-rose-500/20 shrink-0">
+            <IconAlertTriangle size={20} className="text-rose-400" />
           </div>
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider">Urgent Circulation Queue</h3>
@@ -83,106 +199,361 @@ export function OverduePage() {
             </p>
           </div>
         </div>
-        <span className="text-xs font-mono font-bold px-3 py-1 rounded-xl bg-rose-500/20 border border-rose-500/30 shrink-0">
+        <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-500/30 shrink-0">
           {overdueLoans.length} Overdue
         </span>
       </div>
 
-      {/* Toolbar */}
-      <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${t.cardBg}`}>
-        <div className="relative w-full sm:w-80">
-          <IconSearch size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.mutedColor}`} />
-          <input
-            placeholder="Search overdue reader or loan code..."
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && fetchOverdueLoans()}
-            className={`h-9 pl-8.5 pr-3 text-xs w-full rounded-xl border outline-none transition ${t.inputBg}`}
-          />
+      {/* Search & Actions Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="flex items-center gap-2 w-full sm:w-[60%]">
+          <div className="relative flex-1">
+            <IconSearch size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.mutedColor}`} />
+            <input
+              placeholder="Search overdue borrower, book title, or barcode..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              className={`h-9 pl-9 pr-3 text-sm w-full rounded-md border outline-none transition ${t.inputBg}`}
+            />
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                  sortBy !== 'default'
+                    ? isDark
+                      ? 'bg-[#252a34] border-blue-500/50 text-blue-400'
+                      : 'bg-blue-50 border-blue-300 text-blue-600'
+                    : isDark
+                    ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
+                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                title="Sort options"
+              >
+                <IconArrowsUpDown size={15} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => setSortBy('default')}
+                className={sortBy === 'default' ? 'font-semibold text-blue-500' : ''}
+              >
+                Default
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('days-desc')}
+                className={sortBy === 'days-desc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Days Overdue (Most overdue first)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('days-asc')}
+                className={sortBy === 'days-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Days Overdue (Least overdue first)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('due-asc')}
+                className={sortBy === 'due-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Due Date (Oldest deadline first)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('borrower-asc')}
+                className={sortBy === 'borrower-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Borrower Name (A-Z)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('title-asc')}
+                className={sortBy === 'title-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Book Title (A-Z)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        <button
-          onClick={fetchOverdueLoans}
-          className={`h-9 px-3 text-xs font-medium rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer ${t.secondaryBtn}`}
-        >
-          <IconRefresh size={14} /> Refresh
-        </button>
+        <div className="flex items-center gap-2 shrink-0 justify-end">
+          <button
+            onClick={fetchOverdueLoans}
+            disabled={loading}
+            className={`h-9 px-3 text-xs font-medium rounded-md border transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${t.secondaryBtn}`}
+          >
+            <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
       </div>
 
-      {/* Overdue Table */}
+      {/* Filter Section Under Searchbar */}
+      <div className="flex items-center gap-2 flex-wrap pt-0.5">
+        <div
+          className={`h-9 flex items-center gap-1.5 px-3 rounded-md border text-xs sm:text-[13px] font-semibold select-none ${
+            isDark ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de]' : 'bg-gray-100 border-gray-300 text-gray-800'
+          }`}
+        >
+          <IconFilter2 size={15} className={isDark ? 'text-gray-300' : 'text-gray-600'} />
+          <span>Filter</span>
+        </div>
+
+        {/* Borrower Filter */}
+        {activeFilterFields.includes('user') && (
+          <AdminFilterCombobox
+            label="Borrower"
+            value={userFilter}
+            options={users.map((u) => ({
+              value: String(u.id),
+              label: `${u.fullName || u.email} (${u.email})`,
+            }))}
+            onChange={(val) => setUserFilter(Array.isArray(val) ? val : val ? [val] : [])}
+            onRemove={() => removeFilterField('user')}
+            multiple={true}
+            placeholder="Search borrower..."
+          />
+        )}
+
+        {/* Add Filter Plus Button */}
+        {!activeFilterFields.includes('user') && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                  isDark
+                    ? 'bg-[#181a20] border-[#2c323e] text-[#8c94a5] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
+                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                title="Add filter"
+              >
+                <IconPlus size={15} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => setActiveFilterFields([...activeFilterFields, 'user'])}>
+                Borrower Patron
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Reset Button */}
+        {activeFilterFields.length > 0 && (
+          <button
+            onClick={resetAllFilters}
+            className="text-xs sm:text-[13px] text-blue-600 dark:text-blue-400 hover:underline px-1 cursor-pointer font-medium"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
+      {/* Overdue Table - Frameless style */}
       {loading ? (
-        <div className={`p-10 text-center text-xs rounded-2xl border ${t.cardBg} ${t.subTextColor}`}>
-          Loading overdue returns...
+        <div className={`p-10 text-center text-sm ${t.subTextColor}`}>
+          Loading overdue records...
         </div>
       ) : (
-        <div className={`rounded-2xl border overflow-hidden shadow-xs ${t.tableWrapper}`}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className={`border-b ${t.tableHead}`}>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Loan Code</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Borrower</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Book Title</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Due Date</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Days Overdue</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Accrued Fine</th>
-                  <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-transparent">
-                {overdueLoans.map((l) => {
-                  const days = calculateDaysOverdue(l.dueDate)
-                  const fine = days * circulationSettings.finePerDayOverdue
-                  return (
-                    <tr key={l.id} className={`border-b transition-colors ${t.tableRow}`}>
-                      <td className="py-3 px-4 font-mono text-xs font-semibold">{l.loanCode}</td>
-                      <td className="py-3 px-4 text-xs">
-                        <div className={`font-medium ${t.titleColor}`}>{l.userFullName || l.username}</div>
-                        <div className={`text-[10px] font-mono ${t.mutedColor}`}>@{l.username}</div>
-                      </td>
-                      <td className="py-3 px-4 text-xs">
-                        <div className={`font-medium ${t.titleColor}`}>{l.bookTitle || `Copy #${l.bookCopyId}`}</div>
-                        <div className={`text-[10px] font-mono ${t.mutedColor}`}>{l.barcode}</div>
-                      </td>
-                      <td className="py-3 px-4 text-xs font-semibold text-rose-400">{l.dueDate}</td>
-                      <td className="py-3 px-4 text-xs font-bold text-rose-400">
-                        +{days} days
-                      </td>
-                      <td className="py-3 px-4 text-xs font-mono font-semibold text-amber-400">
-                        {fine.toLocaleString('vi-VN')} VND
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className={`h-11 border-b ${isDark ? 'border-[#22262e]' : 'border-gray-200'} ${t.tableHead}`}>
+                <th className="w-10 px-3 text-center align-middle">
+                  <Checkbox
+                    checked={
+                      sortedOverdueLoans.length > 0 && selectedLoanIds.length === sortedOverdueLoans.length
+                        ? true
+                        : selectedLoanIds.length > 0
+                        ? 'indeterminate'
+                        : false
+                    }
+                    onCheckedChange={toggleSelectAll}
+                    title="Select all"
+                    className={
+                      isDark
+                        ? '!border-[#3e4756] hover:!border-[#5a667b]'
+                        : '!border-gray-400 hover:!border-gray-500'
+                    }
+                  />
+                </th>
+
+                {/* Column: Code / Selected Action */}
+                <th className="px-4 text-left align-middle min-w-[140px]">
+                  {selectedLoanIds.length > 0 ? (
+                    <div className="flex items-center gap-2.5">
+                      <span className={`text-xs sm:text-sm font-semibold normal-case whitespace-nowrap ${t.titleColor}`}>
+                        {selectedLoanIds.length} selected
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                           <button
-                            onClick={() => handleSendReminder(l)}
-                            className={`h-7 px-2.5 text-[11px] font-medium rounded-lg transition-colors flex items-center gap-1 cursor-pointer ${
-                              isDark ? 'text-amber-300 bg-amber-500/10 border border-amber-500/20' : 'text-amber-800 bg-amber-50 border border-amber-200'
+                            type="button"
+                            className={`h-6 px-2 rounded-md border text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer select-none normal-case whitespace-nowrap ${
+                              isDark
+                                ? 'bg-[#181a20] border-[#3e4756] text-[#cbd2de] hover:text-white hover:border-[#5a667b]'
+                                : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400'
                             }`}
-                            title="Send notice"
                           >
-                            <IconBell size={13} /> Notice
+                            <span>Actions</span>
+                            <IconChevronDown size={12} className="opacity-60" />
                           </button>
-                          <button
-                            onClick={() => handleReturn(l.id)}
-                            className={`h-7 px-2.5 text-[11px] font-medium rounded-lg transition-colors flex items-center gap-1 cursor-pointer ${t.primaryBtn}`}
-                          >
-                            <IconArrowBackUp size={13} /> Return
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-                {overdueLoans.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className={`py-10 text-center text-xs ${t.subTextColor}`}>
-                      🎉 Excellent! There are no overdue book returns in the library system.
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem onClick={handleBulkSendReminders}>
+                            Send Notice to Selected
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleBulkReturn} className="text-emerald-500">
+                            Return Selected
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSelectedLoanIds([])}>
+                            Deselect all
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ) : (
+                    <span className={`text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                      Code
+                    </span>
+                  )}
+                </th>
+
+                {/* Column: Borrower */}
+                <th className={`py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Borrower
+                </th>
+
+                {/* Column: Book */}
+                <th className={`py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Book
+                </th>
+
+                {/* Column: Due Date */}
+                <th className={`w-36 py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Due Date
+                </th>
+
+                {/* Column: Days Overdue */}
+                <th className={`w-32 py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Days Overdue
+                </th>
+
+                {/* Column: Accrued Fine */}
+                <th className={`w-36 py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Accrued Fine
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-transparent">
+              {sortedOverdueLoans.map((l) => {
+                const isSelected = selectedLoanIds.includes(l.id)
+                const days = calculateDaysOverdue(l.dueDate)
+                const fine = days * circulationSettings.finePerDayOverdue
+
+                return (
+                  <tr
+                    key={l.id}
+                    onClick={() => navigate(`/admin/circulation/${l.id}`)}
+                    className={`group border-b transition-colors cursor-pointer ${
+                      isDark ? 'border-[#20242c]' : 'border-gray-200'
+                    } ${
+                      isSelected
+                        ? isDark
+                          ? 'bg-[#1e232b]'
+                          : 'bg-blue-50/60'
+                        : t.tableRow
+                    }`}
+                  >
+                    {/* Checkbox */}
+                    <td className="w-10 px-3 text-center align-middle" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectLoan(l.id)}
+                        title={`Select loan ${l.loanCode}`}
+                        className={
+                          isDark
+                            ? '!border-[#3e4756] hover:!border-[#5a667b]'
+                            : '!border-gray-400 hover:!border-gray-500'
+                        }
+                      />
+                    </td>
+
+                    {/* Code */}
+                    <td className={`py-3 px-4 text-xs font-mono font-medium ${t.titleColor}`}>
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/admin/circulation/${l.id}`)
+                        }}
+                        className="hover:underline text-blue-600 dark:text-blue-400 cursor-pointer"
+                      >
+                        {l.loanCode}
+                      </span>
+                    </td>
+
+                    {/* Borrower Info */}
+                    <td className="py-3 px-4">
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (l.userId) {
+                            navigate(`/admin/members/${l.userId}`)
+                          }
+                        }}
+                        className={`text-sm font-semibold truncate hover:underline hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer ${t.titleColor}`}
+                      >
+                        {l.userFullName || `User #${l.userId}`}
+                      </span>
+                    </td>
+
+                    {/* Book Info */}
+                    <td className="py-3 px-4">
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (l.bookId) {
+                            navigate(`/admin/books/${l.bookId}`)
+                          }
+                        }}
+                        className={`text-sm font-medium truncate hover:underline hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer ${t.titleColor}`}
+                      >
+                        {l.bookTitle || `Book #${l.bookId || l.bookCopyId}`}
+                      </span>
+                    </td>
+
+                    {/* Due Date */}
+                    <td className="py-3 px-4 text-xs font-mono text-rose-500 font-bold">
+                      {formatDate(l.dueDate)}
+                    </td>
+
+                    {/* Days Overdue */}
+                    <td className="py-3 px-4">
+                      <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
+                        isDark ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-rose-50 text-rose-700 border-rose-200'
+                      }`}>
+                        +{days}d overdue
+                      </span>
+                    </td>
+
+                    {/* Accrued Fine */}
+                    <td className="py-3 px-4 text-xs font-mono font-bold text-amber-500">
+                      {fine.toLocaleString('vi-VN')} VND
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                )
+              })}
+
+              {sortedOverdueLoans.length === 0 && (
+                <tr>
+                  <td colSpan={7} className={`py-12 text-center text-sm ${t.subTextColor}`}>
+                    🎉 Excellent! There are no overdue book returns in the library system.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

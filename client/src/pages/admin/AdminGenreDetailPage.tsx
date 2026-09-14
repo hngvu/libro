@@ -13,13 +13,14 @@ import type { GenreResponse, BookResponse } from '@/types/api'
 
 export function AdminGenreDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const genreId = Number(id)
+  const isNew = id === 'new'
+  const genreId = isNew ? null : Number(id)
   const navigate = useNavigate()
   const { t, isDark, showFeedback, setHeaderAction } = useAdmin()
 
   const [genre, setGenre] = useState<GenreResponse | null>(null)
   const [books, setBooks] = useState<BookResponse[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
 
   const [editForm, setEditForm] = useState({
@@ -30,6 +31,9 @@ export function AdminGenreDetailPage() {
   })
 
   const isDirty = useMemo(() => {
+    if (isNew) {
+      return Boolean(editForm.name.trim() || editForm.description.trim())
+    }
     if (!genre) return false
     return (
       editForm.name !== (genre.name || '') ||
@@ -37,10 +41,10 @@ export function AdminGenreDetailPage() {
       editForm.description !== (genre.description || '') ||
       editForm.status !== (genre.status || 'ACTIVE')
     )
-  }, [genre, editForm])
+  }, [isNew, genre, editForm])
 
   const loadData = useCallback(async () => {
-    if (!genreId) return
+    if (isNew || !genreId) return
     setLoading(true)
     try {
       const [genreData, booksData] = await Promise.all([
@@ -60,28 +64,46 @@ export function AdminGenreDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [genreId, showFeedback])
+  }, [isNew, genreId, showFeedback])
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    if (isNew) {
+      setLoading(false)
+    } else {
+      loadData()
+    }
+  }, [isNew, loadData])
 
   const handleSaveGenre = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
-    if (!genre) return
+    if (!editForm.name.trim()) {
+      showFeedback('error', 'Genre name is required')
+      return
+    }
     setSaving(true)
     try {
-      const finalHandle = editForm.handle?.trim() || genre.handle || editForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || ''
-      await api.adminUpdateGenre(genre.id, {
-        name: editForm.name.trim(),
-        handle: finalHandle,
-        description: editForm.description.trim() || undefined,
-        status: editForm.status,
-      })
-      showFeedback('success', 'Genre details saved successfully!')
-      loadData()
+      const finalHandle = editForm.handle?.trim() || editForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || ''
+      if (isNew) {
+        await api.adminCreateGenre({
+          name: editForm.name.trim(),
+          handle: finalHandle,
+          description: editForm.description.trim() || undefined,
+        })
+        showFeedback('success', 'Created successfully')
+        navigate('/admin/genres')
+      } else {
+        if (!genre) return
+        await api.adminUpdateGenre(genre.id, {
+          name: editForm.name.trim(),
+          handle: finalHandle,
+          description: editForm.description.trim() || undefined,
+          status: editForm.status,
+        })
+        showFeedback('success', 'Saved successfully')
+        loadData()
+      }
     } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to update genre')
+      showFeedback('error', err.message || 'Failed to save genre')
     } finally {
       setSaving(false)
     }
@@ -97,30 +119,55 @@ export function AdminGenreDetailPage() {
       return
     try {
       await api.adminDeleteGenre(genre.id)
-      showFeedback('success', 'Genre deleted successfully!')
+      showFeedback('success', 'Deleted successfully')
       navigate('/admin/genres')
     } catch (err: any) {
       showFeedback('error', err.message || 'Failed to delete genre')
     }
   }
 
+  // Discard changes
+  const handleDiscard = useCallback(() => {
+    if (isNew) {
+      navigate('/admin/genres')
+      return
+    }
+    if (!genre) return
+    setEditForm({
+      name: genre.name || '',
+      handle: genre.handle || '',
+      description: genre.description || '',
+      status: genre.status || 'ACTIVE',
+    })
+  }, [isNew, genre, navigate])
+
   // Manage top header action: update on change, clear on unmount
   useEffect(() => {
     if (isDirty) {
       setHeaderAction(
-        <button
-          type="button"
-          onClick={() => handleSaveGenre()}
-          disabled={saving}
-          className={`h-8 px-4 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
-        >
-          {saving ? 'Updating...' : 'Update'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDiscard}
+            disabled={saving}
+            className={`h-8 min-w-[80px] px-3.5 text-xs font-semibold rounded-md border inline-flex items-center justify-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.secondaryBtn}`}
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSaveGenre()}
+            disabled={saving}
+            className={`h-8 min-w-[80px] px-3.5 text-xs font-semibold rounded-md border border-transparent inline-flex items-center justify-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
+          >
+            {saving ? (isNew ? 'Creating...' : 'Updating...') : (isNew ? 'Create Genre' : 'Update')}
+          </button>
+        </div>
       )
     } else {
       setHeaderAction(null)
     }
-  }, [isDirty, saving, t.primaryBtn, setHeaderAction])
+  }, [isDirty, saving, isNew, t.primaryBtn, t.secondaryBtn, setHeaderAction, handleDiscard])
 
   // Clear header action on page unmount
   useEffect(() => {
@@ -135,7 +182,7 @@ export function AdminGenreDetailPage() {
     )
   }
 
-  if (!genre) {
+  if (!isNew && !genre) {
     return (
       <div className="space-y-4 py-8 text-center">
         <p className={`text-sm ${t.subTextColor}`}>Category not found or has been removed.</p>
@@ -164,7 +211,7 @@ export function AdminGenreDetailPage() {
             <input
               value={editForm.name}
               onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-              placeholder="e.g. Computer Science, Science Fiction, Business"
+              placeholder={isNew ? '' : "e.g. Computer Science, Science Fiction, Business"}
               className={`w-full h-9 px-3 text-xs xl:text-sm font-normal rounded-md border outline-none transition ${t.inputBg}`}
             />
           </div>
@@ -175,7 +222,7 @@ export function AdminGenreDetailPage() {
               label="Description / Scope"
               value={editForm.description}
               onChange={(val) => setEditForm({ ...editForm, description: val })}
-              placeholder="Write an overview, classification criteria, or scope for books under this genre (Markdown supported)..."
+              placeholder={isNew ? '' : "Write an overview, classification criteria, or scope for books under this genre (Markdown supported)..."}
               minHeight="220px"
             />
           </div>
@@ -295,45 +342,57 @@ export function AdminGenreDetailPage() {
         </div>
       </div>
 
-      {/* Bottom Actions Bar (Luôn xuất hiện) */}
+      {/* Bottom Actions Bar */}
       <div
         className={`pt-5 mt-6 border-t flex items-center justify-between gap-4 ${
           isDark ? 'border-[#22262e]' : 'border-gray-200'
         }`}
       >
-        {/* Góc trái: Nút Delete và View (nếu có handle) */}
+        {/* Left: Delete & View, or Cancel for new */}
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleDeleteGenre}
-            disabled={saving}
-            className="h-9 px-4 rounded-md text-xs font-medium inline-flex items-center transition-colors cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
-            title="Delete this genre"
-          >
-            Delete
-          </button>
-          {genre?.handle && (
-            <a
-              href={`/genre/${genre.handle}`}
-              target="_blank"
-              rel="noreferrer"
-              className={`h-9 px-3 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer ${t.secondaryBtn}`}
-              title="Open public genre page"
+          {isNew ? (
+            <button
+              type="button"
+              onClick={() => navigate('/admin/genres')}
+              className={`h-9 px-4 rounded-md text-xs font-medium inline-flex items-center transition-colors cursor-pointer border ${t.secondaryBtn}`}
             >
-              <IconExternalLink size={14} />
-              <span>View</span>
-            </a>
+              Cancel
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleDeleteGenre}
+                disabled={saving}
+                className="h-9 px-4 rounded-md text-xs font-medium inline-flex items-center transition-colors cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
+                title="Delete this genre"
+              >
+                Delete
+              </button>
+              {genre?.handle && (
+                <a
+                  href={`/genre/${genre.handle}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`h-9 px-3 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer ${t.secondaryBtn}`}
+                  title="Open public genre page"
+                >
+                  <IconExternalLink size={14} />
+                  <span>View</span>
+                </a>
+              )}
+            </>
           )}
         </div>
 
-        {/* Góc phải: Nút Update (luôn xuất hiện, disable khi !isDirty) */}
+        {/* Right: Update or Create Genre */}
         <button
           type="button"
           onClick={() => handleSaveGenre()}
           disabled={!isDirty || saving}
           className={`h-9 px-5 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed ${t.primaryBtn}`}
         >
-          {saving ? 'Updating...' : 'Update'}
+          {saving ? (isNew ? 'Creating...' : 'Updating...') : (isNew ? 'Create Genre' : 'Update')}
         </button>
       </div>
     </div>

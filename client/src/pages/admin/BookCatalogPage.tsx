@@ -518,13 +518,8 @@ export function BookCatalogPage() {
                     {/* 4. Copies */}
                     <td
                       className="py-3 px-4 text-sm font-mono"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        navigate(`/admin/books/${b.id}/copies`)
-                      }}
-                      title="View & manage physical copies"
                     >
-                      <span className={`hover:underline cursor-pointer ${isDark ? 'text-[#8c94a5] hover:text-white' : 'text-gray-600 hover:text-[#066fd1]'}`}>
+                      <span className={isDark ? 'text-[#8c94a5]' : 'text-gray-600'}>
                         <strong className={t.titleColor}>{b.availableCopies}</strong> / {b.totalCopies}
                       </span>
                     </td>

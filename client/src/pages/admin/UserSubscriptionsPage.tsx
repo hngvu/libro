@@ -58,7 +58,7 @@ export function UserSubscriptionsPage() {
     if (!confirm(`Are you sure you want to cancel the subscription for ${userEmail || 'this user'}?`)) return
     try {
       await api.adminCancelUserSubscription(id)
-      showFeedback('success', 'Subscription canceled successfully!')
+      showFeedback('success', 'Cancelled successfully')
       fetchData()
     } catch (err: any) {
       showFeedback('error', err.message || 'Failed to cancel subscription')

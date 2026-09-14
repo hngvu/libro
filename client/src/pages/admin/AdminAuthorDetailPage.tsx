@@ -22,13 +22,14 @@ import type { AuthorResponse, BookResponse } from '@/types/api'
 
 export function AdminAuthorDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const authorId = Number(id)
+  const isNew = id === 'new'
+  const authorId = isNew ? null : Number(id)
   const navigate = useNavigate()
   const { t, isDark, showFeedback, setHeaderAction } = useAdmin()
 
   const [author, setAuthor] = useState<AuthorResponse | null>(null)
   const [books, setBooks] = useState<BookResponse[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
 
   // Modals state
@@ -44,6 +45,9 @@ export function AdminAuthorDetailPage() {
   })
 
   const isDirty = useMemo(() => {
+    if (isNew) {
+      return Boolean(editForm.name.trim() || editForm.biography.trim() || editForm.image.trim())
+    }
     if (!author) return false
     return (
       editForm.name !== (author.name || '') ||
@@ -52,10 +56,10 @@ export function AdminAuthorDetailPage() {
       editForm.image !== (author.image || '') ||
       editForm.status !== (author.status || 'ACTIVE')
     )
-  }, [author, editForm])
+  }, [isNew, author, editForm])
 
   const loadData = useCallback(async () => {
-    if (!authorId) return
+    if (isNew || !authorId) return
     setLoading(true)
     try {
       const [authorData, booksData] = await Promise.all([
@@ -76,29 +80,48 @@ export function AdminAuthorDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [authorId, showFeedback])
+  }, [isNew, authorId, showFeedback])
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    if (isNew) {
+      setLoading(false)
+    } else {
+      loadData()
+    }
+  }, [isNew, loadData])
 
   const handleSaveAuthor = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
-    if (!author) return
+    if (!editForm.name.trim()) {
+      showFeedback('error', 'Author name is required')
+      return
+    }
     setSaving(true)
     try {
-      const finalHandle = editForm.handle?.trim() || author.handle || editForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || ''
-      await api.adminUpdateAuthor(author.id, {
-        name: editForm.name.trim(),
-        handle: finalHandle,
-        biography: editForm.biography.trim() || undefined,
-        image: editForm.image.trim() || undefined,
-        status: editForm.status,
-      })
-      showFeedback('success', 'Author details saved successfully!')
-      loadData()
+      const finalHandle = editForm.handle?.trim() || editForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || ''
+      if (isNew) {
+        await api.adminCreateAuthor({
+          name: editForm.name.trim(),
+          handle: finalHandle,
+          biography: editForm.biography.trim() || undefined,
+          image: editForm.image.trim() || undefined,
+        })
+        showFeedback('success', 'Created successfully')
+        navigate('/admin/authors')
+      } else {
+        if (!author) return
+        await api.adminUpdateAuthor(author.id, {
+          name: editForm.name.trim(),
+          handle: finalHandle,
+          biography: editForm.biography.trim() || undefined,
+          image: editForm.image.trim() || undefined,
+          status: editForm.status,
+        })
+        showFeedback('success', 'Saved successfully')
+        loadData()
+      }
     } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to update author')
+      showFeedback('error', err.message || 'Failed to save author')
     } finally {
       setSaving(false)
     }
@@ -114,30 +137,56 @@ export function AdminAuthorDetailPage() {
       return
     try {
       await api.adminDeleteAuthor(author.id)
-      showFeedback('success', 'Author deleted successfully!')
+      showFeedback('success', 'Deleted successfully')
       navigate('/admin/authors')
     } catch (err: any) {
       showFeedback('error', err.message || 'Failed to delete author')
     }
   }
 
+  // Discard changes
+  const handleDiscard = useCallback(() => {
+    if (isNew) {
+      navigate('/admin/authors')
+      return
+    }
+    if (!author) return
+    setEditForm({
+      name: author.name || '',
+      handle: author.handle || '',
+      biography: author.biography || '',
+      image: author.image || '',
+      status: author.status || 'ACTIVE',
+    })
+  }, [isNew, author, navigate])
+
   // Manage top header action: update on change, clear on unmount
   useEffect(() => {
     if (isDirty) {
       setHeaderAction(
-        <button
-          type="button"
-          onClick={() => handleSaveAuthor()}
-          disabled={saving}
-          className={`h-8 px-4 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
-        >
-          {saving ? 'Updating...' : 'Update'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDiscard}
+            disabled={saving}
+            className={`h-8 min-w-[80px] px-3.5 text-xs font-semibold rounded-md border inline-flex items-center justify-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.secondaryBtn}`}
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSaveAuthor()}
+            disabled={saving}
+            className={`h-8 min-w-[80px] px-3.5 text-xs font-semibold rounded-md border border-transparent inline-flex items-center justify-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
+          >
+            {saving ? (isNew ? 'Creating...' : 'Updating...') : (isNew ? 'Create Author' : 'Update')}
+          </button>
+        </div>
       )
     } else {
       setHeaderAction(null)
     }
-  }, [isDirty, saving, t.primaryBtn, setHeaderAction])
+  }, [isDirty, saving, isNew, t.primaryBtn, t.secondaryBtn, setHeaderAction, handleDiscard])
 
   // Clear header action on page unmount
   useEffect(() => {
@@ -152,7 +201,7 @@ export function AdminAuthorDetailPage() {
     )
   }
 
-  if (!author) {
+  if (!isNew && !author) {
     return (
       <div className="space-y-4 py-8 text-center">
         <p className={`text-sm ${t.subTextColor}`}>Author not found or has been removed.</p>
@@ -181,7 +230,7 @@ export function AdminAuthorDetailPage() {
             <input
               value={editForm.name}
               onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-              placeholder="e.g. Robert C. Martin, J.K. Rowling"
+              placeholder={isNew ? '' : "e.g. Robert C. Martin, J.K. Rowling"}
               className={`w-full h-9 px-3 text-xs xl:text-sm font-normal rounded-md border outline-none transition ${t.inputBg}`}
             />
           </div>
@@ -192,7 +241,7 @@ export function AdminAuthorDetailPage() {
               label="Biography / Profile"
               value={editForm.biography}
               onChange={(val) => setEditForm({ ...editForm, biography: val })}
-              placeholder="Write author biography, literary background, awards, and overview (Markdown supported)..."
+              placeholder={isNew ? '' : "Write author biography, literary background, awards, and overview (Markdown supported)..."}
               minHeight="220px"
             />
           </div>
@@ -346,45 +395,57 @@ export function AdminAuthorDetailPage() {
         </div>
       </div>
 
-      {/* Bottom Actions Bar (Luôn xuất hiện) */}
+      {/* Bottom Actions Bar */}
       <div
         className={`pt-5 mt-6 border-t flex items-center justify-between gap-4 ${
           isDark ? 'border-[#22262e]' : 'border-gray-200'
         }`}
       >
-        {/* Góc trái: Nút Delete và View (nếu có handle) */}
+        {/* Left: Delete & View, or Cancel for new */}
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleDeleteAuthor}
-            disabled={saving}
-            className="h-9 px-4 rounded-md text-xs font-medium inline-flex items-center transition-colors cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
-            title="Delete this author"
-          >
-            Delete
-          </button>
-          {author?.handle && (
-            <a
-              href={`/author/${author.handle}`}
-              target="_blank"
-              rel="noreferrer"
-              className={`h-9 px-3 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer ${t.secondaryBtn}`}
-              title="Open public author page"
+          {isNew ? (
+            <button
+              type="button"
+              onClick={() => navigate('/admin/authors')}
+              className={`h-9 px-4 rounded-md text-xs font-medium inline-flex items-center transition-colors cursor-pointer border ${t.secondaryBtn}`}
             >
-              <IconExternalLink size={14} />
-              <span>View</span>
-            </a>
+              Cancel
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleDeleteAuthor}
+                disabled={saving}
+                className="h-9 px-4 rounded-md text-xs font-medium inline-flex items-center transition-colors cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
+                title="Delete this author"
+              >
+                Delete
+              </button>
+              {author?.handle && (
+                <a
+                  href={`/author/${author.handle}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`h-9 px-3 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer ${t.secondaryBtn}`}
+                  title="Open public author page"
+                >
+                  <IconExternalLink size={14} />
+                  <span>View</span>
+                </a>
+              )}
+            </>
           )}
         </div>
 
-        {/* Góc phải: Nút Update (luôn xuất hiện, disable khi !isDirty) */}
+        {/* Right: Update or Create Author */}
         <button
           type="button"
           onClick={() => handleSaveAuthor()}
           disabled={!isDirty || saving}
           className={`h-9 px-5 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed ${t.primaryBtn}`}
         >
-          {saving ? 'Updating...' : 'Update'}
+          {saving ? (isNew ? 'Creating...' : 'Updating...') : (isNew ? 'Create Author' : 'Update')}
         </button>
       </div>
 

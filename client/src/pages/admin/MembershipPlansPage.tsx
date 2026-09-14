@@ -74,7 +74,7 @@ export function MembershipPlansPage() {
       for (const id of selectedPlanIds) {
         await api.adminDeleteMembershipPlan(id)
       }
-      showFeedback('success', `${selectedPlanIds.length} plan(s) archived successfully!`)
+      showFeedback('success', 'Archived successfully')
       setSelectedPlanIds([])
       fetchPlans()
     } catch (err: any) {
@@ -201,7 +201,7 @@ export function MembershipPlansPage() {
 
         <div className="flex items-center gap-2 shrink-0 justify-end">
           <button
-            onClick={() => navigate('/admin/subscriptions/plans/new')}
+            onClick={() => navigate('/admin/membership/plans/new')}
             className={`h-9 px-4 text-sm font-semibold rounded-md transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${t.primaryBtn}`}
           >
             <span>Add Plan</span>
@@ -387,7 +387,7 @@ export function MembershipPlansPage() {
                 return (
                   <tr
                     key={p.id}
-                    onClick={() => navigate(`/admin/subscriptions/plans/${p.id}`)}
+                    onClick={() => navigate(`/admin/membership/plans/${p.id}`)}
                     className={`group border-b transition-colors cursor-pointer ${
                       isDark ? 'border-[#20242c]' : 'border-gray-200'
                     } ${

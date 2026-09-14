@@ -1,6 +1,7 @@
 package soqe.libro.server.dto;
 import lombok.Builder;
 import java.time.LocalDate;
+import java.util.List;
 
 @Builder
 public record BookCopyResponse(
@@ -10,5 +11,7 @@ public record BookCopyResponse(
         String location,
         Long bookId,
         String bookTitle,
+        String bookCover,
+        List<String> authors,
         LocalDate lastLoanDate
 ) {}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   IconSearch,
@@ -15,25 +15,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useAdmin } from '@/components/admin/AdminContext'
 import { api } from '@/services/api'
 import type { GenreResponse } from '@/types/api'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
-
-function slugify(text: string): string {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
 
 export function AdminGenresPage() {
   const navigate = useNavigate()
@@ -48,14 +29,6 @@ export function AdminGenresPage() {
   const [keyword, setKeyword] = useState(initialKeyword)
   const [selectedGenreIds, setSelectedGenreIds] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
-
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editingGenre, setEditingGenre] = useState<GenreResponse | null>(null)
-  const [formData, setFormData] = useState({
-    name: '',
-    handle: '',
-    description: '',
-  })
 
   // Sync state to URL search parameters
   useEffect(() => {
@@ -130,67 +103,7 @@ export function AdminGenresPage() {
     }
   }
 
-  const handleDeleteCurrent = async () => {
-    if (!editingGenre) return
-    if (!confirm(`Are you sure you want to delete category "${editingGenre.name}"?`)) return
-    try {
-      await api.adminDeleteGenre(editingGenre.id)
-      showFeedback('success', `Category "${editingGenre.name}" deleted successfully!`)
-      setModalOpen(false)
-      fetchGenres()
-    } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to delete category')
-    }
-  }
 
-  const handleOpenCreate = () => {
-    setEditingGenre(null)
-    setFormData({
-      name: '',
-      handle: '',
-      description: '',
-    })
-    setModalOpen(true)
-  }
-
-  const handleNameChange = (val: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      name: val,
-      handle: editingGenre ? prev.handle : slugify(val),
-    }))
-  }
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!formData.name.trim()) {
-      showFeedback('error', 'Category name is required')
-      return
-    }
-    const finalHandle = formData.handle.trim() || slugify(formData.name)
-
-    try {
-      if (editingGenre) {
-        await api.adminUpdateGenre(editingGenre.id, {
-          name: formData.name.trim(),
-          handle: finalHandle,
-          description: formData.description.trim() || undefined,
-        })
-        showFeedback('success', 'Category updated successfully!')
-      } else {
-        await api.adminCreateGenre({
-          name: formData.name.trim(),
-          handle: finalHandle,
-          description: formData.description.trim() || undefined,
-        })
-        showFeedback('success', 'New category added successfully!')
-      }
-      setModalOpen(false)
-      fetchGenres()
-    } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to save category')
-    }
-  }
 
   return (
     <div className="space-y-4">
@@ -263,10 +176,10 @@ export function AdminGenresPage() {
 
         <div className="flex items-center gap-2 shrink-0 justify-end">
           <button
-            onClick={handleOpenCreate}
+            onClick={() => navigate('/admin/genres/new')}
             className={`h-9 px-4 text-sm font-semibold rounded-md transition-all cursor-pointer ${t.primaryBtn}`}
           >
-            Add Category
+            Add Genre
           </button>
         </div>
       </div>
@@ -356,7 +269,7 @@ export function AdminGenresPage() {
               {sortedGenres.length === 0 ? (
                 <tr>
                   <td colSpan={3} className={`py-12 text-center text-sm ${t.subTextColor}`}>
-                    No categories found. Click "Add Category" to create one.
+                    No categories found. Click "Add Genre" to create one.
                   </td>
                 </tr>
               ) : (
@@ -413,79 +326,6 @@ export function AdminGenresPage() {
           </table>
         </div>
       )}
-
-      {/* Add / Edit Genre Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className={isDark ? 'bg-[#1c2027] border-[#2c323e]' : 'bg-white border-gray-200'}>
-          <DialogHeader>
-            <DialogTitle className={`text-base ${t.titleColor}`}>
-              {editingGenre ? 'Edit Category' : 'Add New Category'}
-            </DialogTitle>
-            <DialogDescription className={`text-xs ${t.subTextColor}`}>
-              {editingGenre
-                ? 'Update classification name, slug, and descriptions.'
-                : 'Create a new book genre/category to categorize books in your collection.'}
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSave} className="space-y-4 pt-2">
-            <div>
-              <label className={`block text-xs font-semibold mb-1.5 ${t.subTextColor}`}>
-                Category Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="e.g. Science Fiction"
-                className={`w-full h-9 px-3 rounded-md text-xs border outline-none ${t.inputBg}`}
-              />
-            </div>
-
-            <div>
-              <label className={`block text-xs font-semibold mb-1.5 ${t.subTextColor}`}>
-                Description
-              </label>
-              <textarea
-                rows={3}
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Category scope and details..."
-                className={`w-full p-2.5 rounded-md text-xs border outline-none resize-none ${t.inputBg}`}
-              />
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              {editingGenre ? (
-                <button
-                  type="button"
-                  onClick={handleDeleteCurrent}
-                  className="h-9 px-3 text-xs font-medium text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer"
-                >
-                  Delete Category
-                </button>
-              ) : <div />}
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className={`h-9 px-4 text-xs font-medium rounded-md transition-colors cursor-pointer ${t.secondaryBtn}`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className={`h-9 px-4 text-xs font-semibold rounded-md transition-all cursor-pointer ${t.primaryBtn}`}
-                >
-                  {editingGenre ? 'Save Changes' : 'Create Category'}
-                </button>
-              </div>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

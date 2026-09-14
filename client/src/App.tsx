@@ -17,7 +17,6 @@ import { AdminLayout } from '@/components/admin/AdminLayout'
 import { DashboardPage } from '@/pages/admin/DashboardPage'
 import { BookCatalogPage } from '@/pages/admin/BookCatalogPage'
 import { BookDetailPage } from '@/pages/admin/BookDetailPage'
-import { BookItemCopiesPage } from '@/pages/admin/BookItemCopiesPage'
 import { BookCopiesPage } from '@/pages/admin/BookCopiesPage'
 import { AdminAuthorsPage } from '@/pages/admin/AdminAuthorsPage'
 import { AdminAuthorDetailPage } from '@/pages/admin/AdminAuthorDetailPage'
@@ -26,9 +25,11 @@ import { AdminGenreDetailPage } from '@/pages/admin/AdminGenreDetailPage'
 import { AuthorDetailPage } from '@/pages/catalog/AuthorDetailPage'
 import { GenreDetailPage } from '@/pages/catalog/GenreDetailPage'
 import { CirculationDeskPage } from '@/pages/admin/CirculationDeskPage'
+import { AdminCirculationDetailPage } from '@/pages/admin/AdminCirculationDetailPage'
 import { OverduePage } from '@/pages/admin/OverduePage'
 import { ReservationsPage } from '@/pages/admin/ReservationsPage'
 import { MemberListPage } from '@/pages/admin/MemberListPage'
+import { AdminMemberDetailPage } from '@/pages/admin/AdminMemberDetailPage'
 import { MembershipPlansPage } from '@/pages/admin/MembershipPlansPage'
 import { AdminPlanDetailPage } from '@/pages/admin/AdminPlanDetailPage'
 import { UserSubscriptionsPage } from '@/pages/admin/UserSubscriptionsPage'
@@ -183,23 +184,28 @@ function AppContent() {
             <Route index element={<DashboardPage />} />
             <Route path="books" element={<BookCatalogPage />} />
             <Route path="books/:id" element={<BookDetailPage />} />
-            <Route path="books/:id/copies" element={<BookItemCopiesPage />} />
             <Route path="copies" element={<BookCopiesPage />} />
             <Route path="authors" element={<AdminAuthorsPage />} />
             <Route path="authors/:id" element={<AdminAuthorDetailPage />} />
             <Route path="genres" element={<AdminGenresPage />} />
             <Route path="genres/:id" element={<AdminGenreDetailPage />} />
             <Route path="circulation" element={<CirculationDeskPage />} />
+            <Route path="circulation/:id" element={<AdminCirculationDetailPage />} />
             <Route path="overdue" element={<OverduePage />} />
             <Route path="reservations" element={<ReservationsPage />} />
             <Route path="members" element={<MemberListPage />} />
-            <Route path="subscriptions" element={<Navigate to="plans" replace />} />
-            <Route path="subscriptions/plans" element={<MembershipPlansPage />} />
+            <Route path="members/:id" element={<AdminMemberDetailPage />} />
+            <Route path="membership" element={<Navigate to="plans" replace />} />
+            <Route path="membership/plans" element={<MembershipPlansPage />} />
+            <Route path="membership/plans/:id" element={<AdminPlanDetailPage />} />
+            <Route path="membership/subscriptions" element={<UserSubscriptionsPage />} />
+            <Route path="subscriptions" element={<Navigate to="/admin/membership/plans" replace />} />
+            <Route path="subscriptions/plans" element={<Navigate to="/admin/membership/plans" replace />} />
             <Route path="subscriptions/plans/:id" element={<AdminPlanDetailPage />} />
-            <Route path="subscriptions/history" element={<UserSubscriptionsPage />} />
-            <Route path="membership-plans" element={<MembershipPlansPage />} />
-            <Route path="membership-plans/:id" element={<AdminPlanDetailPage />} />
-            <Route path="user-subscriptions" element={<UserSubscriptionsPage />} />
+            <Route path="subscriptions/history" element={<Navigate to="/admin/membership/subscriptions" replace />} />
+            <Route path="membership-plans" element={<Navigate to="/admin/membership/plans" replace />} />
+            <Route path="membership-plans/:id" element={<Navigate to="/admin/membership/plans" replace />} />
+            <Route path="user-subscriptions" element={<Navigate to="/admin/membership/subscriptions" replace />} />
             <Route path="fines" element={<FinesPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="staff-settings" element={<StaffSettingsPage />} />

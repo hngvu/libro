@@ -366,6 +366,10 @@ export const api = {
     return request<Page<LoanResponse>>(`/admin/loans${q ? `?${q}` : ''}`)
   },
 
+  async adminGetLoan(id: number): Promise<LoanResponse> {
+    return request<LoanResponse>(`/admin/loans/${id}`)
+  },
+
   async adminCreateLoan(data: LoanCreateRequest): Promise<LoanResponse> {
     return request<LoanResponse>('/admin/loans', {
       method: 'POST',
@@ -409,6 +413,10 @@ export const api = {
 
     const q = search.toString()
     return request<Page<UserResponse>>(`/admin/users${q ? `?${q}` : ''}`)
+  },
+
+  async adminGetUser(id: number): Promise<UserResponse> {
+    return request<UserResponse>(`/admin/users/${id}`)
   },
 
   async adminCreateUser(data: UserCreateRequest): Promise<UserResponse> {

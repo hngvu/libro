@@ -25,6 +25,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final BookCopyRepository bookCopyRepository;
     private final MembershipPlanRepository membershipPlanRepository;
     private final ReservationRepository reservationRepository;
+    private final LoanRepository loanRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -33,7 +34,8 @@ public class DatabaseSeeder implements CommandLineRunner {
         seedMembershipPlans();
 
         if (userRepository.count() > 0) {
-            log.info("Database users already seeded. Skipping initial user data population.");
+            log.info("Database users already seeded. Checking loan data population...");
+            seedLoans();
             return;
         }
 
@@ -220,7 +222,93 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .build();
         reservationRepository.save(sampleRes);
 
+        seedLoans();
+
         log.info("Database seeding completed successfully!");
+    }
+
+    private void seedLoans() {
+        if (loanRepository.count() > 0) {
+            return;
+        }
+
+        var memberOpt = userRepository.findByEmail("bin@libro.com");
+        if (memberOpt.isEmpty()) {
+            return;
+        }
+        User member = memberOpt.get();
+
+        var copies = bookCopyRepository.findAll();
+        if (copies.isEmpty()) {
+            return;
+        }
+
+        log.info("Seeding initial circulation loans data...");
+        List<Loan> loansToSeed = new java.util.ArrayList<>();
+
+        // Loan 1: Ongoing (Clean Code - BC00000001)
+        var copy1 = copies.stream().filter(c -> "BC00000001".equals(c.getBarcode())).findFirst()
+                .orElse(copies.get(0));
+        copy1.setStatus(BookCopy.Status.LOANED);
+        bookCopyRepository.save(copy1);
+        if (copy1.getBook() != null) {
+            Book b = copy1.getBook();
+            b.setAvailableCopies(Math.max(0, b.getAvailableCopies() - 1));
+            bookRepository.save(b);
+        }
+
+        loansToSeed.add(Loan.builder()
+                .loanCode("LN260910A101")
+                .user(member)
+                .bookCopy(copy1)
+                .borrowDate(java.time.LocalDate.now().minusDays(4))
+                .dueDate(java.time.LocalDate.now().plusDays(10))
+                .status(Loan.LoanStatus.ONGOING)
+                .renewalCount(0)
+                .build());
+
+        // Loan 2: Overdue (Harry Potter - BC00000004)
+        if (copies.size() > 3) {
+            var copy2 = copies.stream().filter(c -> "BC00000004".equals(c.getBarcode())).findFirst()
+                    .orElse(copies.get(1));
+            copy2.setStatus(BookCopy.Status.LOANED);
+            bookCopyRepository.save(copy2);
+            if (copy2.getBook() != null) {
+                Book b = copy2.getBook();
+                b.setAvailableCopies(Math.max(0, b.getAvailableCopies() - 1));
+                bookRepository.save(b);
+            }
+
+            loansToSeed.add(Loan.builder()
+                    .loanCode("LN260820B202")
+                    .user(member)
+                    .bookCopy(copy2)
+                    .borrowDate(java.time.LocalDate.now().minusDays(25))
+                    .dueDate(java.time.LocalDate.now().minusDays(5))
+                    .status(Loan.LoanStatus.OVERDUE)
+                    .renewalCount(1)
+                    .build());
+        }
+
+        // Loan 3: Returned (Clean Code - BC00000002)
+        if (copies.size() > 1) {
+            var copy3 = copies.stream().filter(c -> "BC00000002".equals(c.getBarcode())).findFirst()
+                    .orElse(copies.get(1));
+
+            loansToSeed.add(Loan.builder()
+                    .loanCode("LN260815C303")
+                    .user(member)
+                    .bookCopy(copy3)
+                    .borrowDate(java.time.LocalDate.now().minusDays(30))
+                    .dueDate(java.time.LocalDate.now().minusDays(16))
+                    .returnDate(java.time.LocalDate.now().minusDays(18))
+                    .status(Loan.LoanStatus.RETURNED)
+                    .renewalCount(0)
+                    .build());
+        }
+
+        loanRepository.saveAll(loansToSeed);
+        log.info("Seeded {} sample loans.", loansToSeed.size());
     }
 
     private void seedMembershipPlans() {

@@ -18,6 +18,157 @@ import type {
   MembershipPlanPriceResponse,
 } from '@/types/api'
 
+interface UnitNumberInputProps {
+  label: string
+  value: number
+  onChange: (val: number) => void
+  min?: number
+  max?: number
+  unitSingular: string
+  unitPlural: string
+  inputBg: string
+  subTextColor: string
+}
+
+function UnitNumberInput({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 999,
+  unitSingular,
+  unitPlural,
+  inputBg,
+  subTextColor,
+}: UnitNumberInputProps) {
+  const [isFocused, setIsFocused] = useState(false)
+  const [rawText, setRawText] = useState(value.toString())
+
+  useEffect(() => {
+    if (!isFocused) {
+      setRawText(value.toString())
+    }
+  }, [value, isFocused])
+
+  const displayUnit = value === 1 ? unitSingular : unitPlural
+
+  return (
+    <div className="space-y-1 w-full">
+      <label className={`block text-xs font-medium ${subTextColor}`}>
+        {label}
+      </label>
+      <input
+        type={isFocused ? 'number' : 'text'}
+        min={min}
+        max={max}
+        value={isFocused ? rawText : `${value} ${displayUnit}`}
+        onFocus={() => {
+          setIsFocused(true)
+          setRawText(value.toString())
+        }}
+        onBlur={() => {
+          setIsFocused(false)
+          const num = parseInt(rawText, 10)
+          if (!isNaN(num)) {
+            const clamped = Math.max(min, Math.min(max, num))
+            onChange(clamped)
+            setRawText(clamped.toString())
+          } else {
+            onChange(min)
+            setRawText(min.toString())
+          }
+        }}
+        onChange={(e) => {
+          setRawText(e.target.value)
+          const num = parseInt(e.target.value, 10)
+          if (!isNaN(num)) {
+            onChange(num)
+          }
+        }}
+        className={`w-full h-9 px-3 text-xs xl:text-sm font-normal rounded-md border outline-none transition ${inputBg}`}
+      />
+    </div>
+  )
+}
+
+interface UnitPriceInputProps {
+  label: string
+  value: number | string
+  billingCycle: 'MONTHLY' | 'YEARLY' | 'LIFETIME'
+  onChange: (val: number | string) => void
+  inputBg: string
+}
+
+function UnitPriceInput({
+  label,
+  value,
+  billingCycle,
+  onChange,
+  inputBg,
+}: UnitPriceInputProps) {
+  const [isFocused, setIsFocused] = useState(false)
+  const [rawText, setRawText] = useState(value.toString())
+
+  useEffect(() => {
+    if (!isFocused) {
+      setRawText(value.toString())
+    }
+  }, [value, isFocused])
+
+  const getCycleSuffix = (cycle: 'MONTHLY' | 'YEARLY' | 'LIFETIME') => {
+    switch (cycle) {
+      case 'MONTHLY':
+        return 'month'
+      case 'YEARLY':
+        return 'year'
+      case 'LIFETIME':
+        return 'lifetime'
+    }
+  }
+
+  const formatDisplay = () => {
+    const num = typeof value === 'string' ? parseFloat(value) || 0 : Number(value) || 0
+    const formattedNum = num % 1 === 0 ? num.toString() : num.toFixed(2)
+    return `$${formattedNum}/${getCycleSuffix(billingCycle)}`
+  }
+
+  return (
+    <div className="space-y-1.5 w-full">
+      <label className="block text-xs sm:text-[13px] font-semibold text-gray-900 dark:text-[#e2e6ed]">
+        {label}
+      </label>
+      <input
+        type={isFocused ? 'number' : 'text'}
+        step="0.01"
+        min="0"
+        value={isFocused ? rawText : formatDisplay()}
+        onFocus={() => {
+          setIsFocused(true)
+          setRawText(value.toString())
+        }}
+        onBlur={() => {
+          setIsFocused(false)
+          const num = parseFloat(rawText)
+          if (!isNaN(num)) {
+            const clamped = Math.max(0, num)
+            onChange(clamped)
+            setRawText(clamped.toString())
+          } else {
+            onChange(0)
+            setRawText('0')
+          }
+        }}
+        onChange={(e) => {
+          setRawText(e.target.value)
+          onChange(e.target.value)
+        }}
+        placeholder="0.00"
+        className={`w-full h-10 px-3.5 text-xs xl:text-sm font-normal rounded-lg border outline-none transition ${inputBg}`}
+      />
+    </div>
+  )
+}
+
 export function AdminPlanDetailPage() {
   const { id } = useParams<{ id: string }>()
   const isNew = id === 'new'
@@ -183,7 +334,7 @@ export function AdminPlanDetailPage() {
         status: updated.status as any,
         prices: updated.prices && updated.prices.length > 0 ? updated.prices : newPrices,
       })
-      showFeedback('success', 'Plan pricing updated successfully!')
+      showFeedback('success', 'Updated successfully')
       setPriceModalOpen(false)
     } catch (err: any) {
       showFeedback('error', err.message || 'Failed to update pricing')
@@ -213,7 +364,7 @@ export function AdminPlanDetailPage() {
   const handleDeletePriceFromModal = async () => {
     if (editingPriceIndex === null) return
     if (form.prices.length <= 1) {
-      showFeedback('error', 'A plan must have at least one billing cycle price')
+      showFeedback('error', 'A plan must have at least one pricing')
       return
     }
     const newPrices = form.prices.filter((_, i) => i !== editingPriceIndex)
@@ -259,12 +410,12 @@ export function AdminPlanDetailPage() {
       }
       if (isNew) {
         const created = await api.adminCreateMembershipPlan(payload as any)
-        showFeedback('success', `Plan "${created.name}" created successfully!`)
-        navigate(`/admin/subscriptions/plans/${created.id}`, { replace: true })
+        showFeedback('success', 'Created successfully')
+        navigate(`/admin/membership/plans/${created.id}`, { replace: true })
       } else if (planId) {
         const updated = await api.adminUpdateMembershipPlan(planId, payload as any)
         setPlan(updated)
-        showFeedback('success', `Plan "${updated.name}" updated successfully!`)
+        showFeedback('success', 'Updated successfully')
       }
     } catch (err: any) {
       showFeedback('error', err.message || 'Failed to save plan')
@@ -278,12 +429,31 @@ export function AdminPlanDetailPage() {
     if (!confirm(`Are you sure you want to delete membership plan "${plan.name}"? This action cannot be undone.`)) return
     try {
       await api.adminDeleteMembershipPlan(planId)
-      showFeedback('success', `Plan "${plan.name}" deleted!`)
-      navigate('/admin/subscriptions/plans')
+      showFeedback('success', 'Deleted successfully')
+      navigate('/admin/membership/plans')
     } catch (err: any) {
       showFeedback('error', err.message || 'Failed to delete plan')
     }
   }
+
+  // Discard changes
+  const handleDiscard = useCallback(() => {
+    if (!plan) return
+    setForm({
+      name: plan.name || '',
+      code: plan.code || '',
+      description: plan.description || '',
+      stripeProductId: plan.stripeProductId || '',
+      maxActiveLoans: plan.maxActiveLoans ?? 3,
+      loanDurationDays: plan.loanDurationDays ?? 14,
+      maxRenewals: plan.maxRenewals ?? 1,
+      status: (plan.status as 'ACTIVE' | 'ARCHIVED' | 'INACTIVE') || 'ACTIVE',
+      prices:
+        plan.prices && plan.prices.length > 0
+          ? plan.prices
+          : [{ billingCycle: 'MONTHLY', price: 0, stripePriceId: '' }],
+    })
+  }, [plan])
 
   // Manage top header action: update on change, clear on unmount
   useEffect(() => {
@@ -292,8 +462,8 @@ export function AdminPlanDetailPage() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate('/admin/subscriptions/plans')}
-            className={`h-8 px-3.5 text-xs font-medium rounded-md border transition-colors cursor-pointer ${t.secondaryBtn}`}
+            onClick={() => navigate('/admin/membership/plans')}
+            className={`h-8 min-w-[80px] px-3.5 text-xs font-semibold rounded-md border inline-flex items-center justify-center transition-all cursor-pointer shadow-xs ${t.secondaryBtn}`}
           >
             Cancel
           </button>
@@ -301,7 +471,7 @@ export function AdminPlanDetailPage() {
             type="button"
             onClick={() => handleSave()}
             disabled={!form.name.trim() || saving}
-            className={`h-8 px-3.5 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
+            className={`h-8 min-w-[80px] px-3.5 text-xs font-semibold rounded-md border border-transparent inline-flex items-center justify-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
           >
             {saving ? 'Creating...' : 'Create Plan'}
           </button>
@@ -309,19 +479,29 @@ export function AdminPlanDetailPage() {
       )
     } else if (isDirty) {
       setHeaderAction(
-        <button
-          type="button"
-          onClick={() => handleSave()}
-          disabled={saving}
-          className={`h-8 px-4 text-xs font-semibold rounded-md inline-flex items-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
-        >
-          {saving ? 'Updating...' : 'Update'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDiscard}
+            disabled={saving}
+            className={`h-8 min-w-[80px] px-3.5 text-xs font-semibold rounded-md border inline-flex items-center justify-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.secondaryBtn}`}
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSave()}
+            disabled={saving}
+            className={`h-8 min-w-[80px] px-3.5 text-xs font-semibold rounded-md border border-transparent inline-flex items-center justify-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
+          >
+            {saving ? 'Updating...' : 'Update'}
+          </button>
+        </div>
       )
     } else {
       setHeaderAction(null)
     }
-  }, [isNew, isDirty, saving, form.name, t.secondaryBtn, t.primaryBtn, setHeaderAction])
+  }, [isNew, isDirty, saving, form.name, t.secondaryBtn, t.primaryBtn, setHeaderAction, handleDiscard])
 
   // Clear header action on page unmount
   useEffect(() => {
@@ -350,7 +530,7 @@ export function AdminPlanDetailPage() {
             <input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g. Standard Reader"
+              placeholder={isNew ? '' : "e.g. Standard Reader"}
               className={`w-full h-9 px-3 text-xs xl:text-sm font-normal rounded-md border outline-none transition ${t.inputBg}`}
             />
           </div>
@@ -361,61 +541,50 @@ export function AdminPlanDetailPage() {
               label="Description"
               value={form.description}
               onChange={(val) => setForm({ ...form, description: val })}
-              placeholder="Write plan benefits, target readers, and circulation privileges (Markdown supported)..."
+              placeholder={isNew ? '' : "Write plan benefits, target readers, and circulation privileges (Markdown supported)..."}
               minHeight="180px"
             />
           </div>
 
-          {/* Row 3: Limit (Active Loans) */}
-          <div className="space-y-1 w-full">
-            <label className={`block text-xs font-medium ${t.subTextColor}`}>
-              Limit (Active Loans)
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="100"
+          {/* Row 3: Borrow Limit & Loan Duration */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+            <UnitNumberInput
+              label="Borrow Limit"
               value={form.maxActiveLoans}
-              onChange={(e) =>
-                setForm({ ...form, maxActiveLoans: parseInt(e.target.value) || 1 })
-              }
-              className={`w-full h-9 px-3 text-xs xl:text-sm font-mono rounded-md border outline-none transition ${t.inputBg}`}
+              onChange={(val) => setForm({ ...form, maxActiveLoans: val })}
+              min={1}
+              max={100}
+              unitSingular="book"
+              unitPlural="books"
+              inputBg={t.inputBg}
+              subTextColor={t.subTextColor}
             />
-          </div>
 
-          {/* Row 4: Duration (Days) */}
-          <div className="space-y-1 w-full">
-            <label className={`block text-xs font-medium ${t.subTextColor}`}>
-              Duration (Days)
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="365"
+            <UnitNumberInput
+              label="Loan Duration"
               value={form.loanDurationDays}
-              onChange={(e) =>
-                setForm({ ...form, loanDurationDays: parseInt(e.target.value) || 1 })
-              }
-              className={`w-full h-9 px-3 text-xs xl:text-sm font-mono rounded-md border outline-none transition ${t.inputBg}`}
+              onChange={(val) => setForm({ ...form, loanDurationDays: val })}
+              min={1}
+              max={365}
+              unitSingular="day"
+              unitPlural="days"
+              inputBg={t.inputBg}
+              subTextColor={t.subTextColor}
             />
           </div>
 
-          {/* Row 5: Renewal (Times) */}
-          <div className="space-y-1 w-full">
-            <label className={`block text-xs font-medium ${t.subTextColor}`}>
-              Renewal (Times)
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="10"
-              value={form.maxRenewals}
-              onChange={(e) =>
-                setForm({ ...form, maxRenewals: parseInt(e.target.value) || 0 })
-              }
-              className={`w-full h-9 px-3 text-xs xl:text-sm font-mono rounded-md border outline-none transition ${t.inputBg}`}
-            />
-          </div>
+          {/* Row 4: Max Renewals */}
+          <UnitNumberInput
+            label="Max Renewals"
+            value={form.maxRenewals}
+            onChange={(val) => setForm({ ...form, maxRenewals: val })}
+            min={0}
+            max={10}
+            unitSingular="renewal"
+            unitPlural="renewals"
+            inputBg={t.inputBg}
+            subTextColor={t.subTextColor}
+          />
 
           {/* Row 6: Pricing (Unified View Mode + Modal) */}
           <div className="space-y-1 pt-3 w-full">
@@ -508,7 +677,7 @@ export function AdminPlanDetailPage() {
         {isNew ? (
           <button
             type="button"
-            onClick={() => navigate('/admin/subscriptions/plans')}
+            onClick={() => navigate('/admin/membership/plans')}
             className={`h-9 px-4 text-xs font-medium rounded-md border transition-colors cursor-pointer ${t.secondaryBtn}`}
           >
             Cancel
@@ -540,18 +709,18 @@ export function AdminPlanDetailPage() {
       <Dialog open={priceModalOpen} onOpenChange={setPriceModalOpen}>
         <DialogContent
           onClose={() => setPriceModalOpen(false)}
-          className={`sm:max-w-md rounded-xl p-6 border ${t.modalBg}`}
+          className={`sm:max-w-md rounded-2xl p-6 sm:p-7 border shadow-xl ${t.modalBg}`}
         >
-          <DialogHeader>
-            <DialogTitle className={`font-sans font-bold text-base ${t.titleColor}`}>
+          <DialogHeader className="pb-1">
+            <DialogTitle className={`font-sans font-bold text-base sm:text-lg ${t.titleColor}`}>
               {editingPriceIndex === null ? 'Add Pricing' : 'Edit Pricing'}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 pt-2">
+          <div className="space-y-5 pt-3">
             {/* Field 1: Billing Cycle */}
-            <div className="space-y-1">
-              <label className={`block text-xs font-medium ${t.subTextColor}`}>
+            <div className="space-y-1.5">
+              <label className="block text-xs sm:text-[13px] font-semibold text-gray-900 dark:text-[#e2e6ed]">
                 Billing Cycle
               </label>
               <select
@@ -562,7 +731,7 @@ export function AdminPlanDetailPage() {
                     billingCycle: e.target.value as 'MONTHLY' | 'YEARLY' | 'LIFETIME',
                   })
                 }
-                className={`w-full h-9 px-3 text-xs xl:text-sm rounded-md border outline-none cursor-pointer font-medium transition ${t.inputBg}`}
+                className={`w-full h-10 px-3.5 text-xs xl:text-sm rounded-lg border outline-none cursor-pointer font-medium transition ${t.inputBg}`}
               >
                 <option value="MONTHLY">Monthly</option>
                 <option value="YEARLY">Yearly</option>
@@ -570,44 +739,24 @@ export function AdminPlanDetailPage() {
               </select>
             </div>
 
-            {/* Field 2: Price */}
-            <div className="space-y-1">
-              <label className={`block text-xs font-medium ${t.subTextColor}`}>
-                Price
-              </label>
-              <div className="relative w-full">
-                <span
-                  className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono ${t.mutedColor}`}
-                >
-                  $
-                </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={priceForm.price}
-                  onChange={(e) =>
-                    setPriceForm({
-                      ...priceForm,
-                      price: e.target.value,
-                    })
-                  }
-                  placeholder="0.00"
-                  className={`w-full h-9 pl-7 pr-3 text-xs xl:text-sm font-mono rounded-md border outline-none transition ${t.inputBg}`}
-                  autoFocus
-                />
-              </div>
-            </div>
+            {/* Field 2: Price with dynamic unit display */}
+            <UnitPriceInput
+              label="Price"
+              value={priceForm.price}
+              billingCycle={priceForm.billingCycle}
+              onChange={(val) => setPriceForm({ ...priceForm, price: val })}
+              inputBg={t.inputBg}
+            />
 
             {/* Modal Actions */}
-            <div className={`flex items-center ${editingPriceIndex !== null ? 'justify-between' : 'justify-end'} pt-3 border-t border-gray-100 dark:border-[#22262e]`}>
+            <div className={`flex items-center ${editingPriceIndex !== null ? 'justify-between' : 'justify-end'} pt-4 mt-2 border-t border-gray-100 dark:border-[#22262e]`}>
               {editingPriceIndex !== null && (
                 <button
                   type="button"
                   onClick={handleDeletePriceFromModal}
                   disabled={saving || form.prices.length <= 1}
                   title={form.prices.length <= 1 ? 'A plan must have at least one pricing' : 'Delete this pricing'}
-                  className="h-9 px-4 rounded-md text-xs font-medium inline-flex items-center transition-colors cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="h-9 px-4 rounded-lg text-xs font-medium inline-flex items-center transition-colors cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {saving ? 'Deleting...' : 'Delete'}
                 </button>
@@ -616,7 +765,7 @@ export function AdminPlanDetailPage() {
                 type="button"
                 onClick={handleSavePriceModal}
                 disabled={saving}
-                className={`h-9 px-5 text-xs font-semibold rounded-md transition-all cursor-pointer shadow-xs disabled:opacity-50 ${t.primaryBtn}`}
+                className={`h-9 px-5 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-50 ${t.primaryBtn}`}
               >
                 {saving ? 'Saving...' : 'Save'}
               </button>

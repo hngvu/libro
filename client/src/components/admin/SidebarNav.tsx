@@ -42,6 +42,7 @@ const getGroupByPath = (pathname: string): string | null => {
     return 'circulation'
   }
   if (
+    pathname.startsWith('/admin/membership') ||
     pathname.startsWith('/admin/subscriptions') ||
     pathname.startsWith('/admin/membership-plans') ||
     pathname.startsWith('/admin/user-subscriptions')
@@ -157,7 +158,7 @@ export function SidebarNav() {
         />
       </SidebarNavGroup>
 
-      {/* 4. Membership Group (Subscriptions & Plans) */}
+      {/* 4. Membership Group (Plans & Subscriptions) */}
       <SidebarNavGroup
         title="Membership"
         icon={<IconId size={17} />}
@@ -165,14 +166,14 @@ export function SidebarNav() {
         onToggle={() => handleToggleGroup('membership')}
       >
         <SidebarNavItem
-          to="/admin/subscriptions/plans"
+          to="/admin/membership/plans"
           icon={<IconVip size={15} />}
           label="Plans"
           isSubItem={true}
           disableActive={openGroup !== 'membership'}
         />
         <SidebarNavItem
-          to="/admin/subscriptions/history"
+          to="/admin/membership/subscriptions"
           icon={<IconCreditCard size={15} />}
           label="Subscriptions"
           isSubItem={true}

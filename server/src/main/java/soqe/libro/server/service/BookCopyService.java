@@ -120,13 +120,31 @@ public class BookCopyService {
                     .max(java.util.Comparator.naturalOrder())
                     .orElse(null);
         }
+        Book book = c.getBook();
+        java.util.List<String> authors = null;
+        String bookCover = null;
+        String bookTitle = null;
+        Long bookId = null;
+        if (book != null) {
+            bookId = book.getId();
+            bookTitle = book.getTitle();
+            bookCover = book.getCover();
+            if (book.getAuthors() != null) {
+                authors = book.getAuthors().stream()
+                        .map(soqe.libro.server.entity.Author::getName)
+                        .filter(java.util.Objects::nonNull)
+                        .toList();
+            }
+        }
         return BookCopyResponse.builder()
                 .id(c.getId())
                 .barcode(c.getBarcode())
                 .status(c.getStatus() != null ? c.getStatus().name() : null)
                 .location(c.getLocation())
-                .bookId(c.getBook() != null ? c.getBook().getId() : null)
-                .bookTitle(c.getBook() != null ? c.getBook().getTitle() : null)
+                .bookId(bookId)
+                .bookTitle(bookTitle)
+                .bookCover(bookCover)
+                .authors(authors)
                 .lastLoanDate(lastDate)
                 .build();
     }

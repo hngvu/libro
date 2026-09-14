@@ -1498,9 +1498,9 @@ export function AdminDashboard() {
                           </td>
                           <td className="py-3 px-4">
                             <div className={`font-medium text-xs ${t.titleColor}`}>
-                              {l.userFullName || l.username || `User #${l.userId}`}
+                              {l.userFullName || l.userEmail || `User #${l.userId}`}
                             </div>
-                            <div className={`text-[11px] font-mono ${t.mutedColor}`}>@{l.username}</div>
+                            {l.userEmail && <div className={`text-[11px] font-mono ${t.mutedColor}`}>{l.userEmail}</div>}
                           </td>
                           <td className="py-3 px-4">
                             <div className={`font-medium text-xs ${t.titleColor}`}>
