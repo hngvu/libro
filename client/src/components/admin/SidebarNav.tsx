@@ -8,18 +8,21 @@ import {
   IconRefresh,
   IconDesk,
   IconClockExclamation,
+  IconRotateClockwise,
   IconCalendarEvent,
   IconUsers,
   IconId,
   IconUserStar,
   IconLabel,
-  IconReceipt2,
   IconReportAnalytics,
   IconSettings,
   IconUserCog,
   IconHistory,
   IconCreditCard,
   IconVip,
+  IconReceiptTax,
+  IconClockDollar,
+  IconReceiptDollar,
 } from '@tabler/icons-react'
 import { useAuth } from '@/context/AuthContext'
 import { SidebarNavItem } from './SidebarNavItem'
@@ -37,6 +40,7 @@ const getGroupByPath = (pathname: string): string | null => {
   if (
     pathname.startsWith('/admin/circulation') ||
     pathname.startsWith('/admin/overdue') ||
+    pathname.startsWith('/admin/renewals') ||
     pathname.startsWith('/admin/reservations')
   ) {
     return 'circulation'
@@ -48,6 +52,9 @@ const getGroupByPath = (pathname: string): string | null => {
     pathname.startsWith('/admin/user-subscriptions')
   ) {
     return 'membership'
+  }
+  if (pathname.startsWith('/admin/fines')) {
+    return 'fines'
   }
   if (
     pathname.startsWith('/admin/staff-settings') ||
@@ -128,7 +135,7 @@ export function SidebarNav() {
         />
       </SidebarNavGroup>
 
-      {/* 3. Circulation Group (Checkout, Overdue, Reservations) */}
+      {/* 3. Circulation Group (Desk, Overdue, Renewals, Reservations) */}
       <SidebarNavGroup
         title="Circulation"
         icon={<IconRefresh size={17} />}
@@ -141,16 +148,24 @@ export function SidebarNav() {
           label="Desk"
           isSubItem={true}
           disableActive={openGroup !== 'circulation'}
+          isActiveMatch={(p) => p === '/admin/circulation' || p === '/admin/circulation/desk'}
         />
         <SidebarNavItem
-          to="/admin/overdue"
+          to="/admin/circulation/overdue"
           icon={<IconClockExclamation size={15} />}
           label="Overdue"
           isSubItem={true}
           disableActive={openGroup !== 'circulation'}
         />
         <SidebarNavItem
-          to="/admin/reservations"
+          to="/admin/circulation/renewals"
+          icon={<IconRotateClockwise size={15} />}
+          label="Renewals"
+          isSubItem={true}
+          disableActive={openGroup !== 'circulation'}
+        />
+        <SidebarNavItem
+          to="/admin/circulation/reservations"
           icon={<IconCalendarEvent size={15} />}
           label="Reservations"
           isSubItem={true}
@@ -181,18 +196,46 @@ export function SidebarNav() {
         />
       </SidebarNavGroup>
 
-      {/* 5. Single Domain Pages (Members, Fines, Reports) */}
+      {/* 5. Fines Group (Fees & Penalties) */}
+      <SidebarNavGroup
+        title="Fines"
+        icon={<IconReceiptTax size={17} />}
+        isOpen={openGroup === 'fines'}
+        onToggle={() => handleToggleGroup('fines')}
+      >
+        <SidebarNavItem
+          to="/admin/fines/fees"
+          icon={<IconClockDollar size={15} />}
+          label="Fees"
+          isSubItem={true}
+          disableActive={openGroup !== 'fines'}
+          isActiveMatch={(p) =>
+            p === '/admin/fines/fees' ||
+            p === '/admin/fines/dues' ||
+            p === '/admin/fines/settings' ||
+            p === '/admin/fines/config' ||
+            p === '/admin/fines'
+          }
+        />
+        <SidebarNavItem
+          to="/admin/fines/penalties"
+          icon={<IconReceiptDollar size={15} />}
+          label="Penalties"
+          isSubItem={true}
+          disableActive={openGroup !== 'fines'}
+          isActiveMatch={(p) =>
+            p.startsWith('/admin/fines/penalties') ||
+            /^\/admin\/fines\/\d+/.test(p)
+          }
+        />
+      </SidebarNavGroup>
+
+      {/* 6. Single Domain Pages (Members, Reports) */}
       <div className="space-y-1 pt-1">
         <SidebarNavItem
           to="/admin/members"
           icon={<IconUsers size={17} />}
           label="Members"
-          disableActive={isOutsideDisabled}
-        />
-        <SidebarNavItem
-          to="/admin/fines"
-          icon={<IconReceipt2 size={17} />}
-          label="Fines"
           disableActive={isOutsideDisabled}
         />
         <SidebarNavItem

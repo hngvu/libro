@@ -26,8 +26,9 @@ public class AdminLoanController {
             @RequestParam(required = false) java.util.List<Long> userId,
             @RequestParam(required = false) java.util.List<Long> bookCopyId,
             @RequestParam(required = false) Boolean isOverdue,
+            @RequestParam(required = false) Boolean hasRenewals,
             Pageable pageable) {
-        return ResponseEntity.ok(loanService.searchLoansForAdminMulti(keyword, status, userId, bookCopyId, isOverdue, pageable));
+        return ResponseEntity.ok(loanService.searchLoansForAdminMulti(keyword, status, userId, bookCopyId, isOverdue, hasRenewals, pageable));
     }
 
     @GetMapping("/{id}")

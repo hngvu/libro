@@ -177,10 +177,10 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
 
   const getLoanStatusBadge = (status: LoanStatus) => {
     switch (status) {
-      case 'BORROWED':
+      case 'ONGOING':
         return (
           <Badge variant="warning" className="gap-1">
-            <IconClock size={12} /> Borrowed
+            <IconClock size={12} /> Ongoing
           </Badge>
         )
       case 'RETURNED':
@@ -201,7 +201,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
   }
 
   // Quick stats
-  const activeLoansCount = loans.filter((l) => l.status === 'BORROWED').length
+  const activeLoansCount = loans.filter((l) => l.status === 'ONGOING').length
   const overdueLoansCount = loans.filter((l) => l.status === 'OVERDUE').length
   const returnedLoansCount = loans.filter((l) => l.status === 'RETURNED').length
 
@@ -434,7 +434,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
         <span className="text-xs font-bold text-[#6f7f64] dark:text-[#c8d0b7] mr-2 flex items-center gap-1">
           <IconBooks size={15} /> Shelf:
         </span>
-        {(['', 'BORROWED', 'OVERDUE', 'RETURNED'] as const).map((st) => (
+        {(['', 'ONGOING', 'OVERDUE', 'RETURNED'] as const).map((st) => (
           <button
             key={st}
             onClick={() => {
@@ -447,7 +447,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                 : 'bg-[#c8d0b7]/40 dark:bg-[#1e2320] text-[#1e2320] dark:text-[#c8d0b7] hover:bg-[#c8d0b7]/70'
             }`}
           >
-            {st === '' ? 'All Books' : st === 'BORROWED' ? 'Currently Borrowed' : st === 'OVERDUE' ? 'Overdue' : 'Read / Returned'}
+            {st === '' ? 'All Books' : st === 'ONGOING' ? 'Currently Borrowed' : st === 'OVERDUE' ? 'Overdue' : 'Read / Returned'}
           </button>
         ))}
       </div>
@@ -541,7 +541,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  {loan.status === 'BORROWED' && (
+                  {loan.status === 'ONGOING' && (
                     <Button
                       size="sm"
                       variant="outline"

@@ -1,18 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   IconSearch,
   IconPlus,
   IconFilter2,
   IconChevronDown,
   IconArrowsUpDown,
-  IconRefresh,
-  IconClock,
-  IconBook2,
-  IconUser,
-  IconCalendarEvent,
-  IconCheck,
-  IconX,
   IconChevronLeft,
   IconChevronRight,
 } from '@tabler/icons-react'
@@ -27,14 +20,50 @@ import { useAdmin } from '@/components/admin/AdminContext'
 import { AdminFilterSelect } from '@/components/admin/AdminFilterSelect'
 import { api } from '@/services/api'
 import type { ReservationResponse, ReservationStatus } from '@/types/api'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+
+function parseDateTime(dateStr?: string | null) {
+  if (!dateStr) return { date: '—', time: '' }
+  try {
+    if (dateStr.includes('T')) {
+      const [dPart, tPart] = dateStr.split('T')
+      const dPieces = dPart.split('-')
+      const formattedDate = dPieces.length === 3 ? `${dPieces[2]}/${dPieces[1]}/${dPieces[0]}` : dPart
+      const timePieces = tPart ? tPart.split(':') : []
+      const formattedTime = timePieces.length >= 2 ? `${timePieces[0]}:${timePieces[1]}` : ''
+      return { date: formattedDate, time: formattedTime }
+    } else {
+      const parts = dateStr.split('-')
+      const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr
+      return { date: formattedDate, time: '' }
+    }
+  } catch {
+    return { date: dateStr, time: '' }
+  }
+}
+
+
+function formatReservationStatus(status?: ReservationStatus | string) {
+  if (!status) return '—'
+  switch (status) {
+    case 'READY_FOR_PICKUP':
+      return 'Ready for Pickup'
+    case 'PENDING':
+      return 'Pending'
+    case 'FULFILLED':
+      return 'Fulfilled'
+    case 'CANCELLED':
+      return 'Cancelled'
+    case 'EXPIRED':
+      return 'Expired'
+    default: {
+      const s = status.toLowerCase()
+      return s.charAt(0).toUpperCase() + s.slice(1)
+    }
+  }
+}
 
 export function ReservationsPage() {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { t, isDark, showFeedback } = useAdmin()
 
@@ -44,15 +73,13 @@ export function ReservationsPage() {
     | 'date-desc'
     | 'date-asc'
     | 'deadline-asc'
-    | 'queue-asc'
     | 'title-asc'
-    | 'patron-asc'
+    | 'borrower-asc'
   const initialStatus = (searchParams.get('status') || '') as ReservationStatus | ''
   const initialPage = Number(searchParams.get('page')) || 1
 
   const [reservations, setReservations] = useState<ReservationResponse[]>([])
   const [loading, setLoading] = useState(false)
-  const [actionLoading, setActionLoading] = useState<number | null>(null)
 
   // Filters & Pagination state
   const [keyword, setKeyword] = useState(initialKeyword)
@@ -70,10 +97,6 @@ export function ReservationsPage() {
 
   // Selection for bulk actions
   const [selectedResIds, setSelectedResIds] = useState<number[]>([])
-
-  // Modal: Reservation Details
-  const [detailModalOpen, setDetailModalOpen] = useState(false)
-  const [selectedResDetail, setSelectedResDetail] = useState<ReservationResponse | null>(null)
 
   // Sync state to URL search parameters
   useEffect(() => {
@@ -119,13 +142,10 @@ export function ReservationsPage() {
     if (sortBy === 'deadline-asc') {
       return list.sort((a, b) => (a.pickupDeadline || '').localeCompare(b.pickupDeadline || ''))
     }
-    if (sortBy === 'queue-asc') {
-      return list.sort((a, b) => (a.queuePosition || 99) - (b.queuePosition || 99))
-    }
     if (sortBy === 'title-asc') {
       return list.sort((a, b) => (a.bookTitle || '').localeCompare(b.bookTitle || ''))
     }
-    if (sortBy === 'patron-asc') {
+    if (sortBy === 'borrower-asc') {
       return list.sort((a, b) => (a.userFullName || a.userEmail || '').localeCompare(b.userFullName || b.userEmail || ''))
     }
     return list
@@ -157,87 +177,29 @@ export function ReservationsPage() {
     }
   }
 
-  const handleMarkReady = async (id: number) => {
-    setActionLoading(id)
-    try {
-      await api.adminMarkReservationReady(id)
-      showFeedback('success', 'Assigned available copy and marked hold as READY FOR PICKUP!')
-      if (detailModalOpen) setDetailModalOpen(false)
-      await fetchReservations()
-    } catch {
-      showFeedback('error', 'Failed to mark reservation ready. No available copies?')
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  const handleFulfill = async (id: number) => {
-    setActionLoading(id)
-    try {
-      await api.adminFulfillReservation(id)
-      showFeedback('success', 'Reservation fulfilled and converted into active checkout loan!')
-      if (detailModalOpen) setDetailModalOpen(false)
-      await fetchReservations()
-    } catch {
-      showFeedback('error', 'Failed to fulfill reservation checkout.')
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  const handleCancel = async (id: number) => {
-    const reason = prompt('Reason for cancelling this reservation (optional):', 'Cancelled by librarian')
-    if (reason === null) return
-
-    setActionLoading(id)
-    try {
-      await api.adminCancelReservation(id, reason)
-      showFeedback('success', 'Reservation cancelled and queue updated.')
-      if (detailModalOpen) setDetailModalOpen(false)
-      await fetchReservations()
-    } catch {
-      showFeedback('error', 'Failed to cancel reservation.')
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  const handleProcessExpired = async () => {
-    setLoading(true)
-    try {
-      const res = await api.adminProcessExpiredReservations()
-      showFeedback('success', `Processed expiry check: ${res.expiredCount} hold(s) expired.`)
-      await fetchReservations()
-    } catch {
-      showFeedback('error', 'Failed to run hold expiry sweep.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getStatusBadge = (status: ReservationStatus) => {
+  const getStatusBadge = (status?: ReservationStatus | string) => {
     switch (status) {
       case 'READY_FOR_PICKUP':
         return isDark
-          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+          ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/60'
           : 'bg-emerald-50 text-emerald-700 border-emerald-200'
       case 'PENDING':
         return isDark
-          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+          ? 'bg-amber-950/60 text-amber-400 border-amber-800/60'
           : 'bg-amber-50 text-amber-700 border-amber-200'
       case 'FULFILLED':
         return isDark
-          ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+          ? 'bg-blue-950/60 text-blue-400 border-blue-800/60'
           : 'bg-blue-50 text-blue-700 border-blue-200'
       case 'CANCELLED':
       case 'EXPIRED':
         return isDark
-          ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+          ? 'bg-rose-950/60 text-rose-400 border-rose-800/60'
           : 'bg-rose-50 text-rose-700 border-rose-200'
       default:
         return isDark
-          ? 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-          : 'bg-gray-100 text-gray-600 border-gray-200'
+          ? 'bg-neutral-800 text-neutral-400 border-neutral-700'
+          : 'bg-gray-100 text-gray-700 border-gray-200'
     }
   }
 
@@ -249,7 +211,7 @@ export function ReservationsPage() {
           <div className="relative flex-1">
             <IconSearch size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.mutedColor}`} />
             <input
-              placeholder="Search patron, book title, or RES code..."
+              placeholder="Search by code, borrower, book..."
               value={keyword}
               onChange={(e) => {
                 setKeyword(e.target.value)
@@ -266,8 +228,8 @@ export function ReservationsPage() {
                 className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
                   sortBy !== 'default'
                     ? isDark
-                      ? 'bg-[#252a34] border-blue-500/50 text-blue-400'
-                      : 'bg-blue-50 border-blue-300 text-blue-600'
+                    ? 'bg-[#252a34] border-blue-500/50 text-blue-400'
+                    : 'bg-blue-50 border-blue-300 text-blue-600'
                     : isDark
                     ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
                     : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
@@ -303,44 +265,19 @@ export function ReservationsPage() {
                 Pickup Deadline (Soonest first)
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => setSortBy('queue-asc')}
-                className={sortBy === 'queue-asc' ? 'font-semibold text-blue-500' : ''}
-              >
-                Queue Position (1st in queue)
-              </DropdownMenuItem>
-              <DropdownMenuItem
                 onClick={() => setSortBy('title-asc')}
                 className={sortBy === 'title-asc' ? 'font-semibold text-blue-500' : ''}
               >
                 Book Title (A-Z)
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => setSortBy('patron-asc')}
-                className={sortBy === 'patron-asc' ? 'font-semibold text-blue-500' : ''}
+                onClick={() => setSortBy('borrower-asc')}
+                className={sortBy === 'borrower-asc' ? 'font-semibold text-blue-500' : ''}
               >
-                Patron Name (A-Z)
+                Borrower Name (A-Z)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0 justify-end">
-          <button
-            type="button"
-            onClick={handleProcessExpired}
-            title="Sweep expired pickup holds"
-            className={`h-9 px-3.5 text-xs font-semibold rounded-md border transition-colors flex items-center gap-1.5 cursor-pointer ${t.secondaryBtn}`}
-          >
-            <IconClock size={14} /> Sweep Expired
-          </button>
-          <button
-            onClick={() => fetchReservations()}
-            disabled={loading}
-            className={`h-9 px-3 text-xs font-medium rounded-md border transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${t.secondaryBtn}`}
-          >
-            <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
         </div>
       </div>
 
@@ -440,7 +377,7 @@ export function ReservationsPage() {
                   />
                 </th>
 
-                {/* Column: Hold Code / Bulk Actions */}
+                {/* Column: Hold Code */}
                 <th className="px-4 text-left align-middle min-w-[140px]">
                   {selectedResIds.length > 0 ? (
                     <div className="flex items-center gap-2.5">
@@ -470,59 +407,41 @@ export function ReservationsPage() {
                     </div>
                   ) : (
                     <span className={`text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                      Hold Code
+                      Code
                     </span>
                   )}
                 </th>
 
-                {/* Column: Patron Details */}
+                {/* Column: Requested Date & Time */}
+                <th className={`w-44 py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Requested Date
+                </th>
+
+                {/* Column: Borrower */}
                 <th className={`py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                  Patron
+                  Borrower
                 </th>
 
-                {/* Column: Reserved Book */}
-                <th className={`py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                  Reserved Book
-                </th>
-
-                {/* Column: Queue / State */}
-                <th className={`w-28 py-3 px-4 text-xs sm:text-[13px] font-semibold text-center ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                  Queue
-                </th>
-
-                {/* Column: Requested Date */}
-                <th className={`w-32 py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                  Requested
-                </th>
-
-                {/* Column: Pickup Deadline */}
-                <th className={`w-36 py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                  Pickup Deadline
+                {/* Column: Book */}
+                <th className={`max-w-[240px] py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Book
                 </th>
 
                 {/* Column: Status */}
-                <th className={`w-28 py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                <th className={`w-32 py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
                   Status
-                </th>
-
-                {/* Column: Actions */}
-                <th className={`w-36 py-3 px-4 text-xs sm:text-[13px] font-semibold text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                  Actions
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-transparent">
               {sortedReservations.map((r) => {
                 const isSelected = selectedResIds.includes(r.id)
-                const isActionBusy = actionLoading === r.id
+                const reqDt = parseDateTime(r.reservedAt)
 
                 return (
                   <tr
                     key={r.id}
-                    onClick={() => {
-                      setSelectedResDetail(r)
-                      setDetailModalOpen(true)
-                    }}
+                    onClick={() => navigate(`/admin/circulation/reservations/${r.id}`)}
                     className={`group border-b transition-colors cursor-pointer ${
                       isDark ? 'border-[#20242c]' : 'border-gray-200'
                     } ${
@@ -548,132 +467,64 @@ export function ReservationsPage() {
                     </td>
 
                     {/* Hold Code */}
-                    <td className="py-3 px-4 font-mono text-xs font-bold text-blue-500">
-                      {r.reservationCode}
+                    <td className={`py-3 px-4 text-xs font-mono font-medium ${t.titleColor}`}>
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/admin/circulation/reservations/${r.id}`)
+                        }}
+                        className="text-blue-600 dark:text-blue-400 cursor-pointer hover:text-blue-700 dark:hover:text-blue-300"
+                      >
+                        {r.reservationCode}
+                      </span>
+                    </td>
+
+                    {/* Requested Date & Time */}
+                    <td className={`py-3 px-4 text-sm font-medium whitespace-nowrap ${t.titleColor}`}>
+                      {reqDt.time ? `${reqDt.date} ${reqDt.time}` : reqDt.date}
                     </td>
 
                     {/* Patron Info */}
                     <td className="py-3 px-4">
-                      <div className="flex flex-col">
-                        <span className={`text-sm font-semibold truncate ${t.titleColor}`}>
-                          {r.userFullName || r.userEmail || `User #${r.userId}`}
-                        </span>
-                        {r.userEmail && (
-                          <span className={`text-xs font-mono truncate max-w-[160px] ${t.mutedColor}`}>
-                            {r.userEmail}
-                          </span>
-                        )}
-                      </div>
+                      <span
+                        onClick={(e) => {
+                          if (r.userId) {
+                            e.stopPropagation()
+                            navigate(`/admin/members/${r.userId}`)
+                          }
+                        }}
+                        className={`text-sm font-semibold truncate block hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer ${t.titleColor}`}
+                      >
+                        {r.userFullName || `User #${r.userId}`}
+                      </span>
                     </td>
 
                     {/* Book Info */}
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2.5 max-w-[280px]">
-                        {r.bookCover ? (
-                          <img
-                            src={r.bookCover}
-                            alt={r.bookTitle}
-                            className="w-8 h-11 object-cover rounded shrink-0 shadow-xs"
-                          />
-                        ) : (
-                          <div className="w-8 h-11 rounded bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
-                            <IconBook2 size={16} className="text-blue-400" />
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className={`text-sm font-medium truncate ${t.titleColor}`}>{r.bookTitle}</p>
-                          {r.barcode && (
-                            <span className="font-mono text-[10px] text-emerald-400 font-semibold block mt-0.5">
-                              Copy: {r.barcode} ({r.location || 'Shelf'})
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Queue / Position */}
-                    <td className="py-3 px-4 text-center">
-                      {r.status === 'PENDING' ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-amber-400/15 text-amber-400 border border-amber-400/30">
-                          Queue #{r.queuePosition || 1}
+                    <td className="py-3 px-4 max-w-[240px]">
+                      <span
+                        onClick={(e) => {
+                          if (r.bookId) {
+                            e.stopPropagation()
+                            navigate(`/admin/books/${r.bookId}`)
+                          }
+                        }}
+                        className={`text-sm font-medium truncate block hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer ${t.titleColor}`}
+                        title={r.bookTitle}
+                      >
+                        {r.bookTitle || `Book #${r.bookId}`}
+                      </span>
+                      {r.barcode && (
+                        <span className="font-mono text-xs text-emerald-500 dark:text-emerald-400 font-medium block mt-0.5">
+                          Copy: {r.barcode} ({r.location || 'Shelf'})
                         </span>
-                      ) : r.status === 'READY_FOR_PICKUP' ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                          Ready
-                        </span>
-                      ) : (
-                        <span className={`text-xs ${t.mutedColor}`}>—</span>
-                      )}
-                    </td>
-
-                    {/* Requested Date */}
-                    <td className={`py-3 px-4 text-xs font-mono ${t.subTextColor}`}>
-                      {r.reservedAt ? r.reservedAt.split('T')[0] : '—'}
-                    </td>
-
-                    {/* Pickup Deadline */}
-                    <td className="py-3 px-4 text-xs font-mono">
-                      {r.pickupDeadline ? (
-                        <span className={r.status === 'READY_FOR_PICKUP' ? 'text-amber-400 font-bold' : t.titleColor}>
-                          {r.pickupDeadline.split('T')[0]}
-                        </span>
-                      ) : (
-                        <span className={t.mutedColor}>—</span>
                       )}
                     </td>
 
                     {/* Status Badge */}
                     <td className="py-3 px-4">
-                      <span className={`text-[11px] font-mono font-medium px-2 py-0.5 rounded border uppercase ${getStatusBadge(r.status)}`}>
-                        {r.status === 'READY_FOR_PICKUP' ? 'READY' : r.status}
+                      <span className={`text-xs font-mono font-medium px-2 py-0.5 rounded border ${getStatusBadge(r.status)}`}>
+                        {formatReservationStatus(r.status)}
                       </span>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1.5">
-                        {r.status === 'PENDING' && (
-                          <button
-                            type="button"
-                            disabled={isActionBusy}
-                            onClick={() => handleMarkReady(r.id)}
-                            className={`h-7 px-2.5 text-xs font-medium rounded-md border transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50 ${t.secondaryBtn}`}
-                            title="Assign copy and notify patron"
-                          >
-                            <IconCheck size={13} /> Ready
-                          </button>
-                        )}
-                        {r.status === 'READY_FOR_PICKUP' && (
-                          <button
-                            type="button"
-                            disabled={isActionBusy}
-                            onClick={() => handleFulfill(r.id)}
-                            className={`h-7 px-2.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50 ${t.primaryBtn}`}
-                            title="Check out to patron"
-                          >
-                            <IconCheck size={13} /> Check Out
-                          </button>
-                        )}
-                        {(r.status === 'PENDING' || r.status === 'READY_FOR_PICKUP') && (
-                          <button
-                            type="button"
-                            disabled={isActionBusy}
-                            onClick={() => handleCancel(r.id)}
-                            className={`h-7 px-2 text-xs font-medium rounded-md border transition-colors cursor-pointer text-rose-500 hover:bg-rose-500/10 ${
-                              isDark ? 'border-[#2c323e]' : 'border-gray-200'
-                            }`}
-                            title="Cancel reservation"
-                          >
-                            <IconX size={13} />
-                          </button>
-                        )}
-                        {r.status === 'FULFILLED' && (
-                          <span className="text-xs text-emerald-500 font-medium">Fulfilled</span>
-                        )}
-                        {(r.status === 'CANCELLED' || r.status === 'EXPIRED') && (
-                          <span className={`text-xs ${t.mutedColor}`}>{r.status}</span>
-                        )}
-                      </div>
                     </td>
                   </tr>
                 )
@@ -681,7 +532,7 @@ export function ReservationsPage() {
 
               {sortedReservations.length === 0 && (
                 <tr>
-                  <td colSpan={9} className={`py-12 text-center text-sm ${t.subTextColor}`}>
+                  <td colSpan={6} className={`py-12 text-center text-sm ${t.subTextColor}`}>
                     No hold reservations found matching filter criteria.
                   </td>
                 </tr>
@@ -717,156 +568,6 @@ export function ReservationsPage() {
           </div>
         </div>
       )}
-
-      {/* Modal: Reservation Detail View */}
-      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent
-          onClose={() => setDetailModalOpen(false)}
-          className={`sm:max-w-lg rounded-2xl shadow-2xl p-6 border ${t.modalBg}`}
-        >
-          <DialogHeader className="mb-4">
-            <DialogTitle className={`font-sans font-bold text-base ${t.titleColor}`}>
-              Reservation Hold Details
-            </DialogTitle>
-          </DialogHeader>
-
-          {selectedResDetail && (
-            <div className="space-y-4 pt-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className={`text-xs ${t.mutedColor}`}>Hold Code</span>
-                  <p className="text-sm font-mono font-bold text-blue-500">
-                    {selectedResDetail.reservationCode}
-                  </p>
-                </div>
-                <span className={`text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded border uppercase ${getStatusBadge(selectedResDetail.status)}`}>
-                  {selectedResDetail.status}
-                </span>
-              </div>
-
-              {/* Patron & Book Info */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div className={`p-3 rounded-xl border ${t.cardBg}`}>
-                  <span className={`text-[11px] font-medium block mb-1 flex items-center gap-1 ${t.mutedColor}`}>
-                    <IconUser size={13} /> Patron
-                  </span>
-                  <p className={`text-xs font-semibold ${t.titleColor}`}>
-                    {selectedResDetail.userFullName || selectedResDetail.userEmail || `User #${selectedResDetail.userId}`}
-                  </p>
-                  {selectedResDetail.userEmail && (
-                    <p className={`text-[11px] font-mono mt-0.5 ${t.subTextColor}`}>
-                      {selectedResDetail.userEmail}
-                    </p>
-                  )}
-                  {selectedResDetail.userPhone && (
-                    <p className={`text-[11px] mt-0.5 ${t.mutedColor}`}>
-                      Tel: {selectedResDetail.userPhone}
-                    </p>
-                  )}
-                </div>
-
-                <div className={`p-3 rounded-xl border ${t.cardBg}`}>
-                  <span className={`text-[11px] font-medium block mb-1 flex items-center gap-1 ${t.mutedColor}`}>
-                    <IconBook2 size={13} /> Reserved Book
-                  </span>
-                  <p className={`text-xs font-semibold truncate ${t.titleColor}`}>
-                    {selectedResDetail.bookTitle || `Book #${selectedResDetail.bookId}`}
-                  </p>
-                  {selectedResDetail.barcode ? (
-                    <p className="text-[11px] font-mono text-emerald-400 mt-0.5">
-                      Barcode: {selectedResDetail.barcode} ({selectedResDetail.location || 'Shelf'})
-                    </p>
-                  ) : (
-                    <p className={`text-[11px] mt-0.5 ${t.mutedColor}`}>
-                      Queue Position: #{selectedResDetail.queuePosition || 1}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Timeline Dates */}
-              <div className={`p-3 rounded-xl border space-y-2 text-xs ${t.cardBg}`}>
-                <div className="flex items-center justify-between">
-                  <span className={`flex items-center gap-1.5 ${t.subTextColor}`}>
-                    <IconCalendarEvent size={14} className="text-blue-400" /> Requested Date:
-                  </span>
-                  <span className={`font-mono font-medium ${t.titleColor}`}>
-                    {selectedResDetail.reservedAt ? selectedResDetail.reservedAt.replace('T', ' ') : '—'}
-                  </span>
-                </div>
-                {selectedResDetail.pickupDeadline && (
-                  <div className="flex items-center justify-between">
-                    <span className={`flex items-center gap-1.5 ${t.subTextColor}`}>
-                      <IconClock size={14} className="text-amber-400" /> Pickup Deadline:
-                    </span>
-                    <span className="font-mono font-bold text-amber-500">
-                      {selectedResDetail.pickupDeadline.replace('T', ' ')}
-                    </span>
-                  </div>
-                )}
-                {selectedResDetail.fulfilledAt && (
-                  <div className="flex items-center justify-between">
-                    <span className={`flex items-center gap-1.5 ${t.subTextColor}`}>
-                      <IconCheck size={14} className="text-emerald-400" /> Fulfilled Date:
-                    </span>
-                    <span className="font-mono font-medium text-emerald-500">
-                      {selectedResDetail.fulfilledAt.replace('T', ' ')}
-                    </span>
-                  </div>
-                )}
-                {selectedResDetail.cancellationReason && (
-                  <div className="pt-1 border-t border-gray-100 dark:border-[#262a34]">
-                    <span className={`text-[11px] block ${t.mutedColor}`}>Cancellation Reason:</span>
-                    <p className="text-rose-400 text-xs mt-0.5">{selectedResDetail.cancellationReason}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons in Modal */}
-              <div className="flex items-center justify-between pt-3">
-                <button
-                  type="button"
-                  onClick={() => setDetailModalOpen(false)}
-                  className={`h-9 px-4 text-xs sm:text-sm font-medium rounded-lg border transition-colors cursor-pointer ${t.secondaryBtn}`}
-                >
-                  Close
-                </button>
-                <div className="flex items-center gap-2">
-                  {selectedResDetail.status === 'PENDING' && (
-                    <button
-                      type="button"
-                      onClick={() => handleMarkReady(selectedResDetail.id)}
-                      className={`h-9 px-4 text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer ${t.secondaryBtn}`}
-                    >
-                      Mark Ready for Pickup
-                    </button>
-                  )}
-                  {selectedResDetail.status === 'READY_FOR_PICKUP' && (
-                    <button
-                      type="button"
-                      onClick={() => handleFulfill(selectedResDetail.id)}
-                      className={`h-9 px-4 text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer ${t.primaryBtn}`}
-                    >
-                      Check Out (Fulfill)
-                    </button>
-                  )}
-                  {(selectedResDetail.status === 'PENDING' || selectedResDetail.status === 'READY_FOR_PICKUP') && (
-                    <button
-                      type="button"
-                      onClick={() => handleCancel(selectedResDetail.id)}
-                      className={`h-9 px-3 text-xs sm:text-sm font-medium rounded-lg border transition-colors cursor-pointer text-rose-500 hover:bg-rose-500/10 ${
-                        isDark ? 'border-[#2c323e]' : 'border-gray-200'
-                      }`}
-                    >
-                      Cancel Hold
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

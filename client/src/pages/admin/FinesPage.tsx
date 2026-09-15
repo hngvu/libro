@@ -1,28 +1,64 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  IconCheck,
-  IconCoins,
-  IconClock,
-  IconRefresh,
+  IconSearch,
+  IconPlus,
+  IconFilter2,
+  IconArrowsUpDown,
+  IconChevronDown,
 } from '@tabler/icons-react'
 import { useAdmin } from '@/components/admin/AdminContext'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { AdminFilterSelect } from '@/components/admin/AdminFilterSelect'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { api } from '@/services/api'
 import type { FineResponse } from '@/types/api'
 
+function formatDate(dateStr?: string | null) {
+  if (!dateStr) return '—'
+  try {
+    const clean = dateStr.split('T')[0]
+    const parts = clean.split('-')
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`
+    }
+    return clean
+  } catch {
+    return dateStr
+  }
+}
+
 export function FinesPage() {
-  const { t, isDark, showFeedback } = useAdmin()
-  const [activeTab, setActiveTab] = useState<'outstanding' | 'history'>('outstanding')
+  const navigate = useNavigate()
+  const { t, isDark, showFeedback, setHeaderTitle } = useAdmin()
+
   const [fines, setFines] = useState<FineResponse[]>([])
   const [loading, setLoading] = useState(false)
+
+  // Selection & Bulk Actions
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+
+  // Filters & Sorting
+  const [keyword, setKeyword] = useState('')
+  const [sortBy, setSortBy] = useState<
+    'default' | 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc' | 'user-asc'
+  >('default')
+  const [statusFilter, setStatusFilter] = useState<string>('')
+  const [reasonFilter, setReasonFilter] = useState<string>('')
+  const [activeFilterFields, setActiveFilterFields] = useState<string[]>([])
 
   const fetchFines = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api.adminGetFines({ page: 1, size: 100 })
+      const res = await api.adminGetFines({ page: 1, size: 200 })
       setFines(res.content || [])
     } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to fetch library fines')
+      showFeedback('error', err.message || 'Failed to load penalty records')
     } finally {
       setLoading(false)
     }
@@ -30,228 +66,495 @@ export function FinesPage() {
 
   useEffect(() => {
     fetchFines()
-  }, [fetchFines])
+    setHeaderTitle('Penalties')
+  }, [fetchFines, setHeaderTitle])
 
-  const handleCollectFine = async (id: number) => {
-    try {
-      await api.adminCollectFineCash(id)
-      showFeedback('success', 'Fee payment recorded via Cash and receipt generated!')
-      fetchFines()
-    } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to collect payment')
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === sortedFines.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(sortedFines.map((f) => f.id))
     }
   }
 
-  const handleWaiveFine = async (id: number) => {
-    const reason = prompt('Enter reason for waiving this penalty:')
-    if (!reason || !reason.trim()) return
+  const handleBulkWaive = async () => {
+    if (!confirm(`Are you sure you want to waive ${selectedIds.length} selected fine(s)?`)) return
     try {
-      await api.adminWaiveFine(id, reason.trim())
-      showFeedback('success', 'Fee waived under librarian discretion.')
+      for (const id of selectedIds) {
+        await api.adminWaiveFine(id, 'Bulk administrative waiver')
+      }
+      showFeedback('success', 'Selected fines waived successfully')
+      setSelectedIds([])
       fetchFines()
     } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to waive fine')
+      showFeedback('error', err.message || 'Failed to waive selected fines')
     }
   }
 
-  const outstanding = fines.filter((f) => f.status === 'PENDING')
-  const history = fines.filter((f) => f.status === 'PAID' || f.status === 'WAIVED')
+  const removeFilterField = (field: string) => {
+    setActiveFilterFields((prev) => prev.filter((f) => f !== field))
+    if (field === 'status') setStatusFilter('')
+    if (field === 'reason') setReasonFilter('')
+  }
 
-  const totalOutstanding = outstanding.reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
-  const totalCollected = history.filter((f) => f.status === 'PAID').reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
+  const resetAllFilters = () => {
+    setActiveFilterFields([])
+    setStatusFilter('')
+    setReasonFilter('')
+  }
+
+  // Filtered Fines
+  const filteredFines = useMemo(() => {
+    return fines.filter((f) => {
+      if (keyword.trim()) {
+        const q = keyword.toLowerCase()
+        const codeMatch = f.fineCode?.toLowerCase().includes(q)
+        const nameMatch = f.userFullName?.toLowerCase().includes(q)
+        const emailMatch = f.userEmail?.toLowerCase().includes(q)
+        const bookMatch = f.bookTitle?.toLowerCase().includes(q)
+        const loanMatch = f.loanCode?.toLowerCase().includes(q)
+        if (!codeMatch && !nameMatch && !emailMatch && !bookMatch && !loanMatch) return false
+      }
+      if (statusFilter && f.status !== statusFilter) {
+        return false
+      }
+      if (reasonFilter && f.reason !== reasonFilter) {
+        return false
+      }
+      return true
+    })
+  }, [fines, keyword, statusFilter, reasonFilter])
+
+  // Sorted Fines
+  const sortedFines = useMemo(() => {
+    const list = [...filteredFines]
+    if (sortBy === 'date-desc') {
+      return list.sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime())
+    }
+    if (sortBy === 'date-asc') {
+      return list.sort((a, b) => new Date(a.createdAt || '').getTime() - new Date(b.createdAt || '').getTime())
+    }
+    if (sortBy === 'amount-desc') {
+      return list.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0))
+    }
+    if (sortBy === 'amount-asc') {
+      return list.sort((a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0))
+    }
+    if (sortBy === 'user-asc') {
+      return list.sort((a, b) => (a.userFullName || a.userEmail || '').localeCompare(b.userFullName || b.userEmail || ''))
+    }
+    return list
+  }, [filteredFines, sortBy])
+
+  const formatReasonLabel = (reason?: string) => {
+    switch (reason) {
+      case 'OVERDUE':
+        return 'Overdue'
+      case 'LOST_BOOK':
+        return 'Lost Book'
+      case 'DAMAGED_BOOK':
+        return 'Damaged'
+      default:
+        return 'Fine'
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'PAID':
+        return isDark
+          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      case 'PENDING':
+        return isDark
+          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+          : 'bg-amber-50 text-amber-700 border-amber-200'
+      case 'WAIVED':
+        return isDark
+          ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+          : 'bg-blue-50 text-blue-700 border-blue-200'
+      default:
+        return isDark
+          ? 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+          : 'bg-gray-100 text-gray-600 border-gray-200'
+    }
+  }
 
   return (
     <div className="space-y-4">
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-        <div className={`p-4 rounded-2xl border ${t.cardBg}`}>
-          <div className={`flex items-center justify-between text-xs font-medium mb-1 ${t.subTextColor}`}>
-            <span>Total Outstanding Fines</span>
-            <IconCoins size={18} className="text-amber-400" />
+      {/* Search & Actions Toolbar (Exact MembershipPlansPage layout) */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="flex items-center gap-2 w-full sm:w-[60%]">
+          <div className="relative flex-1">
+            <IconSearch size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.mutedColor}`} />
+            <input
+              placeholder="Search penalty, borrower, loan code..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              className={`h-9 pl-9 pr-3 text-sm w-full rounded-md border outline-none transition ${t.inputBg}`}
+            />
           </div>
-          <div className="text-2xl font-bold font-sans text-amber-400">
-            {totalOutstanding.toLocaleString('vi-VN')} VND
-          </div>
-          <p className={`text-[11px] mt-0.5 ${t.subTextColor}`}>
-            {outstanding.length} pending fee tickets
-          </p>
-        </div>
 
-        <div className={`p-4 rounded-2xl border ${t.cardBg}`}>
-          <div className={`flex items-center justify-between text-xs font-medium mb-1 ${t.subTextColor}`}>
-            <span>Total Collected Fees</span>
-            <IconCheck size={18} className="text-emerald-400" />
-          </div>
-          <div className="text-2xl font-bold font-sans text-emerald-400">
-            {totalCollected.toLocaleString('vi-VN')} VND
-          </div>
-          <p className={`text-[11px] mt-0.5 ${t.subTextColor}`}>
-            Deposited into library account
-          </p>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                  sortBy !== 'default'
+                    ? isDark
+                      ? 'bg-[#252a34] border-blue-500/50 text-blue-400'
+                      : 'bg-blue-50 border-blue-300 text-blue-600'
+                    : isDark
+                    ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
+                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                title="Sort options"
+              >
+                <IconArrowsUpDown size={15} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => setSortBy('default')}
+                className={sortBy === 'default' ? 'font-semibold text-blue-500' : ''}
+              >
+                Default
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('date-desc')}
+                className={sortBy === 'date-desc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Newest Issued First
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('date-asc')}
+                className={sortBy === 'date-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Oldest Issued First
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('amount-desc')}
+                className={sortBy === 'amount-desc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Amount (High to Low)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('amount-asc')}
+                className={sortBy === 'amount-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Amount (Low to High)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('user-asc')}
+                className={sortBy === 'user-asc' ? 'font-semibold text-blue-500' : ''}
+              >
+                Borrower Name (A-Z)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)}>
-        <div className="flex items-center justify-between">
-          <TabsList className={`p-1 rounded-xl border ${t.cardBg}`}>
-            <TabsTrigger
-              value="outstanding"
-              className={`text-xs px-3.5 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'outstanding'
-                  ? isDark ? 'bg-[#28303d] text-white shadow-xs' : 'bg-gray-900 text-white shadow-xs'
-                  : t.subTextColor
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <IconCoins size={15} /> Outstanding Fines ({outstanding.length})
-              </span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="history"
-              className={`text-xs px-3.5 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'history'
-                  ? isDark ? 'bg-[#28303d] text-white shadow-xs' : 'bg-gray-900 text-white shadow-xs'
-                  : t.subTextColor
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <IconClock size={15} /> Payment History ({history.length})
-              </span>
-            </TabsTrigger>
-          </TabsList>
-          <button
-            onClick={fetchFines}
-            disabled={loading}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${t.secondaryBtn} disabled:opacity-50`}
-          >
-            <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
+      {/* Filter Section Under Searchbar (Exact MembershipPlansPage style) */}
+      <div className="flex items-center gap-2 flex-wrap pt-0.5">
+        <div
+          className={`h-9 flex items-center gap-1.5 px-3 rounded-md border text-xs sm:text-[13px] font-semibold select-none ${
+            isDark ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de]' : 'bg-gray-100 border-gray-300 text-gray-800'
+          }`}
+        >
+          <IconFilter2 size={15} className={isDark ? 'text-gray-300' : 'text-gray-600'} />
+          <span>Filter</span>
         </div>
 
-        {/* TAB 1: OUTSTANDING */}
-        <TabsContent value="outstanding" className="space-y-4 outline-none pt-3">
-          <div className={`rounded-2xl border overflow-hidden shadow-xs ${t.tableWrapper}`}>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className={`border-b ${t.tableHead}`}>
-                    <th className="py-3 px-4 text-xs font-semibold">Fine Code</th>
-                    <th className="py-3 px-4 text-xs font-semibold">Patron</th>
-                    <th className="py-3 px-4 text-xs font-semibold">Reason & Title</th>
-                    <th className="py-3 px-4 text-xs font-semibold">Details</th>
-                    <th className="py-3 px-4 text-xs font-semibold">Amount</th>
-                    <th className="py-3 px-4 text-xs font-semibold text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-transparent">
-                  {outstanding.map((f) => (
-                    <tr key={f.id} className={`border-b transition-colors ${t.tableRow}`}>
-                      <td className="py-3 px-4 font-mono text-xs font-semibold">{f.fineCode}</td>
-                      <td className="py-3 px-4 text-xs">
-                        <div className={`font-medium ${t.titleColor}`}>{f.userFullName || 'Patron'}</div>
-                        <div className={`text-[10px] font-mono ${t.mutedColor}`}>{f.userEmail}</div>
-                      </td>
-                      <td className="py-3 px-4 text-xs">
-                        <span className="font-semibold text-rose-400 mr-1.5 uppercase text-[11px]">[{f.reason}]</span>
-                        <span className={`font-medium ${t.titleColor}`}>{f.bookTitle || 'Library Resource'}</span>
-                      </td>
-                      <td className="py-3 px-4 text-xs font-mono">
-                        {f.daysOverdue ? (
-                          <span className="font-bold text-rose-400">+{f.daysOverdue} days late</span>
-                        ) : (
-                          <span className={t.subTextColor}>{f.waivedReason || '—'}</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-xs font-mono font-bold text-amber-400">
-                        ${Number(f.amount).toFixed(2)}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleWaiveFine(f.id)}
-                            className={`h-7 px-2.5 text-[11px] font-medium rounded-lg transition-colors cursor-pointer ${t.secondaryBtn}`}
-                          >
-                            Waive
-                          </button>
-                          <button
-                            onClick={() => handleCollectFine(f.id)}
-                            className={`h-7 px-2.5 text-[11px] font-medium rounded-lg transition-colors cursor-pointer ${t.primaryBtn}`}
-                          >
-                            Collect Cash
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {outstanding.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className={`py-8 text-center text-xs ${t.subTextColor}`}>
-                        🎉 All reader fines are settled!
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </TabsContent>
+        {/* Status Filter */}
+        {activeFilterFields.includes('status') && (
+          <AdminFilterSelect
+            label="Status"
+            value={statusFilter}
+            options={[
+              { value: 'PENDING', label: 'Pending' },
+              { value: 'PAID', label: 'Paid' },
+              { value: 'WAIVED', label: 'Waived' },
+            ]}
+            onChange={(val) => setStatusFilter(val)}
+            onRemove={() => removeFilterField('status')}
+            allLabel="All Statuses"
+          />
+        )}
 
-        {/* TAB 2: HISTORY */}
-        <TabsContent value="history" className="space-y-4 outline-none pt-3">
-          <div className={`rounded-2xl border overflow-hidden shadow-xs ${t.tableWrapper}`}>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className={`border-b ${t.tableHead}`}>
-                    <th className="py-3 px-4 text-xs font-semibold">Fine Code</th>
-                    <th className="py-3 px-4 text-xs font-semibold">Patron</th>
-                    <th className="py-3 px-4 text-xs font-semibold">Title</th>
-                    <th className="py-3 px-4 text-xs font-semibold">Amount</th>
-                    <th className="py-3 px-4 text-xs font-semibold">Payment Method</th>
-                    <th className="py-3 px-4 text-xs font-semibold">Date Settled</th>
-                    <th className="py-3 px-4 text-xs font-semibold text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-transparent">
-                  {history.map((f) => (
-                    <tr key={f.id} className={`border-b transition-colors ${t.tableRow}`}>
-                      <td className="py-3 px-4 font-mono text-xs font-semibold">{f.fineCode}</td>
-                      <td className={`py-3 px-4 text-xs font-medium ${t.titleColor}`}>{f.userFullName || f.userEmail}</td>
-                      <td className={`py-3 px-4 text-xs ${t.subTextColor}`}>{f.bookTitle || 'Library Resource'}</td>
-                      <td className="py-3 px-4 text-xs font-mono font-semibold text-emerald-400">
-                        ${Number(f.amount).toFixed(2)}
+        {/* Reason Filter */}
+        {activeFilterFields.includes('reason') && (
+          <AdminFilterSelect
+            label="Reason"
+            value={reasonFilter}
+            options={[
+              { value: 'OVERDUE', label: 'Overdue' },
+              { value: 'LOST_BOOK', label: 'Lost Book' },
+              { value: 'DAMAGED_BOOK', label: 'Damaged' },
+              { value: 'OTHER', label: 'Other' },
+            ]}
+            onChange={(val) => setReasonFilter(val)}
+            onRemove={() => removeFilterField('reason')}
+            allLabel="All Reasons"
+          />
+        )}
+
+        {/* Add Filter Plus Button */}
+        {activeFilterFields.length < 2 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                  isDark
+                    ? 'bg-[#181a20] border-[#2c323e] text-[#8c94a5] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
+                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                title="Add filter"
+              >
+                <IconPlus size={15} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {!activeFilterFields.includes('status') && (
+                <DropdownMenuItem onClick={() => setActiveFilterFields([...activeFilterFields, 'status'])}>
+                  Status
+                </DropdownMenuItem>
+              )}
+              {!activeFilterFields.includes('reason') && (
+                <DropdownMenuItem onClick={() => setActiveFilterFields([...activeFilterFields, 'reason'])}>
+                  Fine Reason
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Reset Button */}
+        {activeFilterFields.length > 0 && (
+          <button
+            onClick={resetAllFilters}
+            className="text-xs sm:text-[13px] text-blue-600 dark:text-blue-400 hover:underline px-1 cursor-pointer font-medium"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
+      {/* Frameless Table (Exact MembershipPlansPage structure) */}
+      {loading ? (
+        <div className={`p-10 text-center text-sm ${t.subTextColor}`}>
+          Loading fine records...
+        </div>
+      ) : (
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className={`h-11 border-b ${isDark ? 'border-[#22262e]' : 'border-gray-200'} ${t.tableHead}`}>
+                {/* Column 1: Checkbox */}
+                <th className="w-10 px-3 text-center align-middle">
+                  <Checkbox
+                    checked={
+                      sortedFines.length > 0 && selectedIds.length === sortedFines.length
+                        ? true
+                        : selectedIds.length > 0
+                        ? 'indeterminate'
+                        : false
+                    }
+                    onCheckedChange={toggleSelectAll}
+                    title="Select all"
+                    className={
+                      isDark
+                        ? '!border-[#3e4756] hover:!border-[#5a667b]'
+                        : '!border-gray-400 hover:!border-gray-500'
+                    }
+                  />
+                </th>
+
+                {/* Column 2: Code / Actions */}
+                <th className={`w-36 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-left ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  {selectedIds.length > 0 ? (
+                    <div className="flex items-center gap-2.5">
+                      <span className={`text-xs sm:text-sm font-semibold normal-case whitespace-nowrap ${t.titleColor}`}>
+                        {selectedIds.length} selected
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className={`h-6 px-2 rounded-md border text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer select-none normal-case whitespace-nowrap ${
+                              isDark
+                                ? 'bg-[#181a20] border-[#3e4756] text-[#cbd2de] hover:text-white hover:border-[#5a667b]'
+                                : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400'
+                            }`}
+                          >
+                            <span>Actions</span>
+                            <IconChevronDown size={12} className="opacity-60" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem
+                            onClick={handleBulkWaive}
+                            className="text-rose-500 focus:text-rose-400 cursor-pointer"
+                          >
+                            Waive Selected ({selectedIds.length})
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSelectedIds([])} className="cursor-pointer">
+                            Deselect all
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ) : (
+                    'Code'
+                  )}
+                </th>
+
+                {/* Column 3: Borrower */}
+                <th className={`w-52 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-left ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Borrower
+                </th>
+
+                {/* Column 4: Loan Code */}
+                <th className={`w-36 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-left ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Loan
+                </th>
+
+                {/* Column 5: Reason */}
+                <th className={`px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-left ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Reason
+                </th>
+
+                {/* Column 6: Amount */}
+                <th className={`w-32 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Amount
+                </th>
+
+                {/* Column 7: Status */}
+                <th className={`w-28 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-center ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Status
+                </th>
+
+                {/* Column 8: Date */}
+                <th className={`w-32 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Issued
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-transparent">
+              {sortedFines.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className={`p-10 text-center text-sm ${t.subTextColor}`}>
+                    No fine records found.
+                  </td>
+                </tr>
+              ) : (
+                sortedFines.map((f) => {
+                  const isSelected = selectedIds.includes(f.id)
+
+                  return (
+                    <tr
+                      key={f.id}
+                      onClick={() => navigate(`/admin/fines/penalties/${f.id}`)}
+                      className={`group border-b transition-colors cursor-pointer ${
+                        isDark ? 'border-[#20242c]' : 'border-gray-200'
+                      } ${
+                        isSelected
+                          ? isDark
+                          ? 'bg-[#1e232b]'
+                          : 'bg-blue-50/60'
+                        : t.tableRow
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <td
+                        className="w-10 px-3 py-3 text-center align-middle"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleSelect(f.id)
+                        }}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelect(f.id)}
+                          className={
+                            isDark
+                              ? '!border-[#3e4756] hover:!border-[#5a667b]'
+                              : '!border-gray-400 hover:!border-gray-500'
+                          }
+                        />
                       </td>
-                      <td className="py-3 px-4 text-xs font-mono font-medium">
-                        {f.paymentMethod ? (
-                          <span className={`px-2 py-0.5 rounded text-[10px] ${
-                            f.paymentMethod === 'STRIPE' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          }`}>
-                            {f.paymentMethod}
-                          </span>
-                        ) : '—'}
-                      </td>
-                      <td className={`py-3 px-4 text-xs ${t.subTextColor}`}>
-                        {f.paidAt ? f.paidAt.split('T')[0] : (f.waivedAt ? f.waivedAt.split('T')[0] : (f.createdAt ? f.createdAt.split('T')[0] : '—'))}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${
-                            f.status === 'PAID' ? t.statusActive : t.statusMuted
-                          }`}
-                        >
-                          {f.status}
+
+                      {/* Code */}
+                      <td className="w-36 px-4 py-3 align-middle text-left">
+                        <span className="font-mono text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:underline">
+                          {f.fineCode ? `#${f.fineCode}` : `#FN-${f.id}`}
                         </span>
                       </td>
+
+                      {/* Borrower */}
+                      <td className="w-52 px-4 py-3 align-middle text-left">
+                        <span className={`font-medium text-sm truncate block ${t.titleColor}`}>
+                          {f.userFullName || f.userEmail || `User #${f.userId}`}
+                        </span>
+                      </td>
+
+                      {/* Loan Code */}
+                      <td className="w-36 px-4 py-3 align-middle text-left">
+                        <span className="font-mono text-sm font-medium text-blue-600 dark:text-blue-400">
+                          {f.loanCode ? `#${f.loanCode}` : f.loanId ? `#LN-${f.loanId}` : '—'}
+                        </span>
+                      </td>
+
+                      {/* Reason */}
+                      <td className="px-4 py-3 align-middle text-left">
+                        <span className={`text-sm font-normal ${isDark ? 'text-[#cbd2de]' : 'text-gray-700'}`}>
+                          {formatReasonLabel(f.reason)}
+                        </span>
+                      </td>
+
+                      {/* Amount */}
+                      <td className="w-32 px-4 py-3 text-right align-middle">
+                        <span className={`font-mono text-sm font-medium ${t.titleColor}`}>
+                          ${Number(f.amount || 0).toFixed(2)}
+                        </span>
+                      </td>
+
+                      {/* Status (Badge without dot) */}
+                      <td className="w-28 px-4 py-3 text-center align-middle">
+                        <span
+                          className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusBadge(
+                            f.status
+                          )}`}
+                        >
+                          {f.status === 'PENDING'
+                            ? 'Pending'
+                            : f.status === 'PAID'
+                            ? 'Paid'
+                            : f.status === 'WAIVED'
+                            ? 'Waived'
+                            : f.status}
+                        </span>
+                      </td>
+
+                      {/* Date */}
+                      <td className={`w-32 px-4 py-3 text-right text-sm align-middle whitespace-nowrap ${t.subTextColor}`}>
+                        {formatDate(f.createdAt)}
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

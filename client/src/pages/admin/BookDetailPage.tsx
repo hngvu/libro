@@ -366,7 +366,7 @@ export function BookDetailPage() {
         return isDark
           ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
           : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-      case 'BORROWED':
+      case 'LOANED':
         return isDark
           ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
           : 'bg-blue-50 text-blue-700 border-blue-200'
@@ -823,7 +823,7 @@ export function BookDetailPage() {
                     value={copyStatusFilter}
                     options={[
                       { value: 'AVAILABLE', label: 'AVAILABLE' },
-                      { value: 'BORROWED', label: 'BORROWED' },
+                      { value: 'LOANED', label: 'LOANED' },
                       { value: 'MAINTENANCE', label: 'MAINTENANCE' },
                       { value: 'LOST', label: 'LOST' },
                       { value: 'RESERVED', label: 'RESERVED' },
@@ -1215,7 +1215,7 @@ export function BookDetailPage() {
                     <img
                       src={cleanCoverUrl(book.cover)}
                       alt={book.title}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover object-top"
                       onError={(e) => {
                         (e.target as HTMLElement).style.display = 'none'
                       }}

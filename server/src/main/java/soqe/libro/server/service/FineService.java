@@ -41,6 +41,7 @@ public class FineService {
 
     private final FineRepository repository;
     private final soqe.libro.server.repository.UserRepository userRepository;
+    private final SystemSettingService systemSettingService;
 
     @Value("${stripe.currency:usd}")
     private String stripeCurrency;
@@ -67,12 +68,15 @@ public class FineService {
             return null;
         }
 
+        BigDecimal currentDailyRate = systemSettingService.getBigDecimal("fine.daily_rate", dailyRate != null ? dailyRate : BigDecimal.valueOf(0.50));
+        BigDecimal currentLostFee = systemSettingService.getBigDecimal("fine.default_lost_fee", defaultLostFee != null ? defaultLostFee : BigDecimal.valueOf(20.00));
+
         if (returnDate.isAfter(loan.getDueDate())) {
             int daysOverdue = (int) ChronoUnit.DAYS.between(loan.getDueDate(), returnDate);
             if (daysOverdue > 0) {
-                BigDecimal calculated = dailyRate.multiply(BigDecimal.valueOf(daysOverdue));
+                BigDecimal calculated = currentDailyRate.multiply(BigDecimal.valueOf(daysOverdue));
                 // Apply cap (cannot exceed defaultLostFee)
-                BigDecimal amount = calculated.min(defaultLostFee);
+                BigDecimal amount = calculated.min(currentLostFee);
 
                 Fine fine = Fine.builder()
                         .fineCode(generateUniqueFineCode())
@@ -93,7 +97,8 @@ public class FineService {
 
     @Transactional
     public Fine createLostBookFine(Loan loan, BigDecimal customAmount) {
-        BigDecimal amount = customAmount != null ? customAmount : defaultLostFee;
+        BigDecimal currentLostFee = systemSettingService.getBigDecimal("fine.default_lost_fee", defaultLostFee != null ? defaultLostFee : BigDecimal.valueOf(20.00));
+        BigDecimal amount = customAmount != null ? customAmount : currentLostFee;
         Fine fine = Fine.builder()
                 .fineCode(generateUniqueFineCode())
                 .user(loan.getUser())
@@ -108,7 +113,8 @@ public class FineService {
 
     @Transactional
     public Fine createDamagedBookFine(Loan loan, BigDecimal customAmount, String note) {
-        BigDecimal amount = customAmount != null ? customAmount : defaultDamagedFee;
+        BigDecimal currentDamagedFee = systemSettingService.getBigDecimal("fine.default_damaged_fee", defaultDamagedFee != null ? defaultDamagedFee : BigDecimal.valueOf(10.00));
+        BigDecimal amount = customAmount != null ? customAmount : currentDamagedFee;
         Fine fine = Fine.builder()
                 .fineCode(generateUniqueFineCode())
                 .user(loan.getUser())

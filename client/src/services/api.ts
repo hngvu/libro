@@ -47,6 +47,8 @@ import type {
   ReservationResponse,
   ReservationStatus,
   ReservationCreateRequest,
+  SystemSettingResponse,
+  SystemSettingUpdateRequest,
 } from '@/types/api'
 
 const TOKEN_KEY = 'libro_jwt_token'
@@ -350,6 +352,7 @@ export const api = {
     userId?: number | number[]
     bookCopyId?: number | number[]
     isOverdue?: boolean
+    hasRenewals?: boolean
     page?: number
     size?: number
   } = {}): Promise<Page<LoanResponse>> {
@@ -359,6 +362,7 @@ export const api = {
     appendMultiParam(search, 'userId', params.userId)
     appendMultiParam(search, 'bookCopyId', params.bookCopyId)
     if (params.isOverdue !== undefined) search.set('isOverdue', String(params.isOverdue))
+    if (params.hasRenewals !== undefined) search.set('hasRenewals', String(params.hasRenewals))
     if (params.page !== undefined) search.set('page', String(params.page))
     if (params.size !== undefined) search.set('size', String(params.size))
 
@@ -826,6 +830,30 @@ export const api = {
   async adminProcessExpiredReservations(): Promise<{ message: string; expiredCount: number }> {
     return request<{ message: string; expiredCount: number }>('/admin/reservations/process-expired', {
       method: 'POST',
+    })
+  },
+
+  // System Settings
+  async adminGetSettings(): Promise<SystemSettingResponse[]> {
+    return request<SystemSettingResponse[]>('/admin/settings')
+  },
+
+  async adminGetSettingsByCategory(category: string): Promise<SystemSettingResponse[]> {
+    return request<SystemSettingResponse[]>(`/admin/settings/category/${encodeURIComponent(category)}`)
+  },
+
+  async adminUpdateSetting(key: string, value: string): Promise<SystemSettingResponse> {
+    const body: SystemSettingUpdateRequest = { settingValue: value }
+    return request<SystemSettingResponse>(`/admin/settings/${encodeURIComponent(key)}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    })
+  },
+
+  async adminBulkUpdateSettings(settings: Record<string, string>): Promise<SystemSettingResponse[]> {
+    return request<SystemSettingResponse[]>('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
     })
   },
 }

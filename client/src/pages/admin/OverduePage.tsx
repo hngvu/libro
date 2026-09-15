@@ -6,8 +6,6 @@ import {
   IconFilter2,
   IconChevronDown,
   IconArrowsUpDown,
-  IconAlertTriangle,
-  IconRefresh,
 } from '@tabler/icons-react'
 import {
   DropdownMenu,
@@ -182,28 +180,6 @@ export function OverduePage() {
 
   return (
     <div className="space-y-4">
-      {/* Priority Notice Banner */}
-      <div
-        className={`p-3.5 rounded-xl border flex items-start sm:items-center justify-between gap-3 ${
-          isDark ? 'bg-rose-500/10 border-rose-500/20 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-800'
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-rose-500/20 shrink-0">
-            <IconAlertTriangle size={20} className="text-rose-400" />
-          </div>
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider">Urgent Circulation Queue</h3>
-            <p className="text-[11px] opacity-90 mt-0.5">
-              These books have exceeded their due date. Fines accrue at {circulationSettings.finePerDayOverdue.toLocaleString('vi-VN')} VND per day past deadline.
-            </p>
-          </div>
-        </div>
-        <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-500/30 shrink-0">
-          {overdueLoans.length} Overdue
-        </span>
-      </div>
-
       {/* Search & Actions Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
         <div className="flex items-center gap-2 w-full sm:w-[60%]">
@@ -274,17 +250,6 @@ export function OverduePage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0 justify-end">
-          <button
-            onClick={fetchOverdueLoans}
-            disabled={loading}
-            className={`h-9 px-3 text-xs font-medium rounded-md border transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${t.secondaryBtn}`}
-          >
-            <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
         </div>
       </div>
 
@@ -487,7 +452,7 @@ export function OverduePage() {
                           e.stopPropagation()
                           navigate(`/admin/circulation/${l.id}`)
                         }}
-                        className="hover:underline text-blue-600 dark:text-blue-400 cursor-pointer"
+                        className="text-blue-600 dark:text-blue-400 cursor-pointer hover:text-blue-700 dark:hover:text-blue-300"
                       >
                         {l.loanCode}
                       </span>
@@ -502,7 +467,7 @@ export function OverduePage() {
                             navigate(`/admin/members/${l.userId}`)
                           }
                         }}
-                        className={`text-sm font-semibold truncate hover:underline hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer ${t.titleColor}`}
+                        className={`text-sm font-semibold truncate hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer ${t.titleColor}`}
                       >
                         {l.userFullName || `User #${l.userId}`}
                       </span>
@@ -517,29 +482,25 @@ export function OverduePage() {
                             navigate(`/admin/books/${l.bookId}`)
                           }
                         }}
-                        className={`text-sm font-medium truncate hover:underline hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer ${t.titleColor}`}
+                        className={`text-sm font-medium truncate hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer ${t.titleColor}`}
                       >
                         {l.bookTitle || `Book #${l.bookId || l.bookCopyId}`}
                       </span>
                     </td>
 
                     {/* Due Date */}
-                    <td className="py-3 px-4 text-xs font-mono text-rose-500 font-bold">
+                    <td className={`py-3 px-4 text-sm font-medium whitespace-nowrap ${t.titleColor}`}>
                       {formatDate(l.dueDate)}
                     </td>
 
                     {/* Days Overdue */}
-                    <td className="py-3 px-4">
-                      <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
-                        isDark ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-rose-50 text-rose-700 border-rose-200'
-                      }`}>
-                        +{days}d overdue
-                      </span>
+                    <td className={`py-3 px-4 text-sm font-medium whitespace-nowrap ${t.titleColor}`}>
+                      {days} {days === 1 ? 'day' : 'days'}
                     </td>
 
                     {/* Accrued Fine */}
-                    <td className="py-3 px-4 text-xs font-mono font-bold text-amber-500">
-                      {fine.toLocaleString('vi-VN')} VND
+                    <td className="py-3 px-4 text-sm font-medium whitespace-nowrap text-amber-500 font-mono">
+                      ${fine.toFixed(2)}
                     </td>
                   </tr>
                 )

@@ -44,6 +44,8 @@ interface AdminContextType {
   setMobileSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
   headerAction: React.ReactNode
   setHeaderAction: React.Dispatch<React.SetStateAction<React.ReactNode>>
+  headerTitle: React.ReactNode | null
+  setHeaderTitle: React.Dispatch<React.SetStateAction<React.ReactNode | null>>
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined)
@@ -55,12 +57,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [headerAction, setHeaderAction] = useState<React.ReactNode>(null)
+  const [headerTitle, setHeaderTitle] = useState<React.ReactNode | null>(null)
 
   const [circulationSettings, setCirculationSettings] = useState<CirculationSettings>({
     defaultLoanDays: 14,
     defaultRenewDays: 7,
     maxRenewalsAllowed: 2,
-    finePerDayOverdue: 5000,
+    finePerDayOverdue: 0.5,
   })
 
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -140,6 +143,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setMobileSidebarOpen,
     headerAction,
     setHeaderAction,
+    headerTitle,
+    setHeaderTitle,
   }), [
     themeMode,
     isDark,
@@ -151,6 +156,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     circulationSettings,
     mobileSidebarOpen,
     headerAction,
+    headerTitle,
   ])
 
   return (

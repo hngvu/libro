@@ -4,6 +4,7 @@ import lombok.Builder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Builder
 public record ReservationResponse(
@@ -17,6 +18,7 @@ public record ReservationResponse(
         String bookTitle,
         String bookHandle,
         String bookCover,
+        List<String> authors,
         Long bookCopyId,
         String barcode,
         String location,

@@ -353,7 +353,7 @@ export function BookCopiesPage() {
             value={statusFilter}
             options={[
               { value: 'AVAILABLE', label: 'AVAILABLE' },
-              { value: 'BORROWED', label: 'BORROWED' },
+              { value: 'LOANED', label: 'LOANED' },
               { value: 'MAINTENANCE', label: 'MAINTENANCE' },
               { value: 'LOST', label: 'LOST' },
               { value: 'RESERVED', label: 'RESERVED' },
@@ -533,7 +533,7 @@ export function BookCopiesPage() {
                       return isDark
                         ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                         : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    case 'BORROWED':
+                    case 'LOANED':
                       return isDark
                         ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                         : 'bg-blue-50 text-blue-700 border-blue-200'

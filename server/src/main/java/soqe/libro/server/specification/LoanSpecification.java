@@ -20,13 +20,15 @@ public class LoanSpecification {
             Loan.LoanStatus status,
             Long userId,
             Long bookCopyId,
-            Boolean isOverdue) {
+            Boolean isOverdue,
+            Boolean hasRenewals) {
         return filterMulti(
                 keyword,
                 status != null ? List.of(status) : null,
                 userId != null ? List.of(userId) : null,
                 bookCopyId != null ? List.of(bookCopyId) : null,
-                isOverdue
+                isOverdue,
+                hasRenewals
         );
     }
 
@@ -35,7 +37,8 @@ public class LoanSpecification {
             List<Loan.LoanStatus> statuses,
             List<Long> userIds,
             List<Long> bookCopyIds,
-            Boolean isOverdue) {
+            Boolean isOverdue,
+            Boolean hasRenewals) {
 
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -82,6 +85,10 @@ public class LoanSpecification {
             if (Boolean.TRUE.equals(isOverdue)) {
                 predicates.add(cb.equal(root.get("status"), Loan.LoanStatus.ONGOING));
                 predicates.add(cb.lessThan(root.get("dueDate"), LocalDate.now()));
+            }
+
+            if (Boolean.TRUE.equals(hasRenewals)) {
+                predicates.add(cb.greaterThan(root.get("renewalCount"), 0));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

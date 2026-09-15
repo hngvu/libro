@@ -902,7 +902,7 @@ export function AdminDashboard() {
                     ? isDark ? 'bg-[#1c222b] text-blue-300' : 'bg-gray-800 text-gray-200'
                     : isDark ? 'bg-[#16181d] text-[#8c94a5]' : 'bg-gray-100 text-gray-600'
                 }`}>
-                  {loans.filter(l => l.status === 'BORROWED').length}
+                  {loans.filter(l => l.status === 'ONGOING').length}
                 </span>
               </div>
             </button>
@@ -1066,7 +1066,7 @@ export function AdminDashboard() {
               {copies.length}
             </div>
             <p className={`text-[11px] mt-1 truncate ${t.subTextColor}`}>
-              {copies.filter((c) => c.status === 'AVAILABLE').length} shelf · {copies.filter((c) => c.status === 'BORROWED').length} out
+              {copies.filter((c) => c.status === 'AVAILABLE').length} shelf · {copies.filter((c) => c.status === 'LOANED').length} out
             </p>
             {/* Subtle mini bars SVG (reference style) */}
             <div className="mt-2 h-5 w-full flex items-end gap-1.5 opacity-40">
@@ -1082,7 +1082,7 @@ export function AdminDashboard() {
           <div
             onClick={() => {
               setActiveTab('loans')
-              setLoanStatus('BORROWED')
+              setLoanStatus('ONGOING')
             }}
             className={`p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${t.cardBg} ${t.cardHover} ${
               activeTab === 'loans' ? (isDark ? 'ring-2 ring-blue-500/50 bg-[#232934]' : 'ring-2 ring-blue-500/40 bg-blue-50/40 border-blue-200') : ''
@@ -1093,7 +1093,7 @@ export function AdminDashboard() {
               <IconClock size={17} className={t.mutedColor} />
             </div>
             <div className={`text-3xl font-sans font-bold tracking-tight ${t.titleColor}`}>
-              {loans.filter((l) => l.status === 'BORROWED').length}
+              {loans.filter((l) => l.status === 'ONGOING').length}
             </div>
             <p className={`text-[11px] mt-1 truncate ${t.subTextColor}`}>
               Circulating with patrons
@@ -1386,7 +1386,7 @@ export function AdminDashboard() {
                             <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${
                               c.status === 'AVAILABLE'
                                 ? t.statusActive
-                                : c.status === 'BORROWED'
+                                : c.status === 'LOANED'
                                 ? t.statusBorrowed
                                 : t.statusMuted
                             }`}>
@@ -1400,7 +1400,7 @@ export function AdminDashboard() {
                               className={`h-7 px-2 text-[11px] rounded-lg border outline-none cursor-pointer ${t.inputBg}`}
                             >
                               <option value="AVAILABLE">AVAILABLE</option>
-                              <option value="BORROWED">BORROWED</option>
+                              <option value="LOANED">LOANED</option>
                               <option value="MAINTENANCE">MAINTENANCE</option>
                               <option value="LOST">LOST</option>
                             </select>
@@ -1435,7 +1435,7 @@ export function AdminDashboard() {
                   className={`h-9 px-3 text-xs rounded-xl border outline-none cursor-pointer ${t.inputBg}`}
                 >
                   <option value="">All Statuses</option>
-                  <option value="BORROWED">Borrowed</option>
+                  <option value="ONGOING">Ongoing</option>
                   <option value="RETURNED">Returned</option>
                   <option value="OVERDUE">Overdue</option>
                 </select>
@@ -2264,10 +2264,10 @@ export function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={`text-[11px] ${t.subTextColor}`}>Overdue Fine/Day (VND)</label>
+                  <label className={`text-[11px] ${t.subTextColor}`}>Overdue Fine/Day ($ USD)</label>
                   <input
                     type="number"
-                    step={1000}
+                    step={0.10}
                     value={circulationSettings.finePerDayOverdue}
                     onChange={(e) =>
                       setCirculationSettings({

@@ -40,6 +40,12 @@ public class ReservationService {
     private final FineRepository fineRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
 
+    @Transactional(readOnly = true)
+    public boolean hasPendingReservations(Book book) {
+        return reservationRepository.countByBookAndStatus(book, Reservation.ReservationStatus.PENDING) > 0
+                || reservationRepository.countByBookAndStatus(book, Reservation.ReservationStatus.READY_FOR_PICKUP) > 0;
+    }
+
     @Transactional
     public ReservationResponse createReservation(String email, Long bookId, String bookHandle) {
         User user = userRepository.findByEmail(email)
@@ -448,6 +454,14 @@ public class ReservationService {
     }
 
     private ReservationResponse toResponse(Reservation r) {
+        var book = r.getBook();
+        List<String> authorNames = null;
+        if (book != null && book.getAuthors() != null) {
+            authorNames = book.getAuthors().stream()
+                    .map(Author::getName)
+                    .toList();
+        }
+
         return ReservationResponse.builder()
                 .id(r.getId())
                 .reservationCode(r.getReservationCode())
@@ -455,10 +469,11 @@ public class ReservationService {
                 .userEmail(r.getUser() != null ? r.getUser().getEmail() : null)
                 .userFullName(r.getUser() != null ? r.getUser().getFullName() : null)
                 .userPhone(r.getUser() != null ? r.getUser().getPhone() : null)
-                .bookId(r.getBook() != null ? r.getBook().getId() : null)
-                .bookTitle(r.getBook() != null ? r.getBook().getTitle() : null)
-                .bookHandle(r.getBook() != null ? r.getBook().getHandle() : null)
-                .bookCover(r.getBook() != null ? r.getBook().getCover() : null)
+                .bookId(book != null ? book.getId() : null)
+                .bookTitle(book != null ? book.getTitle() : null)
+                .bookHandle(book != null ? book.getHandle() : null)
+                .bookCover(book != null ? book.getCover() : null)
+                .authors(authorNames)
                 .bookCopyId(r.getBookCopy() != null ? r.getBookCopy().getId() : null)
                 .barcode(r.getBookCopy() != null ? r.getBookCopy().getBarcode() : null)
                 .location(r.getBookCopy() != null ? r.getBookCopy().getLocation() : null)

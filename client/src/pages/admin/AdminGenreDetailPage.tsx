@@ -255,7 +255,7 @@ export function AdminGenreDetailPage() {
                         <img
                           src={b.cover}
                           alt={b.title}
-                          className="w-9 h-12 object-cover rounded-[2px] border border-gray-300 dark:border-[#2c323e] shrink-0"
+                          className="w-9 h-12 object-cover object-top rounded-[2px] border border-gray-300 dark:border-[#2c323e] shrink-0"
                           onError={(e) => {
                             (e.target as HTMLElement).style.display = 'none'
                           }}

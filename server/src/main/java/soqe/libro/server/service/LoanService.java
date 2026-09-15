@@ -59,6 +59,7 @@ public class LoanService {
             Long userId,
             Long bookCopyId,
             Boolean isOverdue,
+            Boolean hasRenewals,
             Pageable pageable) {
         return searchLoansForAdminMulti(
                 keyword,
@@ -66,6 +67,7 @@ public class LoanService {
                 userId != null ? java.util.List.of(userId) : null,
                 bookCopyId != null ? java.util.List.of(bookCopyId) : null,
                 isOverdue,
+                hasRenewals,
                 pageable
         );
     }
@@ -77,30 +79,11 @@ public class LoanService {
             java.util.List<Long> userIds,
             java.util.List<Long> bookCopyIds,
             Boolean isOverdue,
+            Boolean hasRenewals,
             Pageable pageable) {
 
-        return repository.findAll(LoanSpecification.filterMulti(keyword, statuses, userIds, bookCopyIds, isOverdue), pageable)
-                .map(loan -> LoanResponse.builder()
-                        .id(loan.getId())
-                        .loanCode(loan.getLoanCode())
-                        .userId(loan.getUser() != null ? loan.getUser().getId() : null)
-                        .userEmail(loan.getUser() != null ? loan.getUser().getEmail() : null)
-                        .userFullName(loan.getUser() != null ? loan.getUser().getFullName() : null)
-                        .bookCopyId(loan.getBookCopy() != null ? loan.getBookCopy().getId() : null)
-                        .barcode(loan.getBookCopy() != null ? loan.getBookCopy().getBarcode() : null)
-                        .bookId(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getId() : null)
-                        .bookTitle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getTitle() : null)
-                        .bookHandle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getHandle() : null)
-                        .borrowDate(loan.getBorrowDate())
-                        .dueDate(loan.getDueDate())
-                        .returnDate(loan.getReturnDate())
-                        .status(loan.getStatus() != null ? loan.getStatus().name() : null)
-                        .renewalCount(loan.getRenewalCount())
-                        .createdAt(loan.getCreatedAt())
-                        .updatedAt(loan.getUpdatedAt())
-                        .createdBy(loan.getCreatedBy())
-                        .updatedBy(loan.getUpdatedBy())
-                        .build());
+        return repository.findAll(LoanSpecification.filterMulti(keyword, statuses, userIds, bookCopyIds, isOverdue, hasRenewals), pageable)
+                .map(this::toAdminResponse);
     }
 
     @Transactional(readOnly = true)
@@ -108,27 +91,7 @@ public class LoanService {
         Loan loan = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
 
-        return LoanResponse.builder()
-                .id(loan.getId())
-                .loanCode(loan.getLoanCode())
-                .userId(loan.getUser() != null ? loan.getUser().getId() : null)
-                .userEmail(loan.getUser() != null ? loan.getUser().getEmail() : null)
-                .userFullName(loan.getUser() != null ? loan.getUser().getFullName() : null)
-                .bookCopyId(loan.getBookCopy() != null ? loan.getBookCopy().getId() : null)
-                .barcode(loan.getBookCopy() != null ? loan.getBookCopy().getBarcode() : null)
-                .bookId(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getId() : null)
-                .bookTitle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getTitle() : null)
-                .bookHandle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getHandle() : null)
-                .borrowDate(loan.getBorrowDate())
-                .dueDate(loan.getDueDate())
-                .returnDate(loan.getReturnDate())
-                .status(loan.getStatus() != null ? loan.getStatus().name() : null)
-                .renewalCount(loan.getRenewalCount())
-                .createdAt(loan.getCreatedAt())
-                .updatedAt(loan.getUpdatedAt())
-                .createdBy(loan.getCreatedBy())
-                .updatedBy(loan.getUpdatedBy())
-                .build();
+        return toAdminResponse(loan);
     }
 
     @Transactional
@@ -252,27 +215,7 @@ public class LoanService {
 
         loan = repository.save(loan);
 
-        return LoanResponse.builder()
-                .id(loan.getId())
-                .loanCode(loan.getLoanCode())
-                .userId(user.getId())
-                .userEmail(user.getEmail())
-                .userFullName(user.getFullName())
-                .bookCopyId(copy.getId())
-                .barcode(copy.getBarcode())
-                .bookId(book != null ? book.getId() : null)
-                .bookTitle(book != null ? book.getTitle() : null)
-                .bookHandle(book != null ? book.getHandle() : null)
-                .borrowDate(loan.getBorrowDate())
-                .dueDate(loan.getDueDate())
-                .returnDate(loan.getReturnDate())
-                .status(loan.getStatus().name())
-                .renewalCount(loan.getRenewalCount())
-                .createdAt(loan.getCreatedAt())
-                .updatedAt(loan.getUpdatedAt())
-                .createdBy(loan.getCreatedBy())
-                .updatedBy(loan.getUpdatedBy())
-                .build();
+        return toAdminResponse(loan);
     }
 
     @Transactional
@@ -397,6 +340,13 @@ public class LoanService {
         int currentRenewals = loan.getRenewalCount() != null ? loan.getRenewalCount() : 0;
         if (currentRenewals >= maxRenewals) {
             throw new BusinessValidationException("Renew failed", Map.of("renewalCount", "Loan has reached the maximum renewal limit of " + maxRenewals + " times"));
+        }
+
+        // Block renewal if there are pending reservations for this book
+        if (loan.getBookCopy() != null && loan.getBookCopy().getBook() != null) {
+            if (reservationService.hasPendingReservations(loan.getBookCopy().getBook())) {
+                throw new BusinessValidationException("Renew failed", Map.of("reservation", "Cannot renew: other patrons have reserved this book. Please return it on time."));
+            }
         }
 
         if (req != null && req.newDueDate() != null) {
@@ -545,6 +495,13 @@ public class LoanService {
             throw new BusinessValidationException("Renew failed", Map.of("renewalCount", "You have reached the maximum renewal limit of " + maxRenewals + " times for this loan under your current membership plan"));
         }
 
+        // Block renewal if there are pending reservations for this book
+        if (loan.getBookCopy() != null && loan.getBookCopy().getBook() != null) {
+            if (reservationService.hasPendingReservations(loan.getBookCopy().getBook())) {
+                throw new BusinessValidationException("Renew failed", Map.of("reservation", "Cannot renew: other patrons have reserved this book. Please return it on time."));
+            }
+        }
+
         loan.setDueDate(loan.getDueDate().plusDays(STANDARD_RENEWAL_DAYS));
         loan.setRenewalCount(currentRenewals + 1);
         loan = repository.save(loan);
@@ -577,6 +534,14 @@ public class LoanService {
     }
 
     private LoanResponse toAdminResponse(Loan loan) {
+        var book = loan.getBookCopy() != null ? loan.getBookCopy().getBook() : null;
+        java.util.List<String> authorNames = null;
+        if (book != null && book.getAuthors() != null) {
+            authorNames = book.getAuthors().stream()
+                    .map(soqe.libro.server.entity.Author::getName)
+                    .toList();
+        }
+
         return LoanResponse.builder()
                 .id(loan.getId())
                 .loanCode(loan.getLoanCode())
@@ -585,9 +550,11 @@ public class LoanService {
                 .userFullName(loan.getUser() != null ? loan.getUser().getFullName() : null)
                 .bookCopyId(loan.getBookCopy() != null ? loan.getBookCopy().getId() : null)
                 .barcode(loan.getBookCopy() != null ? loan.getBookCopy().getBarcode() : null)
-                .bookId(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getId() : null)
-                .bookTitle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getTitle() : null)
-                .bookHandle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getHandle() : null)
+                .bookId(book != null ? book.getId() : null)
+                .bookTitle(book != null ? book.getTitle() : null)
+                .bookHandle(book != null ? book.getHandle() : null)
+                .bookCover(book != null ? book.getCover() : null)
+                .authors(authorNames)
                 .borrowDate(loan.getBorrowDate())
                 .dueDate(loan.getDueDate())
                 .returnDate(loan.getReturnDate())

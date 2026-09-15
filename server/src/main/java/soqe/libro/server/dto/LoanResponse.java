@@ -17,6 +17,8 @@ public record LoanResponse(
         Long bookId,
         String bookTitle,
         String bookHandle,
+        String bookCover,
+        java.util.List<String> authors,
         LocalDate borrowDate,
         LocalDate dueDate,
         LocalDate returnDate,

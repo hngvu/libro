@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   IconSettings,
@@ -8,9 +8,12 @@ import {
   IconExternalLink,
   IconCheck,
   IconDeviceFloppy,
+  IconLoader2,
+  IconRefresh,
 } from '@tabler/icons-react'
 import { useAuth } from '@/context/AuthContext'
 import { useAdmin } from '@/components/admin/AdminContext'
+import { api } from '@/services/api'
 
 export function SettingsPage() {
   const navigate = useNavigate()
@@ -24,12 +27,84 @@ export function SettingsPage() {
     showFeedback,
   } = useAdmin()
 
-  const [policiesForm, setPoliciesForm] = useState(circulationSettings)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const handleSavePolicies = (e: React.FormEvent) => {
+  const [policiesForm, setPoliciesForm] = useState({
+    'loan.default_days': String(circulationSettings.defaultLoanDays || 7),
+    'loan.standard_renewal_days': String(circulationSettings.defaultRenewDays || 14),
+    'reservation.default_hold_days': '3',
+    'fine.daily_rate': String(circulationSettings.finePerDayOverdue || 0.5),
+    'fine.default_lost_fee': '20.00',
+    'fine.default_damaged_fee': '10.00',
+    maxRenewalsAllowed: String(circulationSettings.maxRenewalsAllowed || 2),
+  })
+
+  const fetchSettings = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await api.adminGetSettings()
+      const map: Record<string, string> = {}
+      data.forEach((item) => {
+        map[item.settingKey] = item.settingValue
+      })
+
+      setPoliciesForm((prev) => ({
+        ...prev,
+        'loan.default_days': map['loan.default_days'] ?? prev['loan.default_days'],
+        'loan.standard_renewal_days': map['loan.standard_renewal_days'] ?? prev['loan.standard_renewal_days'],
+        'reservation.default_hold_days': map['reservation.default_hold_days'] ?? prev['reservation.default_hold_days'],
+        'fine.daily_rate': map['fine.daily_rate'] ?? prev['fine.daily_rate'],
+        'fine.default_lost_fee': map['fine.default_lost_fee'] ?? prev['fine.default_lost_fee'],
+        'fine.default_damaged_fee': map['fine.default_damaged_fee'] ?? prev['fine.default_damaged_fee'],
+      }))
+
+      setCirculationSettings((prev) => ({
+        ...prev,
+        defaultLoanDays: Number(map['loan.default_days']) || prev.defaultLoanDays,
+        defaultRenewDays: Number(map['loan.standard_renewal_days']) || prev.defaultRenewDays,
+        finePerDayOverdue: Number(map['fine.daily_rate']) || prev.finePerDayOverdue,
+      }))
+    } catch (err: any) {
+      showFeedback('error', err?.message || 'Không thể tải cài đặt hệ thống từ máy chủ')
+    } finally {
+      setLoading(false)
+    }
+  }, [setCirculationSettings, showFeedback])
+
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+  const handleSavePolicies = async (e: React.FormEvent) => {
     e.preventDefault()
-    setCirculationSettings(policiesForm)
-    showFeedback('success', 'Circulation lending policies updated successfully!')
+    try {
+      setSaving(true)
+      const payload: Record<string, string> = {
+        'loan.default_days': policiesForm['loan.default_days'],
+        'loan.standard_renewal_days': policiesForm['loan.standard_renewal_days'],
+        'reservation.default_hold_days': policiesForm['reservation.default_hold_days'],
+        'fine.daily_rate': policiesForm['fine.daily_rate'],
+        'fine.default_lost_fee': policiesForm['fine.default_lost_fee'],
+        'fine.default_damaged_fee': policiesForm['fine.default_damaged_fee'],
+      }
+
+      await api.adminBulkUpdateSettings(payload)
+
+      setCirculationSettings((prev) => ({
+        ...prev,
+        defaultLoanDays: Number(policiesForm['loan.default_days']) || prev.defaultLoanDays,
+        defaultRenewDays: Number(policiesForm['loan.standard_renewal_days']) || prev.defaultRenewDays,
+        maxRenewalsAllowed: Number(policiesForm.maxRenewalsAllowed) || prev.maxRenewalsAllowed,
+        finePerDayOverdue: Number(policiesForm['fine.daily_rate']) || prev.finePerDayOverdue,
+      }))
+
+      showFeedback('success', 'Đã lưu cấu hình chính sách lưu thông & tiền phạt vào cơ sở dữ liệu!')
+    } catch (err: any) {
+      showFeedback('error', err?.message || 'Lỗi khi lưu cấu hình chính sách vào cơ sở dữ liệu')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -113,111 +188,217 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* 2. Quy định mượn trả (Circulation Policies) */}
+      {/* 2. Quy định lưu thông & Tiền phạt (Circulation, Reservation & Fines Policies) */}
       <div className={`p-5 rounded-2xl border ${t.cardBg}`}>
-        <div className="pb-3 border-b border-inherit">
-          <h3 className={`text-sm font-bold font-sans ${t.titleColor}`}>Quy định lưu thông & Mượn trả</h3>
-          <p className={`text-xs mt-0.5 ${t.subTextColor}`}>
-            Cấu hình thời hạn mượn mặc định, giới hạn lượt gia hạn và mức phí phạt trễ hạn mỗi ngày.
-          </p>
+        <div className="flex items-center justify-between pb-3 border-b border-inherit">
+          <div>
+            <h3 className={`text-sm font-bold font-sans ${t.titleColor}`}>Quy định lưu thông, Đặt trước & Tiền phạt</h3>
+            <p className={`text-xs mt-0.5 ${t.subTextColor}`}>
+              Cấu hình các tham số vận hành cốt lõi: thời hạn mượn, gia hạn, giữ chỗ đặt trước và các mức phí phạt vi phạm.
+            </p>
+          </div>
+          {loading && (
+            <div className="flex items-center gap-1.5 text-xs text-blue-500 font-medium">
+              <IconLoader2 size={16} className="animate-spin" />
+              <span>Đang đồng bộ...</span>
+            </div>
+          )}
         </div>
 
-        <form onSubmit={handleSavePolicies} className="space-y-4 pt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className={`text-xs font-medium block mb-1.5 ${t.subTextColor}`}>
-                Thời hạn mượn mặc định (Ngày)
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={90}
-                value={policiesForm.defaultLoanDays}
-                onChange={(e) =>
-                  setPoliciesForm({
-                    ...policiesForm,
-                    defaultLoanDays: Math.max(1, Number(e.target.value) || 1),
-                  })
-                }
-                className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
-              />
-              <span className={`text-[11px] mt-1 block ${t.mutedColor}`}>
-                Khoảng thời gian tối đa độc giả được giữ sách trước ngày đáo hạn.
-              </span>
-            </div>
+        <form onSubmit={handleSavePolicies} className="space-y-6 pt-4">
+          {/* Subgroup A: Mượn trả & Đặt trước */}
+          <div>
+            <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${t.mutedColor}`}>
+              Chính sách Lưu thông & Đặt trước
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div>
+                <label className={`text-xs font-medium block mb-1.5 ${t.subTextColor}`}>
+                  Thời hạn mượn mặc định (Ngày)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={90}
+                  required
+                  value={policiesForm['loan.default_days']}
+                  onChange={(e) =>
+                    setPoliciesForm({
+                      ...policiesForm,
+                      'loan.default_days': e.target.value,
+                    })
+                  }
+                  className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+                />
+                <span className={`text-[11px] mt-1 block ${t.mutedColor}`}>
+                  Khoảng thời gian độc giả mượn sách trước ngày đáo hạn (loan.default_days).
+                </span>
+              </div>
 
-            <div>
-              <label className={`text-xs font-medium block mb-1.5 ${t.subTextColor}`}>
-                Số ngày gia hạn mỗi lần (Ngày)
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={30}
-                value={policiesForm.defaultRenewDays}
-                onChange={(e) =>
-                  setPoliciesForm({
-                    ...policiesForm,
-                    defaultRenewDays: Math.max(1, Number(e.target.value) || 1),
-                  })
-                }
-                className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
-              />
-              <span className={`text-[11px] mt-1 block ${t.mutedColor}`}>
-                Số ngày được cộng thêm khi thủ thư phê duyệt gia hạn phiếu mượn.
-              </span>
-            </div>
+              <div>
+                <label className={`text-xs font-medium block mb-1.5 ${t.subTextColor}`}>
+                  Số ngày gia hạn mỗi lần (Ngày)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  required
+                  value={policiesForm['loan.standard_renewal_days']}
+                  onChange={(e) =>
+                    setPoliciesForm({
+                      ...policiesForm,
+                      'loan.standard_renewal_days': e.target.value,
+                    })
+                  }
+                  className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+                />
+                <span className={`text-[11px] mt-1 block ${t.mutedColor}`}>
+                  Số ngày cộng thêm khi thực hiện gia hạn phiếu mượn (loan.standard_renewal_days).
+                </span>
+              </div>
 
-            <div>
-              <label className={`text-xs font-medium block mb-1.5 ${t.subTextColor}`}>
-                Số lần gia hạn tối đa cho phép
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={10}
-                value={policiesForm.maxRenewalsAllowed}
-                onChange={(e) =>
-                  setPoliciesForm({
-                    ...policiesForm,
-                    maxRenewalsAllowed: Math.max(0, Number(e.target.value) || 0),
-                  })
-                }
-                className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
-              />
-              <span className={`text-[11px] mt-1 block ${t.mutedColor}`}>
-                Giới hạn lượt gia hạn tối đa trước khi độc giả bắt buộc phải trả sách.
-              </span>
-            </div>
+              <div>
+                <label className={`text-xs font-medium block mb-1.5 ${t.subTextColor}`}>
+                  Thời gian giữ sách đặt trước (Ngày)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  required
+                  value={policiesForm['reservation.default_hold_days']}
+                  onChange={(e) =>
+                    setPoliciesForm({
+                      ...policiesForm,
+                      'reservation.default_hold_days': e.target.value,
+                    })
+                  }
+                  className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+                />
+                <span className={`text-[11px] mt-1 block ${t.mutedColor}`}>
+                  Thời gian giữ sách tại quầy chờ độc giả đến nhận (reservation.default_hold_days).
+                </span>
+              </div>
 
-            <div>
-              <label className={`text-xs font-medium block mb-1.5 ${t.subTextColor}`}>
-                Mức phạt trễ hạn mỗi ngày (VND)
-              </label>
-              <input
-                type="number"
-                step={1000}
-                value={policiesForm.finePerDayOverdue}
-                onChange={(e) =>
-                  setPoliciesForm({
-                    ...policiesForm,
-                    finePerDayOverdue: Math.max(0, Number(e.target.value) || 0),
-                  })
-                }
-                className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
-              />
-              <span className={`text-[11px] mt-1 block ${t.mutedColor}`}>
-                Mức tiền phạt tự động tích lũy cho mỗi ngày quá hạn trả sách.
-              </span>
+              <div>
+                <label className={`text-xs font-medium block mb-1.5 ${t.subTextColor}`}>
+                  Số lần gia hạn tối đa cho phép
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={10}
+                  value={policiesForm.maxRenewalsAllowed}
+                  onChange={(e) =>
+                    setPoliciesForm({
+                      ...policiesForm,
+                      maxRenewalsAllowed: e.target.value,
+                    })
+                  }
+                  className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+                />
+                <span className={`text-[11px] mt-1 block ${t.mutedColor}`}>
+                  Giới hạn lượt gia hạn tối đa trước khi độc giả bắt buộc phải trả sách.
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-end pt-2">
+          {/* Subgroup B: Tiền phạt & Bồi thường */}
+          <div>
+            <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${t.mutedColor}`}>
+              Chính sách Tiền phạt & Bồi thường
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className={`text-xs font-medium block mb-1.5 ${t.subTextColor}`}>
+                  Mức phạt trễ hạn mỗi ngày ($)
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  min={0}
+                  required
+                  value={policiesForm['fine.daily_rate']}
+                  onChange={(e) =>
+                    setPoliciesForm({
+                      ...policiesForm,
+                      'fine.daily_rate': e.target.value,
+                    })
+                  }
+                  className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+                />
+                <span className={`text-[11px] mt-1 block ${t.mutedColor}`}>
+                  Tiền phạt tự động tích lũy cho mỗi ngày trễ hạn (fine.daily_rate).
+                </span>
+              </div>
+
+              <div>
+                <label className={`text-xs font-medium block mb-1.5 ${t.subTextColor}`}>
+                  Phí bồi thường mất sách ($)
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  min={0}
+                  required
+                  value={policiesForm['fine.default_lost_fee']}
+                  onChange={(e) =>
+                    setPoliciesForm({
+                      ...policiesForm,
+                      'fine.default_lost_fee': e.target.value,
+                    })
+                  }
+                  className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+                />
+                <span className={`text-[11px] mt-1 block ${t.mutedColor}`}>
+                  Mức bồi thường mặc định khi mất sách (fine.default_lost_fee).
+                </span>
+              </div>
+
+              <div>
+                <label className={`text-xs font-medium block mb-1.5 ${t.subTextColor}`}>
+                  Phí bồi thường làm hỏng sách ($)
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  min={0}
+                  required
+                  value={policiesForm['fine.default_damaged_fee']}
+                  onChange={(e) =>
+                    setPoliciesForm({
+                      ...policiesForm,
+                      'fine.default_damaged_fee': e.target.value,
+                    })
+                  }
+                  className={`w-full h-9 px-3 rounded-xl text-xs border outline-none transition ${t.inputBg}`}
+                />
+                <span className={`text-[11px] mt-1 block ${t.mutedColor}`}>
+                  Mức bồi thường mặc định khi hỏng sách (fine.default_damaged_fee).
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-inherit">
+            <button
+              type="button"
+              onClick={fetchSettings}
+              disabled={loading || saving}
+              className={`px-3 py-1.5 text-xs font-medium rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${t.secondaryBtn} disabled:opacity-50`}
+            >
+              <IconRefresh size={14} className={loading ? 'animate-spin' : ''} /> Tải lại từ CSDL
+            </button>
+
             <button
               type="submit"
-              className={`px-4 py-2 text-xs font-medium rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${t.primaryBtn}`}
+              disabled={loading || saving}
+              className={`px-4 py-2 text-xs font-medium rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${t.primaryBtn} disabled:opacity-50`}
             >
-              <IconDeviceFloppy size={16} /> Lưu cấu hình mượn trả
+              {saving ? <IconLoader2 size={16} className="animate-spin" /> : <IconDeviceFloppy size={16} />}
+              <span>{saving ? 'Đang lưu vào CSDL...' : 'Lưu cấu hình chính sách'}</span>
             </button>
           </div>
         </form>

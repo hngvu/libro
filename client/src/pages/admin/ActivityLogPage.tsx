@@ -46,7 +46,7 @@ const INITIAL_LOGS: ActivityLogItem[] = [
     operator: 'lucia@libro.com',
     action: 'FINE_COLLECTED',
     entityType: 'FINE',
-    detail: 'Collected 20,000 VND overdue fee for ticket FINE-2026-001',
+    detail: 'Collected $2.00 overdue fee for ticket FINE-2026-001',
     ipAddress: '192.168.1.15',
   },
   {

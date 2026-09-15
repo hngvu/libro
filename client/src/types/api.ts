@@ -18,8 +18,8 @@ export interface Page<T> {
 
 export type BookFormat = 'PAPERBACK' | 'HARDCOVER' | 'EBOOK' | 'AUDIOBOOK'
 export type BookStatus = 'ACTIVE' | 'ARCHIVED' | 'HIDDEN'
-export type BookCopyStatus = 'AVAILABLE' | 'BORROWED' | 'MAINTENANCE' | 'LOST' | 'RESERVED'
-export type LoanStatus = 'ONGOING' | 'BORROWED' | 'RETURNED' | 'OVERDUE' | 'CANCELLED'
+export type BookCopyStatus = 'AVAILABLE' | 'LOANED' | 'MAINTENANCE' | 'LOST' | 'RESERVED' | 'DAMAGED' | 'ARCHIVED'
+export type LoanStatus = 'ONGOING' | 'RETURNED' | 'OVERDUE' | 'CANCELLED'
 export type UserRole = 'ADMIN' | 'LIBRARIAN' | 'MEMBER'
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'BANNED'
 
@@ -106,6 +106,8 @@ export interface LoanResponse {
   bookId: number
   bookTitle: string
   bookHandle: string
+  bookCover?: string | null
+  authors?: string[]
   borrowDate: string
   dueDate: string
   returnDate: string | null
@@ -493,6 +495,7 @@ export interface ReservationResponse {
   bookTitle?: string
   bookHandle?: string
   bookCover?: string
+  authors?: string[]
   bookCopyId?: number
   barcode?: string
   location?: string
@@ -509,6 +512,21 @@ export interface ReservationResponse {
 export interface ReservationCreateRequest {
   bookId?: number
   bookHandle?: string
+}
+
+export interface SystemSettingResponse {
+  id: number
+  settingKey: string
+  settingValue: string
+  description: string
+  category: string
+  dataType: 'STRING' | 'NUMBER' | 'BOOLEAN' | 'JSON'
+  updatedAt?: string
+  updatedBy?: string
+}
+
+export interface SystemSettingUpdateRequest {
+  settingValue: string
 }
 
 

@@ -184,7 +184,7 @@ export function DashboardPage() {
 
         {/* KPI 2: Overdue Loans */}
         <div
-          onClick={() => navigate('/admin/overdue')}
+          onClick={() => navigate('/admin/circulation/overdue')}
           className={`p-5 rounded-xl border transition-all cursor-pointer relative ${t.cardBg} ${t.cardHover}`}
         >
           <div className="flex items-center justify-between mb-2">
@@ -614,7 +614,7 @@ export function DashboardPage() {
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-right">
-                        {l.status === 'BORROWED' || l.status === 'OVERDUE' ? (
+                        {l.status === 'ONGOING' || l.status === 'OVERDUE' ? (
                           <button
                             type="button"
                             onClick={() => handleReturnLoan(l.id)}
@@ -649,7 +649,7 @@ export function DashboardPage() {
               <div className="space-y-3">
                 {(alerts.severeOverdues?.length ?? 0) > 0 && (
                   <div
-                    onClick={() => navigate('/admin/overdue')}
+                    onClick={() => navigate('/admin/circulation/overdue')}
                     className="p-3 rounded-lg border border-rose-200 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-950/20 cursor-pointer"
                   >
                     <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">

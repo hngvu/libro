@@ -4,11 +4,12 @@ import { IconMenu2, IconX } from '@tabler/icons-react'
 import { useAdmin } from './AdminContext'
 
 export function AdminHeader() {
-  const { t, mobileSidebarOpen, setMobileSidebarOpen, headerAction } = useAdmin()
+  const { t, mobileSidebarOpen, setMobileSidebarOpen, headerAction, headerTitle } = useAdmin()
   const location = useLocation()
 
   // Get Page Title based on Route
   const getPageTitle = () => {
+    if (headerTitle) return headerTitle
     const path = location.pathname
     if (path === '/admin') return 'Dashboard'
     if (path === '/admin/books') return 'Catalog'
@@ -20,17 +21,23 @@ export function AdminHeader() {
     if (path === '/admin/authors') return 'Authors'
     if (path === '/admin/genres/new') return 'New Genre'
     if (path.startsWith('/admin/genres/')) return 'Edit Genre'
-    if (path === '/admin/genres') return 'Genres'
-    if (path.startsWith('/admin/circulation/')) return 'Loan Details'
-    if (path === '/admin/circulation') return 'Desk'
-    if (path === '/admin/overdue') return 'Overdue'
+    if (path.startsWith('/admin/circulation/reservations/')) return 'Reservation'
+    if (path === '/admin/circulation/reservations' || path === '/admin/reservations') return 'Reservations'
+    if (path === '/admin/circulation/overdue' || path === '/admin/overdue') return 'Overdue'
+    if (path === '/admin/circulation/renewals' || path === '/admin/renewals') return 'Renewals'
+    if (path === '/admin/circulation/desk' || path === '/admin/circulation') return 'Circulation'
+    if (path.startsWith('/admin/circulation/')) return 'Circulation'
+    if (path.startsWith('/admin/reservations/')) return 'Reservation'
     if (path === '/admin/reservations') return 'Reservations'
     if (path === '/admin/membership/plans/new' || path === '/admin/subscriptions/plans/new' || path === '/admin/membership-plans/new') return 'New Plan'
     if (path.startsWith('/admin/membership/plans/') || path.startsWith('/admin/subscriptions/plans/') || path.startsWith('/admin/membership-plans/')) return 'Edit Plan'
     if (path === '/admin/membership/plans' || path === '/admin/subscriptions/plans' || path === '/admin/membership-plans') return 'Plans'
     if (path === '/admin/membership/subscriptions' || path === '/admin/subscriptions/history' || path === '/admin/user-subscriptions') return 'Subscriptions'
+    if (path.startsWith('/admin/members/')) return 'Member'
     if (path === '/admin/members') return 'Members'
-    if (path === '/admin/fines') return 'Fines'
+    if (path.startsWith('/admin/fines/penalties/') || (/^\/admin\/fines\/\d+/.test(path))) return 'Penalty Detail'
+    if (path === '/admin/fines/penalties') return 'Penalties'
+    if (path === '/admin/fines' || path === '/admin/fines/fees' || path === '/admin/fines/dues' || path === '/admin/fines/settings' || path === '/admin/fines/config') return 'Fees'
     if (path === '/admin/reports') return 'Reports'
     if (path === '/admin/staff-settings') return 'Staff'
     if (path === '/admin/activity-log') return 'Logs'

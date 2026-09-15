@@ -1,5 +1,5 @@
 import React from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useAdmin } from './AdminContext'
 
 interface SidebarNavItemProps {
@@ -11,6 +11,7 @@ interface SidebarNavItemProps {
   isOverdueAlert?: boolean
   end?: boolean
   disableActive?: boolean
+  isActiveMatch?: (pathname: string) => boolean
 }
 
 export function SidebarNavItem({
@@ -22,8 +23,10 @@ export function SidebarNavItem({
   isOverdueAlert = false,
   end = false,
   disableActive = false,
+  isActiveMatch,
 }: SidebarNavItemProps) {
   const { isDark, setMobileSidebarOpen } = useAdmin()
+  const location = useLocation()
 
   // Always use end for root /admin so it doesn't match all /admin/* subroutes
   const shouldEnd = end || to === '/admin'
@@ -34,7 +37,10 @@ export function SidebarNavItem({
       end={shouldEnd}
       onClick={() => setMobileSidebarOpen(false)}
       className={({ isActive: navActive }) => {
-        const isActive = disableActive ? false : navActive
+        let isActive = disableActive ? false : navActive
+        if (isActiveMatch && !disableActive) {
+          isActive = isActiveMatch(location.pathname)
+        }
         return `flex items-center justify-between rounded-xl transition-colors duration-150 cursor-pointer group ${
           isSubItem ? 'px-3 py-1.5 ml-3.5 text-[13px]' : 'px-3 py-2 text-[13.5px]'
         } ${

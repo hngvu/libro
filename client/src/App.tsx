@@ -27,13 +27,17 @@ import { GenreDetailPage } from '@/pages/catalog/GenreDetailPage'
 import { CirculationDeskPage } from '@/pages/admin/CirculationDeskPage'
 import { AdminCirculationDetailPage } from '@/pages/admin/AdminCirculationDetailPage'
 import { OverduePage } from '@/pages/admin/OverduePage'
+import { RenewalsPage } from '@/pages/admin/RenewalsPage'
 import { ReservationsPage } from '@/pages/admin/ReservationsPage'
+import { AdminReservationDetailPage } from '@/pages/admin/AdminReservationDetailPage'
 import { MemberListPage } from '@/pages/admin/MemberListPage'
 import { AdminMemberDetailPage } from '@/pages/admin/AdminMemberDetailPage'
 import { MembershipPlansPage } from '@/pages/admin/MembershipPlansPage'
 import { AdminPlanDetailPage } from '@/pages/admin/AdminPlanDetailPage'
 import { UserSubscriptionsPage } from '@/pages/admin/UserSubscriptionsPage'
 import { FinesPage } from '@/pages/admin/FinesPage'
+import { AdminFineDetailPage } from '@/pages/admin/AdminFineDetailPage'
+import { AdminFineSettingsPage } from '@/pages/admin/AdminFineSettingsPage'
 import { ReportsPage } from '@/pages/admin/ReportsPage'
 import { StaffSettingsPage } from '@/pages/admin/StaffSettingsPage'
 import { ActivityLogPage } from '@/pages/admin/ActivityLogPage'
@@ -189,10 +193,18 @@ function AppContent() {
             <Route path="authors/:id" element={<AdminAuthorDetailPage />} />
             <Route path="genres" element={<AdminGenresPage />} />
             <Route path="genres/:id" element={<AdminGenreDetailPage />} />
+            {/* Circulation Group */}
             <Route path="circulation" element={<CirculationDeskPage />} />
+            <Route path="circulation/desk" element={<CirculationDeskPage />} />
+            <Route path="circulation/overdue" element={<OverduePage />} />
+            <Route path="circulation/renewals" element={<RenewalsPage />} />
+            <Route path="circulation/reservations" element={<ReservationsPage />} />
+            <Route path="circulation/reservations/:id" element={<AdminReservationDetailPage />} />
             <Route path="circulation/:id" element={<AdminCirculationDetailPage />} />
-            <Route path="overdue" element={<OverduePage />} />
-            <Route path="reservations" element={<ReservationsPage />} />
+            <Route path="overdue" element={<Navigate to="/admin/circulation/overdue" replace />} />
+            <Route path="renewals" element={<Navigate to="/admin/circulation/renewals" replace />} />
+            <Route path="reservations" element={<Navigate to="/admin/circulation/reservations" replace />} />
+            <Route path="reservations/:id" element={<AdminReservationDetailPage />} />
             <Route path="members" element={<MemberListPage />} />
             <Route path="members/:id" element={<AdminMemberDetailPage />} />
             <Route path="membership" element={<Navigate to="plans" replace />} />
@@ -205,8 +217,15 @@ function AppContent() {
             <Route path="subscriptions/history" element={<Navigate to="/admin/membership/subscriptions" replace />} />
             <Route path="membership-plans" element={<Navigate to="/admin/membership/plans" replace />} />
             <Route path="membership-plans/:id" element={<Navigate to="/admin/membership/plans" replace />} />
-            <Route path="user-subscriptions" element={<Navigate to="/admin/membership/subscriptions" replace />} />
-            <Route path="fines" element={<FinesPage />} />
+            {/* Fines Group */}
+            <Route path="fines" element={<Navigate to="/admin/fines/fees" replace />} />
+            <Route path="fines/fees" element={<AdminFineSettingsPage />} />
+            <Route path="fines/dues" element={<Navigate to="/admin/fines/fees" replace />} />
+            <Route path="fines/settings" element={<Navigate to="/admin/fines/fees" replace />} />
+            <Route path="fines/config" element={<Navigate to="/admin/fines/fees" replace />} />
+            <Route path="fines/penalties" element={<FinesPage />} />
+            <Route path="fines/penalties/:id" element={<AdminFineDetailPage />} />
+            <Route path="fines/:id" element={<AdminFineDetailPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="staff-settings" element={<StaffSettingsPage />} />
             <Route path="activity-log" element={<ActivityLogPage />} />

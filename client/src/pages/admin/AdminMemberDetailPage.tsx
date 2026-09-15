@@ -28,6 +28,11 @@ function formatDate(dateStr?: string) {
   return dateStr
 }
 
+function formatLoanStatus(status?: string) {
+  if (!status) return '—'
+  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+}
+
 export function AdminMemberDetailPage() {
   const { id } = useParams<{ id: string }>()
   const userId = Number(id)
@@ -203,7 +208,7 @@ export function AdminMemberDetailPage() {
 
   const stats = useMemo(() => {
     const total = loans.length
-    const borrowed = loans.filter((l) => l.status === 'BORROWED').length
+    const borrowed = loans.filter((l) => l.status === 'ONGOING').length
     const overdue = loans.filter((l) => l.status === 'OVERDUE').length
     const returned = loans.filter((l) => l.status === 'RETURNED').length
     return { total, borrowed, overdue, returned }
@@ -437,8 +442,8 @@ export function AdminMemberDetailPage() {
                         </td>
                         <td className="py-2.5 px-3">
                           <span
-                            className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded border uppercase ${
-                              l.status === 'BORROWED'
+                            className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded border ${
+                              l.status === 'ONGOING'
                                 ? isDark
                                   ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                                   : 'bg-blue-50 text-blue-700 border-blue-200'
@@ -451,7 +456,7 @@ export function AdminMemberDetailPage() {
                                 : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             }`}
                           >
-                            {l.status}
+                            {formatLoanStatus(l.status)}
                           </span>
                         </td>
                       </tr>

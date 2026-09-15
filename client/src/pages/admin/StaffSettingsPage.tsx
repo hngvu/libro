@@ -276,10 +276,10 @@ export function StaffSettingsPage() {
               </div>
 
               <div>
-                <label className={`text-xs font-medium block mb-1 ${t.subTextColor}`}>Overdue Fine/Day (VND)</label>
+                <label className={`text-xs font-medium block mb-1 ${t.subTextColor}`}>Overdue Fine/Day ($ USD)</label>
                 <input
                   type="number"
-                  step={1000}
+                  step={0.10}
                   value={policiesForm.finePerDayOverdue}
                   onChange={(e) =>
                     setPoliciesForm({
