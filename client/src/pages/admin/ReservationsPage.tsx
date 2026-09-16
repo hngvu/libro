@@ -186,7 +186,7 @@ export function ReservationsPage() {
       case 'PENDING':
         return isDark
           ? 'bg-amber-950/60 text-amber-400 border-amber-800/60'
-          : 'bg-amber-50 text-amber-700 border-amber-200'
+          : 'bg-[#fff8eb] text-[#b46b00] border-[#f2be54]'
       case 'FULFILLED':
         return isDark
           ? 'bg-blue-950/60 text-blue-400 border-blue-800/60'

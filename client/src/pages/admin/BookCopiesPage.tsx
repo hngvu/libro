@@ -540,7 +540,7 @@ export function BookCopiesPage() {
                     case 'MAINTENANCE':
                       return isDark
                         ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                        : 'bg-amber-50 text-amber-700 border-amber-200'
+                        : 'bg-[#fff8eb] text-[#b46b00] border-[#f2be54]'
                     case 'LOST':
                       return isDark
                         ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'

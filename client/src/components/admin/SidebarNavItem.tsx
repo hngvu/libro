@@ -41,40 +41,64 @@ export function SidebarNavItem({
         if (isActiveMatch && !disableActive) {
           isActive = isActiveMatch(location.pathname)
         }
-        return `flex items-center justify-between rounded-xl transition-colors duration-150 cursor-pointer group ${
-          isSubItem ? 'px-3 py-1.5 ml-3.5 text-[13px]' : 'px-3 py-2 text-[13.5px]'
+        return `flex items-center justify-between rounded-lg transition-colors duration-150 cursor-pointer group outline-none select-none border ${
+          isSubItem ? 'pl-8 pr-3 py-1.5 text-[13px]' : 'px-3 py-2 text-[13.5px]'
         } ${
           isActive
             ? isDark
-              ? 'bg-[#2b2f35] text-white font-semibold shadow-xs hover:bg-[#343a44]'
-              : 'bg-gray-100 text-gray-950 font-semibold border border-gray-200/90 shadow-xs hover:bg-gray-200/70'
+              ? 'bg-[#2b2f35] text-white font-semibold border-transparent shadow-xs hover:bg-[#343a44]'
+              : 'bg-white text-[#212b36] font-semibold border-[#dce0e5] shadow-[0_1px_2px_rgba(0,0,0,0.05)]'
             : isDark
-            ? 'text-[#8c94a5] hover:text-white hover:bg-[#1f2228]'
-            : 'text-gray-600 hover:text-gray-950 hover:bg-gray-100'
+            ? 'text-[#8c94a5] font-medium border-transparent hover:text-white hover:bg-[#1f2228]'
+            : 'text-[#4b5563] font-medium border-transparent hover:text-[#212b36] hover:bg-[#dfe2e6]/70'
         }`
       }}
     >
-      <div className="flex items-center gap-2.5 truncate">
-        {icon && <span className="shrink-0">{icon}</span>}
-        <span className="truncate">{label}</span>
-      </div>
+      {({ isActive: navActive }) => {
+        let isActive = disableActive ? false : navActive
+        if (isActiveMatch && !disableActive) {
+          isActive = isActiveMatch(location.pathname)
+        }
+        return (
+          <>
+            <div className="flex items-center gap-2.5 truncate">
+              {icon && (
+                <span
+                  className={`shrink-0 transition-colors ${
+                    isActive
+                      ? isDark
+                        ? 'text-white'
+                        : 'text-[#0088ff]'
+                      : isDark
+                      ? 'text-[#8c94a5] group-hover:text-white'
+                      : 'text-[#4b5563] group-hover:text-[#212b36]'
+                  }`}
+                >
+                  {icon}
+                </span>
+              )}
+              <span className="truncate">{label}</span>
+            </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
-        {isOverdueAlert && (
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" title="Action required" />
-        )}
-        {badge !== undefined && (
-          <span
-            className={`text-xs font-mono px-2 py-0.5 rounded-full transition-colors ${
-              isDark
-                ? 'bg-[#181a20] text-[#c7c9c8] group-hover:text-white'
-                : 'bg-gray-100 text-gray-700 border border-gray-200/60 group-hover:text-gray-950'
-            }`}
-          >
-            {badge}
-          </span>
-        )}
-      </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {isOverdueAlert && (
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" title="Action required" />
+              )}
+              {badge !== undefined && (
+                <span
+                  className={`text-xs font-mono px-2 py-0.5 rounded-full transition-colors ${
+                    isDark
+                      ? 'bg-[#181a20] text-[#c7c9c8] group-hover:text-white'
+                      : 'bg-[#dfe2e6] text-[#4b5563] font-medium group-hover:text-[#212b36]'
+                  }`}
+                >
+                  {badge}
+                </span>
+              )}
+            </div>
+          </>
+        )
+      }}
     </NavLink>
   )
 }

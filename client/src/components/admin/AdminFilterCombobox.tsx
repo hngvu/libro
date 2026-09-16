@@ -112,10 +112,10 @@ export function AdminFilterCombobox({
           hasValue
             ? isDark
               ? 'bg-[#252a34] border-blue-500/50 text-blue-300'
-              : 'bg-blue-50 border-blue-300 text-blue-700 font-medium'
+              : 'bg-blue-50 border-blue-300 text-[#0088ff] font-medium'
             : isDark
             ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de] hover:border-[#4d576a]'
-            : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
+            : 'bg-white border-[#d3d8de] text-[#212b36] hover:border-[#b0b9c2]'
         }`}
       >
         <span className="opacity-70">{label}:</span>
@@ -135,7 +135,7 @@ export function AdminFilterCombobox({
             className={`h-5 w-5 rounded flex items-center justify-center transition-colors cursor-pointer shrink-0 ml-0.5 ${
               isDark
                 ? 'text-[#8c94a5] hover:text-white hover:bg-[#343b48]'
-                : 'text-gray-400 hover:text-gray-700 hover:bg-gray-200'
+                : 'text-[#8898aa] hover:text-[#212b36] hover:bg-[#ebf0f5]'
             }`}
             title={`Remove ${label} filter`}
           >
@@ -149,10 +149,10 @@ export function AdminFilterCombobox({
       {/* Dropdown Popover */}
       {open && (
         <div
-          className={`absolute top-full left-0 mt-1.5 min-w-[260px] w-max max-w-[500px] rounded-xl border shadow-xl z-50 p-1.5 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100 ${
+          className={`absolute top-full left-0 mt-1.5 min-w-[260px] w-max max-w-[500px] rounded-lg border shadow-xl z-50 p-1.5 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100 ${
             isDark
               ? 'bg-[#1a1d24] border-[#2c323e] text-[#cbd2de]'
-              : 'bg-white border-gray-200 text-gray-800'
+              : 'bg-white border-[#dce0e5] text-[#212b36]'
           }`}
         >
           {/* Search Bar inside popover */}
@@ -160,7 +160,7 @@ export function AdminFilterCombobox({
             <IconSearch
               size={14}
               className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${
-                isDark ? 'text-[#8c94a5]' : 'text-gray-400'
+                isDark ? 'text-[#8c94a5]' : 'text-[#8898aa]'
               }`}
             />
             <input
@@ -172,14 +172,14 @@ export function AdminFilterCombobox({
               className={`w-full h-8 pl-8 pr-2 text-xs sm:text-[13px] rounded-md border outline-none transition-colors ${
                 isDark
                   ? 'bg-[#13161a] border-[#2c323e] text-white focus:border-blue-500'
-                  : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:bg-white'
+                  : 'bg-[#fafbfc] border-[#d3d8de] text-[#212b36] placeholder:text-[#919eab] focus:border-[#0088ff] focus:bg-white'
               }`}
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100"
+                className="absolute right-2 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100 cursor-pointer"
               >
                 <IconX size={13} />
               </button>
@@ -191,7 +191,7 @@ export function AdminFilterCombobox({
             {filteredOptions.length === 0 ? (
               <div
                 className={`py-3 text-center text-xs ${
-                  isDark ? 'text-[#8c94a5]' : 'text-gray-400'
+                  isDark ? 'text-[#8c94a5]' : 'text-[#8898aa]'
                 }`}
               >
                 No matching results
@@ -203,24 +203,24 @@ export function AdminFilterCombobox({
                   <div
                     key={opt.value}
                     onClick={() => toggleOption(opt.value)}
-                    className={`w-full px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] flex items-center gap-2.5 transition-colors cursor-pointer select-none ${
+                    className={`w-full px-2.5 py-1.5 rounded-md text-xs sm:text-[13px] flex items-center gap-2.5 transition-colors cursor-pointer select-none ${
                       isSelected
                         ? isDark
                           ? 'bg-blue-600/15 text-white'
-                          : 'bg-blue-50 text-blue-900'
+                          : 'bg-blue-50 text-[#0088ff] font-medium'
                         : isDark
                         ? 'hover:bg-[#252b36] text-[#cbd2de]'
-                        : 'hover:bg-gray-100 text-gray-700'
+                        : 'hover:bg-[#f4f6f8] text-[#212b36]'
                     }`}
                   >
                     {multiple ? (
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => toggleOption(opt.value)}
-                        className={isDark ? '!border-[#4d576a]' : '!border-gray-400'}
+                        className={isDark ? '!border-[#4d576a]' : '!border-[#b0b9c2]'}
                       />
                     ) : (
-                      isSelected && <IconCheck size={14} className="text-blue-500 shrink-0" />
+                      isSelected && <IconCheck size={14} className="text-[#0088ff] shrink-0" />
                     )}
                     <span className="whitespace-nowrap flex-1">{opt.label}</span>
                   </div>

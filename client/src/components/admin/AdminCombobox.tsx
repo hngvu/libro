@@ -298,7 +298,7 @@ export function AdminCombobox({
                   className={`inline-flex items-center gap-1.5 px-2 py-0.5 xl:py-1 rounded text-[11px] xl:text-xs font-medium leading-none select-none ${
                     isDark
                       ? 'bg-[#252a34] text-[#cbd2de] border border-[#333a48]'
-                      : 'bg-gray-100 text-gray-800 border border-gray-300'
+                      : 'bg-slate-100 text-slate-800 border border-slate-300'
                   }`}
                 >
                   <span>{item.label}</span>
@@ -330,7 +330,7 @@ export function AdminCombobox({
                   ? ''
                   : placeholder
               }
-              className="flex-1 min-w-[60px] bg-transparent border-none outline-none text-xs xl:text-sm p-0 focus:ring-0 text-gray-900 dark:text-[#e2e8f0] font-normal placeholder:text-gray-400 dark:placeholder:text-[#5d6575]"
+              className="flex-1 min-w-[60px] bg-transparent border-none outline-none text-xs xl:text-sm p-0 focus:ring-0 text-slate-900 dark:text-[#e2e8f0] font-normal placeholder:text-slate-400 dark:placeholder:text-[#5d6575]"
             />
           </div>
 
@@ -372,7 +372,7 @@ export function AdminCombobox({
         {open && (
           <div
             className={`absolute left-0 right-0 top-full mt-1 z-[100] rounded-md border shadow-2xl max-h-48 overflow-y-auto ${
-              isDark ? 'bg-[#181b22] border-[#2c323e]' : 'bg-white border-gray-300'
+              isDark ? 'bg-[#181b22] border-[#2c323e]' : 'bg-white border-slate-300'
             }`}
           >
             {/* Top Action: Add "createTarget" */}
@@ -384,7 +384,7 @@ export function AdminCombobox({
                 className={`w-full px-3 py-2 text-xs font-medium flex items-center gap-2 border-b transition text-left cursor-pointer ${
                   isDark
                     ? 'border-[#262a34] bg-[#1a202c]/60 hover:bg-[#202736] text-blue-400'
-                    : 'border-gray-200 bg-blue-50/60 hover:bg-blue-100/70 text-blue-600'
+                    : 'border-slate-200 bg-blue-50/60 hover:bg-blue-100/70 text-blue-600'
                 }`}
               >
                 {creating ? (
@@ -420,14 +420,14 @@ export function AdminCombobox({
                       onClick={() => !isSelected && handleSelectOption(opt)}
                       className={`w-full px-3 py-2 text-xs flex items-center gap-3 transition text-left ${
                         isSelected
-                          ? 'opacity-40 cursor-not-allowed bg-transparent text-gray-400 dark:text-[#5d6575]'
+                          ? 'opacity-40 cursor-not-allowed bg-transparent text-slate-400 dark:text-[#5d6575]'
                           : isDark
                           ? 'hover:bg-[#1f232b] text-[#cbd2de] cursor-pointer'
-                          : 'hover:bg-gray-100 text-gray-800 cursor-pointer'
+                          : 'hover:bg-slate-100 text-slate-800 cursor-pointer'
                       }`}
                     >
                       {opt.image !== undefined && (
-                        <div className="w-7 h-10 rounded-[2px] overflow-hidden shrink-0 border border-gray-200 dark:border-[#333a48] bg-gray-100 dark:bg-[#16181d] flex items-center justify-center">
+                        <div className="w-7 h-10 rounded-[2px] overflow-hidden shrink-0 border border-slate-200 dark:border-[#333a48] bg-slate-100 dark:bg-[#16181d] flex items-center justify-center">
                           {opt.image ? (
                             <img
                               src={opt.image}
@@ -466,7 +466,7 @@ export function AdminCombobox({
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium select-none transition-colors ${
                 isDark
                   ? 'bg-[#252a34] text-[#cbd2de] border border-[#333a48]'
-                  : 'bg-gray-100 text-gray-800 border border-gray-300'
+                  : 'bg-slate-100 text-slate-800 border border-slate-300'
               }`}
             >
               <span>{item.label}</span>

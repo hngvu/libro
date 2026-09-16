@@ -373,7 +373,7 @@ export function BookDetailPage() {
       case 'MAINTENANCE':
         return isDark
           ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-          : 'bg-amber-50 text-amber-700 border-amber-200'
+          : 'bg-[#fff8eb] text-[#b46b00] border-[#f2be54]'
       case 'LOST':
         return isDark
           ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
@@ -710,7 +710,7 @@ export function BookDetailPage() {
 
           {/* Row 11: Copies Section */}
           <div id="copies-section" className="space-y-3 pt-3">
-            <div className="flex items-center justify-between pb-1 border-b border-gray-200 dark:border-[#22262e]">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-200 dark:border-[#22262e]">
               <div className="flex items-center gap-2">
                 <h3 className={`font-semibold text-xs sm:text-[13px] ${t.titleColor}`}>
                   Copies
@@ -754,7 +754,7 @@ export function BookDetailPage() {
                                 : 'bg-blue-50 border-blue-300 text-blue-600'
                               : isDark
                               ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
-                              : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                              : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400 hover:bg-slate-50'
                           }`}
                           title="Sort options"
                         >
@@ -811,10 +811,10 @@ export function BookDetailPage() {
                 <div className="flex items-center gap-2 flex-wrap pt-0.5">
                   <div
                     className={`h-9 flex items-center gap-1.5 px-3 rounded-md border text-xs sm:text-[13px] font-semibold select-none ${
-                      isDark ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de]' : 'bg-gray-100 border-gray-300 text-gray-800'
+                      isDark ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de]' : 'bg-slate-100 border-slate-300 text-slate-800'
                     }`}
                   >
-                    <IconFilter2 size={15} className={isDark ? 'text-gray-300' : 'text-gray-600'} />
+                    <IconFilter2 size={15} className={isDark ? 'text-slate-300' : 'text-slate-600'} />
                     <span>Filter</span>
                   </div>
 
@@ -853,7 +853,7 @@ export function BookDetailPage() {
                   <div className="overflow-x-auto w-full">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className={`h-11 border-b ${isDark ? 'border-[#22262e]' : 'border-gray-200'} ${t.tableHead}`}>
+                        <tr className={`h-11 border-b ${isDark ? 'border-[#22262e]' : 'border-slate-200'} ${t.tableHead}`}>
                           <th className="w-10 px-3 text-center align-middle">
                             <Checkbox
                               checked={
@@ -868,7 +868,7 @@ export function BookDetailPage() {
                               className={
                                 isDark
                                   ? '!border-[#3e4756] hover:!border-[#5a667b]'
-                                  : '!border-gray-400 hover:!border-gray-500'
+                                  : '!border-slate-400 hover:!border-slate-500'
                               }
                             />
                           </th>
@@ -885,7 +885,7 @@ export function BookDetailPage() {
                                       className={`h-6 px-2 rounded-md border text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer select-none normal-case whitespace-nowrap ${
                                         isDark
                                           ? 'bg-[#181a20] border-[#3e4756] text-[#cbd2de] hover:text-white hover:border-[#5a667b]'
-                                          : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400'
+                                          : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400'
                                       }`}
                                     >
                                       <span>Actions</span>
@@ -915,15 +915,15 @@ export function BookDetailPage() {
                                 </DropdownMenu>
                               </div>
                             ) : (
-                              <span className={`text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                              <span className={`text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-slate-700'}`}>
                                 Barcode
                               </span>
                             )}
                           </th>
-                          <th className={`py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                          <th className={`py-3 px-4 text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-slate-700'}`}>
                             Location
                           </th>
-                          <th className={`py-3 px-4 text-xs sm:text-[13px] font-semibold text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                          <th className={`py-3 px-4 text-xs sm:text-[13px] font-semibold text-right ${isDark ? 'text-[#8c94a5]' : 'text-slate-700'}`}>
                             Last Borrowed
                           </th>
                         </tr>
@@ -942,7 +942,7 @@ export function BookDetailPage() {
                               <tr
                                 key={c.id}
                                 className={`group border-b transition-colors ${
-                                  isDark ? 'border-[#20242c]' : 'border-gray-200'
+                                  isDark ? 'border-[#20242c]' : 'border-slate-200'
                                 } ${
                                   isSelected
                                     ? isDark
@@ -959,7 +959,7 @@ export function BookDetailPage() {
                                     className={
                                       isDark
                                         ? '!border-[#3e4756] hover:!border-[#5a667b]'
-                                        : '!border-gray-400 hover:!border-gray-500'
+                                        : '!border-slate-400 hover:!border-slate-500'
                                     }
                                   />
                                 </td>
@@ -974,12 +974,12 @@ export function BookDetailPage() {
                                   </div>
                                 </td>
                                 <td className="py-3 px-4">
-                                  <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  <span className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                                     {c.location || '—'}
                                   </span>
                                 </td>
                                 <td className="py-3 px-4 text-right">
-                                  <span className={`text-xs font-mono ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                                  <span className={`text-xs font-mono ${isDark ? 'text-[#8c94a5]' : 'text-slate-600'}`}>
                                     {c.lastLoanDate || '—'}
                                   </span>
                                 </td>
@@ -1010,17 +1010,17 @@ export function BookDetailPage() {
                   status: editForm.status === 'ACTIVE' ? 'HIDDEN' : 'ACTIVE',
                 })
               }
-              className="flex items-center justify-between h-9 px-3 rounded-md border border-gray-200 dark:border-[#2c323e] bg-white dark:bg-[#16181d] cursor-pointer hover:border-gray-300 dark:hover:border-[#3e4757] transition-colors select-none"
+              className="flex items-center justify-between h-9 px-3 rounded-md border border-slate-300 dark:border-[#2c323e] bg-white dark:bg-[#16181d] cursor-pointer hover:border-slate-400 dark:hover:border-[#3e4757] transition-colors select-none"
             >
               <div className="flex items-center gap-2">
                 <span
                   className={`w-2 h-2 rounded-full transition-colors ${
                     editForm.status === 'ACTIVE'
                       ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]'
-                      : 'bg-gray-400 dark:bg-gray-500'
+                      : 'bg-slate-400 dark:bg-gray-500'
                   }`}
                 />
-                <span className="text-xs font-medium text-gray-900 dark:text-[#e2e8f0]">
+                <span className="text-xs font-medium text-slate-900 dark:text-[#e2e8f0]">
                   {editForm.status === 'ACTIVE' ? 'Published' : 'Draft'}
                 </span>
               </div>
@@ -1037,7 +1037,7 @@ export function BookDetailPage() {
           <div
             className={`group relative w-full rounded-md overflow-hidden shrink-0 border flex items-center justify-center ${
               editForm.cover ? 'h-fit' : 'aspect-[2/3]'
-            } ${isDark ? 'border-[#3e4756] bg-[#16181d]' : 'border-gray-300 bg-gray-100'}`}
+            } ${isDark ? 'border-[#3e4756] bg-[#16181d]' : 'border-slate-300 bg-slate-100'}`}
           >
             {editForm.cover ? (
               <img
@@ -1098,7 +1098,7 @@ export function BookDetailPage() {
       {/* Bottom Actions Bar (Luôn xuất hiện) */}
       <div
         className={`pt-5 mt-6 border-t flex items-center justify-between gap-4 ${
-          isDark ? 'border-[#22262e]' : 'border-gray-200'
+          isDark ? 'border-[#22262e]' : 'border-slate-200'
         }`}
       >
         {/* Góc trái: Nút Delete (hoặc Cancel khi mới) */}

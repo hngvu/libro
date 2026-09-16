@@ -392,7 +392,7 @@ export function AdminCirculationDetailPage() {
 
               <div className="space-y-1">
                 <span className={`text-xs font-medium flex items-center gap-1.5 ${loan.status === 'OVERDUE' ? 'text-rose-500 font-semibold' : t.subTextColor}`}>
-                  <IconClock size={15} className={loan.status === 'OVERDUE' ? 'text-rose-500' : 'text-amber-500'} /> Due Date
+                  <IconClock size={15} className={loan.status === 'OVERDUE' ? 'text-rose-500' : 'text-[#b46b00] dark:text-amber-400'} /> Due Date
                 </span>
                 <p className={`text-sm font-mono font-medium ${loan.status === 'OVERDUE' ? 'text-rose-500 font-bold' : t.titleColor}`}>
                   {formatDate(loan.dueDate)}

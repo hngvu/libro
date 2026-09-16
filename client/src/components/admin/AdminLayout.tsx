@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   IconAlertTriangle,
   IconCheck,
@@ -23,8 +23,24 @@ export interface AdminLayoutOutletContext {
 
 function AdminLayoutInner() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, login, logout, canAccessAdmin, loading: authLoading } = useAuth()
-  const { t, isDark, feedback, dismissFeedback, mobileSidebarOpen, setMobileSidebarOpen } = useAdmin()
+  const {
+    t,
+    isDark,
+    feedback,
+    dismissFeedback,
+    mobileSidebarOpen,
+    setMobileSidebarOpen,
+    setHeaderTitle,
+    setHeaderAction,
+  } = useAdmin()
+
+  // Reset page title and header actions on route changes
+  useEffect(() => {
+    setHeaderTitle(null)
+    setHeaderAction(null)
+  }, [location.pathname, setHeaderTitle, setHeaderAction])
 
   // Gate 1: Login form state
   const [gateEmail, setGateEmail] = useState('')

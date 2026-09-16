@@ -16,7 +16,7 @@ export function SidebarHeader() {
           <img
             src="/favicon.svg"
             alt="Libro"
-            className="w-8 h-8 rounded-xl object-contain bg-blue-600/10 p-1 group-hover:scale-105 transition-transform"
+            className="w-8 h-8 rounded-lg object-contain group-hover:scale-105 transition-transform"
           />
         </div>
         <div className="flex items-center gap-2">

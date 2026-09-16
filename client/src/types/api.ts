@@ -87,6 +87,7 @@ export interface LoanPublicResponse {
   bookTitle: string
   bookHandle: string
   bookCover: string | null
+  authors?: string[]
   barcode: string
   borrowDate: string
   dueDate: string

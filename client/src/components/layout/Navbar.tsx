@@ -4,18 +4,18 @@ import { api } from '@/services/api'
 import type { BookPublicResponse, GenrePublicResponse } from '@/types/api'
 import {
   IconSearch,
-  IconClock,
   IconUser,
   IconLogout,
   IconChevronDown,
   IconX,
   IconBook,
   IconBell,
+  IconCrown,
 } from '@tabler/icons-react'
 
 interface NavbarProps {
-  currentView: 'catalog' | 'loans' | 'admin' | 'book-detail'
-  onViewChange: (view: 'catalog' | 'loans' | 'admin' | 'book-detail') => void
+  currentView: 'catalog' | 'loans' | 'membership' | 'admin' | 'book-detail'
+  onViewChange: (view: 'catalog' | 'loans' | 'membership' | 'admin' | 'book-detail') => void
   onOpenAuth: (mode?: 'login' | 'register') => void
   onOpenProfile: () => void
   onSearch: (keyword: string) => void
@@ -116,7 +116,7 @@ export function Navbar({
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#fafafa] dark:bg-[#1e2320] shadow-xs transition-colors">
-      <div className="max-w-[1060px] mx-auto px-4 sm:px-8 h-14 sm:h-16 flex items-center justify-between gap-3 sm:gap-6">
+      <div className="max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-3 sm:gap-6">
         {/* Left: Logo & Navigation Links */}
         <div className="flex items-center gap-2 sm:gap-6 shrink-0">
           {/* Logo only */}
@@ -136,27 +136,13 @@ export function Navbar({
             />
           </div>
 
-          {/* Goodreads Main Nav Links */}
+          {/* Main Nav Links */}
           <nav className="hidden lg:flex items-center gap-1 text-sm font-medium">
-            {isMemberUser && (
-              <button
-                onClick={() => onViewChange('loans')}
-                className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  currentView === 'loans'
-                    ? 'bg-[#3d4b3e] text-[#f5f3e6] font-semibold'
-                    : 'text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40'
-                }`}
-              >
-                <IconClock size={16} />
-                My Books
-              </button>
-            )}
-
             {/* "Browse ▾" Dropdown */}
             <div className="relative">
               <button
                 onClick={() => setBrowseDropdownOpen(!browseDropdownOpen)}
-                className="px-3 py-1.5 rounded-md text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 transition-colors flex items-center gap-1 cursor-pointer"
+                className="px-3 py-1.5 rounded-[6px] text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 transition-colors flex items-center gap-1 cursor-pointer font-medium"
               >
                 <span>Browse</span>
                 <IconChevronDown size={14} className="text-[#6f7f64]" />
@@ -168,13 +154,13 @@ export function Navbar({
                     className="fixed inset-0 z-40"
                     onClick={() => setBrowseDropdownOpen(false)}
                   />
-                  <div className="absolute left-0 mt-2 w-56 rounded-xl border border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#faf9f4] dark:bg-[#252c28] shadow-xl p-2 z-50 animate-in fade-in zoom-in-95">
-                    <div className="px-3 py-1.5 text-xs font-serif font-bold uppercase text-[#6f7f64] border-b border-[#c8d0b7]/50 pb-1.5 mb-1">
+                  <div className="absolute left-0 mt-2 w-56 rounded-[6px] border border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#faf9f4] dark:bg-[#252c28] shadow-lg p-2 z-50 animate-in fade-in zoom-in-95">
+                    <div className="px-3 py-1.5 text-xs font-semibold uppercase text-[#6f7f64] border-b border-[#c8d0b7]/50 pb-1.5 mb-1">
                       Browse by Genre
                     </div>
                     <button
                       onClick={() => handleGenreClick('')}
-                      className="w-full text-left px-3 py-2 text-xs text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 rounded-lg transition-colors cursor-pointer font-medium"
+                      className="w-full text-left px-3 py-2 text-xs text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 rounded-[4px] transition-colors cursor-pointer font-medium"
                     >
                       All Books & Genres
                     </button>
@@ -182,7 +168,7 @@ export function Navbar({
                       <button
                         key={g.handle}
                         onClick={() => handleGenreClick(g.handle)}
-                        className="w-full text-left px-3 py-2 text-xs text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 rounded-lg transition-colors cursor-pointer"
+                        className="w-full text-left px-3 py-2 text-xs text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 rounded-[4px] transition-colors cursor-pointer"
                       >
                         {g.name}
                       </button>
@@ -194,7 +180,7 @@ export function Navbar({
           </nav>
         </div>
 
-        {/* Center: Prominent Goodreads Search Bar */}
+        {/* Center: Search Bar */}
         <div ref={searchContainerRef} className="flex-1 max-w-xl relative">
           <form onSubmit={handleSearchSubmit} className="relative flex items-center">
             <input
@@ -211,7 +197,7 @@ export function Navbar({
               className={`w-full h-9 sm:h-10 pl-3 sm:pl-3.5 ${
                 searchTerm ? 'pr-14 sm:pr-16' : 'pr-8 sm:pr-10'
               } text-xs sm:text-sm bg-white dark:bg-[#252c28] border border-[#d8d8d8] dark:border-[#3d4b3e] focus:outline-none focus:border-[#999999] text-[#181818] dark:text-[#f5f3e6] placeholder:text-[#767676] transition-colors font-sans ${
-                showDropdown && suggestions.length > 0 ? 'rounded-t-sm rounded-b-none border-b-transparent' : 'rounded-sm shadow-xs'
+                showDropdown && suggestions.length > 0 ? 'rounded-t-[6px] rounded-b-none border-b-transparent' : 'rounded-[6px] shadow-xs'
               }`}
             />
             {searchTerm ? (
@@ -240,9 +226,9 @@ export function Navbar({
             </button>
           </form>
 
-          {/* Real-time Goodreads Autocomplete Dropdown */}
+          {/* Real-time Autocomplete Dropdown */}
           {showDropdown && suggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-0 bg-white dark:bg-[#252c28] border border-[#d8d8d8] dark:border-[#3d4b3e] border-t-0 rounded-b-sm shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-99">
+            <div className="absolute left-0 right-0 top-full mt-0 bg-white dark:bg-[#252c28] border border-[#d8d8d8] dark:border-[#3d4b3e] border-t-0 rounded-b-[6px] shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-99">
               <div className="max-h-80 overflow-y-auto divide-y divide-[#e8e8e8] dark:divide-[#3d4b3e]">
                 {suggestions.map((b) => (
                   <div
@@ -250,7 +236,7 @@ export function Navbar({
                     onClick={() => handleSelectSuggestion(b)}
                     className="px-2.5 sm:px-3.5 py-2 sm:py-2.5 flex items-center gap-2.5 sm:gap-3.5 hover:bg-[#f4f1ea]/60 dark:hover:bg-[#333d36] cursor-pointer transition-colors"
                   >
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#f0ede6] dark:bg-[#1e2320] shrink-0 overflow-hidden flex items-center justify-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#f0ede6] dark:bg-[#1e2320] shrink-0 rounded-[4px] overflow-hidden flex items-center justify-center">
                       {b.cover ? (
                         <img src={b.cover} alt={b.title} className="h-full w-full object-cover object-top" />
                       ) : (
@@ -258,10 +244,10 @@ export function Navbar({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-serif font-bold text-xs sm:text-[14.5px] leading-snug text-[#181818] dark:text-[#f5f3e6] truncate">
+                      <p className="font-semibold text-xs sm:text-[14px] leading-snug text-[#181818] dark:text-[#f5f3e6] truncate">
                         {b.title}
                       </p>
-                      <p className="font-serif text-[11px] sm:text-[13.5px] text-[#333333] dark:text-[#c8d0b7] mt-0.5 truncate">
+                      <p className="text-[11px] sm:text-[13px] text-[#55634d] dark:text-[#c8d0b7] mt-0.5 truncate">
                         by {b.authors && b.authors.length > 0
                           ? b.authors.map((a) => a.name).join(', ')
                           : 'Unknown Author'}
@@ -286,7 +272,7 @@ export function Navbar({
             <div className="flex items-center gap-1 sm:gap-2">
               <button
                 type="button"
-                className="p-1.5 text-[#6f7f64] hover:text-[#1e2320] dark:hover:text-[#f5f3e6] rounded-full hover:bg-[#c8d0b7]/30 transition-colors hidden sm:block cursor-pointer"
+                className="p-1.5 text-[#6f7f64] hover:text-[#1e2320] dark:hover:text-[#f5f3e6] rounded-[6px] hover:bg-[#c8d0b7]/30 transition-colors hidden sm:block cursor-pointer"
                 title="Notifications"
               >
                 <IconBell size={18} />
@@ -295,15 +281,14 @@ export function Navbar({
               <div className="relative">
                 <button
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-1.5 sm:gap-2 p-1 pl-1.5 sm:pl-2 pr-1.5 sm:pr-2.5 rounded-full hover:bg-[#c8d0b7]/40 dark:hover:bg-[#3d4b3e]/40 transition-colors border border-[#c8d0b7] dark:border-[#3d4b3e] cursor-pointer"
+                  className="flex items-center gap-2.5 py-1.5 pl-3 pr-2 rounded-[6px] hover:bg-[#c8d0b7]/30 dark:hover:bg-[#3d4b3e]/40 transition-colors border border-[#c8d0b7] dark:border-[#3d4b3e] cursor-pointer select-none"
                 >
-                  <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-[#3d4b3e] text-[#f5f3e6] font-bold text-xs flex items-center justify-center shadow-xs">
-                    {user.fullName ? user.fullName[0].toUpperCase() : 'U'}
-                  </div>
-                  <span className="font-semibold text-xs text-[#1e2320] dark:text-[#f5f3e6] hidden md:inline truncate max-w-[100px]">
+                  <span className="font-medium text-xs text-[#1e2320] dark:text-[#f5f3e6] truncate max-w-[120px]">
                     {user.fullName || user.username}
                   </span>
-                  <IconChevronDown size={14} className="text-[#6f7f64]" />
+                  <div className="h-6 w-6 rounded-full bg-[#3d4b3e] text-[#f5f3e6] font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
+                    {(user.fullName || user.username || 'U').trim()[0].toUpperCase()}
+                  </div>
                 </button>
 
                 {/* User Dropdown */}
@@ -313,9 +298,9 @@ export function Navbar({
                       className="fixed inset-0 z-40"
                       onClick={() => setUserDropdownOpen(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#faf9f4] dark:bg-[#252c28] shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95">
+                    <div className="absolute right-0 mt-2 w-56 rounded-[6px] border border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#faf9f4] dark:bg-[#252c28] shadow-lg p-1.5 z-50 animate-in fade-in zoom-in-95">
                       <div className="px-3 py-2 border-b border-[#c8d0b7]/50 dark:border-[#3d4b3e] mb-1">
-                        <p className="text-xs font-serif font-bold text-[#1e2320] dark:text-[#f5f3e6]">
+                        <p className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6]">
                           {user.fullName || user.username}
                         </p>
                         <p className="text-[11px] text-[#6f7f64] dark:text-[#c8d0b7] truncate">
@@ -326,21 +311,31 @@ export function Navbar({
                       <button
                         onClick={() => {
                           setUserDropdownOpen(false)
-                          onOpenProfile()
+                          onViewChange('loans')
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 dark:hover:bg-[#3d4b3e]/40 rounded-lg transition-colors cursor-pointer"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 dark:hover:bg-[#3d4b3e]/40 rounded-[4px] transition-colors cursor-pointer"
                       >
-                        <IconUser size={15} /> Account Settings
+                        <IconBook size={15} /> My Bookshelf
                       </button>
 
                       <button
                         onClick={() => {
                           setUserDropdownOpen(false)
-                          onViewChange('loans')
+                          onViewChange('membership')
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 dark:hover:bg-[#3d4b3e]/40 rounded-lg transition-colors cursor-pointer"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 dark:hover:bg-[#3d4b3e]/40 rounded-[4px] transition-colors cursor-pointer"
                       >
-                        <IconClock size={15} /> My Bookshelf & Loans
+                        <IconCrown size={15} /> Membership & Plans
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false)
+                          onOpenProfile()
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 dark:hover:bg-[#3d4b3e]/40 rounded-[4px] transition-colors cursor-pointer"
+                      >
+                        <IconUser size={15} /> Account Settings
                       </button>
 
                       <div className="my-1 border-t border-[#c8d0b7]/50 dark:border-[#3d4b3e]" />
@@ -353,7 +348,7 @@ export function Navbar({
                             onViewChange('catalog')
                           }
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#1e2320] dark:text-[#f5f3e6] hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-[4px] transition-colors cursor-pointer"
                       >
                         <IconLogout size={15} /> Sign Out
                       </button>

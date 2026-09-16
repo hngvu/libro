@@ -177,10 +177,10 @@ export function BookCatalogPage() {
                   sortBy !== 'default'
                     ? isDark
                       ? 'bg-[#252a34] border-blue-500/50 text-blue-400'
-                      : 'bg-blue-50 border-blue-300 text-blue-600'
+                      : 'bg-blue-50 border-blue-300 text-[#0088ff]'
                     : isDark
                     ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
-                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                    : 'bg-white border-[#d3d8de] text-[#212b36] hover:border-[#b0b9c2] hover:bg-[#f4f6f8]'
                 }`}
                 title="Sort options"
               >
@@ -190,37 +190,37 @@ export function BookCatalogPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 onClick={() => setSortBy('default')}
-                className={sortBy === 'default' ? 'font-semibold text-blue-500' : ''}
+                className={sortBy === 'default' ? 'font-semibold text-[#0088ff]' : ''}
               >
                 Default
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setSortBy('title-asc')}
-                className={sortBy === 'title-asc' ? 'font-semibold text-blue-500' : ''}
+                className={sortBy === 'title-asc' ? 'font-semibold text-[#0088ff]' : ''}
               >
                 Title (A-Z)
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setSortBy('title-desc')}
-                className={sortBy === 'title-desc' ? 'font-semibold text-blue-500' : ''}
+                className={sortBy === 'title-desc' ? 'font-semibold text-[#0088ff]' : ''}
               >
                 Title (Z-A)
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setSortBy('year-desc')}
-                className={sortBy === 'year-desc' ? 'font-semibold text-blue-500' : ''}
+                className={sortBy === 'year-desc' ? 'font-semibold text-[#0088ff]' : ''}
               >
                 Publication Year (Newest)
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setSortBy('year-asc')}
-                className={sortBy === 'year-asc' ? 'font-semibold text-blue-500' : ''}
+                className={sortBy === 'year-asc' ? 'font-semibold text-[#0088ff]' : ''}
               >
                 Publication Year (Oldest)
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setSortBy('copies-desc')}
-                className={sortBy === 'copies-desc' ? 'font-semibold text-blue-500' : ''}
+                className={sortBy === 'copies-desc' ? 'font-semibold text-[#0088ff]' : ''}
               >
                 Total Copies (High to Low)
               </DropdownMenuItem>
@@ -242,10 +242,10 @@ export function BookCatalogPage() {
       <div className="flex items-center gap-2 flex-wrap pt-0.5">
         <div
           className={`h-9 flex items-center gap-1.5 px-3 rounded-md border text-xs sm:text-[13px] font-semibold select-none ${
-            isDark ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de]' : 'bg-gray-100 border-gray-300 text-gray-800'
+            isDark ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de]' : 'bg-[#f4f6f8] border-[#d3d8de] text-[#212b36]'
           }`}
         >
-          <IconFilter2 size={15} className={isDark ? 'text-gray-300' : 'text-gray-600'} />
+          <IconFilter2 size={15} className={isDark ? 'text-slate-300' : 'text-[#637381]'} />
           <span>Filter</span>
         </div>
 
@@ -303,7 +303,7 @@ export function BookCatalogPage() {
                 className={`h-9 w-9 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
                   isDark
                     ? 'bg-[#181a20] border-[#2c323e] text-[#8c94a5] hover:text-white hover:border-[#4d576a] hover:bg-[#20242c]'
-                    : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50'
+                    : 'bg-white border-[#d3d8de] text-[#212b36] hover:border-[#b0b9c2] hover:bg-[#f4f6f8]'
                 }`}
                 title="Add filter"
               >
@@ -334,14 +334,14 @@ export function BookCatalogPage() {
         {activeFilterFields.length > 0 && (
           <button
             onClick={resetAllFilters}
-            className="text-xs sm:text-[13px] text-blue-600 dark:text-blue-400 hover:underline px-1 cursor-pointer font-medium"
+            className="text-xs sm:text-[13px] text-[#0088ff] hover:underline px-1 cursor-pointer font-medium"
           >
             Reset
           </button>
         )}
       </div>
 
-      {/* Catalog Table - Frameless (bỏ viền bọc) */}
+      {/* Catalog Table - Frameless */}
       {loading ? (
         <div className={`p-10 text-center text-sm ${t.subTextColor}`}>
           Loading catalog titles...
@@ -350,7 +350,7 @@ export function BookCatalogPage() {
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className={`h-11 border-b ${isDark ? 'border-[#22262e]' : 'border-gray-200'} ${t.tableHead}`}>
+              <tr className={`h-11 border-b ${isDark ? 'border-[#22262e]' : 'border-[#e1e5eb]'} ${t.tableHead}`}>
                 <th className="w-10 px-3 text-center align-middle">
                   <Checkbox
                     checked={
@@ -365,7 +365,7 @@ export function BookCatalogPage() {
                     className={
                       isDark
                         ? '!border-[#3e4756] hover:!border-[#5a667b]'
-                        : '!border-gray-400 hover:!border-gray-500'
+                        : '!border-[#b0b9c2] hover:!border-[#637381]'
                     }
                   />
                 </th>
@@ -384,7 +384,7 @@ export function BookCatalogPage() {
                             className={`h-6 px-2 rounded-md border text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer select-none normal-case whitespace-nowrap ${
                               isDark
                                 ? 'bg-[#181a20] border-[#3e4756] text-[#cbd2de] hover:text-white hover:border-[#5a667b]'
-                                : 'bg-white border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400'
+                                : 'bg-white border-[#d3d8de] text-[#212b36] hover:border-[#b0b9c2]'
                             }`}
                           >
                             <span>Actions</span>
@@ -405,24 +405,24 @@ export function BookCatalogPage() {
                       </DropdownMenu>
                     </div>
                   ) : (
-                    <span className={`text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                    <span className={`text-xs sm:text-[13px] font-semibold ${isDark ? 'text-[#8c94a5]' : 'text-[#475467]'}`}>
                       Book
                     </span>
                   )}
                 </th>
 
                 {/* Column 3: ISBN */}
-                <th className={`w-36 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                <th className={`w-36 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-[#475467]'}`}>
                   ISBN
                 </th>
 
                 {/* Column 4: Format */}
-                <th className={`w-28 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                <th className={`w-28 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-[#475467]'}`}>
                   Format
                 </th>
 
                 {/* Column 5: Copies */}
-                <th className={`w-28 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                <th className={`w-28 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap ${isDark ? 'text-[#8c94a5]' : 'text-[#475467]'}`}>
                   Copies
                 </th>
               </tr>
@@ -435,7 +435,7 @@ export function BookCatalogPage() {
                     key={b.id}
                     onClick={() => navigate(`/admin/books/${b.id}`)}
                     className={`group border-b transition-colors cursor-pointer ${
-                      isDark ? 'border-[#20242c]' : 'border-gray-200'
+                      isDark ? 'border-[#20242c]' : 'border-[#eef1f4]'
                     } ${
                       isSelected
                         ? isDark
@@ -453,7 +453,7 @@ export function BookCatalogPage() {
                         className={
                           isDark
                             ? '!border-[#3e4756] hover:!border-[#5a667b]'
-                            : '!border-gray-400 hover:!border-gray-500'
+                            : '!border-[#b0b9c2] hover:!border-[#637381]'
                         }
                       />
                     </td>
@@ -464,7 +464,7 @@ export function BookCatalogPage() {
                         {b.cover ? (
                           <div
                             className={`w-9 h-12 rounded-[2px] overflow-hidden shrink-0 shadow-xs border flex items-start justify-center ${
-                              isDark ? 'border-[#2c323e] bg-[#16181d]' : 'border-gray-300 bg-gray-100'
+                              isDark ? 'border-[#2c323e] bg-[#16181d]' : 'border-slate-300 bg-slate-100'
                             }`}
                           >
                             <img
@@ -479,7 +479,7 @@ export function BookCatalogPage() {
                         ) : (
                           <div
                             className={`w-9 h-12 rounded-[2px] flex items-center justify-center shrink-0 border ${
-                              isDark ? 'bg-[#16181d] border-[#2c323e]' : 'bg-gray-100 border-gray-300'
+                              isDark ? 'bg-[#16181d] border-[#2c323e]' : 'bg-slate-100 border-slate-300'
                             }`}
                           >
                             <IconBook2 size={18} className={t.mutedColor} />
@@ -499,7 +499,7 @@ export function BookCatalogPage() {
                             )}
                           </div>
                           {b.authors && b.authors.length > 0 && (
-                            <p className={`text-xs truncate mt-0.5 ${isDark ? 'text-[#8c94a5]' : 'text-gray-500'}`}>
+                            <p className={`text-xs truncate mt-0.5 ${isDark ? 'text-[#8c94a5]' : 'text-slate-600'}`}>
                               {b.authors.map((a) => a.name).join(', ')}
                             </p>
                           )}
@@ -508,10 +508,10 @@ export function BookCatalogPage() {
                     </td>
 
                     {/* 2. ISBN */}
-                    <td className={`py-3 px-4 font-mono text-xs ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>{b.isbn}</td>
+                    <td className={`py-3 px-4 font-mono text-xs ${isDark ? 'text-[#8c94a5]' : 'text-slate-600'}`}>{b.isbn}</td>
 
                     {/* 3. Format */}
-                    <td className={`py-3 px-4 text-sm font-normal ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                    <td className={`py-3 px-4 text-sm font-normal ${isDark ? 'text-[#8c94a5]' : 'text-slate-700'}`}>
                       {b.format}
                     </td>
 
@@ -519,7 +519,7 @@ export function BookCatalogPage() {
                     <td
                       className="py-3 px-4 text-sm font-mono"
                     >
-                      <span className={isDark ? 'text-[#8c94a5]' : 'text-gray-600'}>
+                      <span className={isDark ? 'text-[#8c94a5]' : 'text-slate-600'}>
                         <strong className={t.titleColor}>{b.availableCopies}</strong> / {b.totalCopies}
                       </span>
                     </td>

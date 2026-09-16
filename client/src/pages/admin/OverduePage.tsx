@@ -499,7 +499,7 @@ export function OverduePage() {
                     </td>
 
                     {/* Accrued Fine */}
-                    <td className="py-3 px-4 text-sm font-medium whitespace-nowrap text-amber-500 font-mono">
+                    <td className="py-3 px-4 text-sm font-medium whitespace-nowrap text-[#b46b00] dark:text-amber-400 font-mono">
                       ${fine.toFixed(2)}
                     </td>
                   </tr>

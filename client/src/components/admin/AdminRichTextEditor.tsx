@@ -72,19 +72,19 @@ export function AdminRichTextEditor({
       {/* Editor Box */}
       <div
         className={`rounded-md border overflow-hidden transition-all ${
-          isDark ? 'border-[#2c323e] bg-[#16181d]' : 'border-gray-200 bg-white'
+          isDark ? 'border-[#2c323e] bg-[#16181d]' : 'border-[#dce0e5] bg-white shadow-2xs'
         }`}
       >
         {/* Formatting Toolbar */}
         <div
           className={`flex items-center gap-1 px-2.5 py-1.5 border-b flex-wrap ${
-            isDark ? 'border-[#232732] bg-[#121316]' : 'border-gray-100 bg-gray-50/70'
+            isDark ? 'border-[#232732] bg-[#121316]' : 'border-[#eef1f4] bg-[#fafbfc]'
           }`}
         >
           <button
             type="button"
             onClick={() => insertFormatting('**', '**', 'bold text')}
-            className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
+            className={`p-1.5 rounded hover:bg-[#ebf0f5] dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
             title="Bold (Ctrl+B)"
           >
             <IconBold size={15} />
@@ -92,7 +92,7 @@ export function AdminRichTextEditor({
           <button
             type="button"
             onClick={() => insertFormatting('*', '*', 'italic text')}
-            className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
+            className={`p-1.5 rounded hover:bg-[#ebf0f5] dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
             title="Italic (Ctrl+I)"
           >
             <IconItalic size={15} />
@@ -100,18 +100,18 @@ export function AdminRichTextEditor({
           <button
             type="button"
             onClick={() => insertFormatting('~~', '~~', 'strikethrough')}
-            className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
+            className={`p-1.5 rounded hover:bg-[#ebf0f5] dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
             title="Strikethrough"
           >
             <IconStrikethrough size={15} />
           </button>
 
-          <span className={`w-px h-4 mx-1 ${isDark ? 'bg-[#2c323e]' : 'bg-gray-200'}`} />
+          <span className={`w-px h-4 mx-1 ${isDark ? 'bg-[#2c323e]' : 'bg-[#e1e5eb]'}`} />
 
           <button
             type="button"
             onClick={() => insertFormatting('## ', '', 'Heading 2')}
-            className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
+            className={`p-1.5 rounded hover:bg-[#ebf0f5] dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
             title="Heading 2"
           >
             <IconH2 size={15} />
@@ -119,18 +119,18 @@ export function AdminRichTextEditor({
           <button
             type="button"
             onClick={() => insertFormatting('### ', '', 'Heading 3')}
-            className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
+            className={`p-1.5 rounded hover:bg-[#ebf0f5] dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
             title="Heading 3"
           >
             <IconH3 size={15} />
           </button>
 
-          <span className={`w-px h-4 mx-1 ${isDark ? 'bg-[#2c323e]' : 'bg-gray-200'}`} />
+          <span className={`w-px h-4 mx-1 ${isDark ? 'bg-[#2c323e]' : 'bg-[#e1e5eb]'}`} />
 
           <button
             type="button"
             onClick={() => insertFormatting('- ', '', 'List item')}
-            className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
+            className={`p-1.5 rounded hover:bg-[#ebf0f5] dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
             title="Bullet List"
           >
             <IconList size={15} />
@@ -138,7 +138,7 @@ export function AdminRichTextEditor({
           <button
             type="button"
             onClick={() => insertFormatting('1. ', '', 'List item')}
-            className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
+            className={`p-1.5 rounded hover:bg-[#ebf0f5] dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
             title="Numbered List"
           >
             <IconListNumbers size={15} />
@@ -146,18 +146,18 @@ export function AdminRichTextEditor({
           <button
             type="button"
             onClick={() => insertFormatting('> ', '', 'Quote')}
-            className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
+            className={`p-1.5 rounded hover:bg-[#ebf0f5] dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
             title="Quote"
           >
             <IconQuote size={15} />
           </button>
 
-          <span className={`w-px h-4 mx-1 ${isDark ? 'bg-[#2c323e]' : 'bg-gray-200'}`} />
+          <span className={`w-px h-4 mx-1 ${isDark ? 'bg-[#2c323e]' : 'bg-[#e1e5eb]'}`} />
 
           <button
             type="button"
             onClick={() => insertFormatting('`', '`', 'code')}
-            className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
+            className={`p-1.5 rounded hover:bg-[#ebf0f5] dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
             title="Inline Code"
           >
             <IconCode size={15} />
@@ -165,7 +165,7 @@ export function AdminRichTextEditor({
           <button
             type="button"
             onClick={handleAddLink}
-            className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
+            className={`p-1.5 rounded hover:bg-[#ebf0f5] dark:hover:bg-white/10 transition cursor-pointer ${t.subTextColor}`}
             title="Insert Link"
           >
             <IconLink size={15} />

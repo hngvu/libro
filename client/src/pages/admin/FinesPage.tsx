@@ -35,7 +35,7 @@ function formatDate(dateStr?: string | null) {
 
 export function FinesPage() {
   const navigate = useNavigate()
-  const { t, isDark, showFeedback, setHeaderTitle } = useAdmin()
+  const { t, isDark, showFeedback } = useAdmin()
 
   const [fines, setFines] = useState<FineResponse[]>([])
   const [loading, setLoading] = useState(false)
@@ -43,7 +43,7 @@ export function FinesPage() {
   // Selection & Bulk Actions
   const [selectedIds, setSelectedIds] = useState<number[]>([])
 
-  // Filters & Sorting
+  // Search & Filter state
   const [keyword, setKeyword] = useState('')
   const [sortBy, setSortBy] = useState<
     'default' | 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc' | 'user-asc'
@@ -66,8 +66,7 @@ export function FinesPage() {
 
   useEffect(() => {
     fetchFines()
-    setHeaderTitle('Penalties')
-  }, [fetchFines, setHeaderTitle])
+  }, [fetchFines])
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) =>
@@ -174,7 +173,7 @@ export function FinesPage() {
       case 'PENDING':
         return isDark
           ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-          : 'bg-amber-50 text-amber-700 border-amber-200'
+          : 'bg-[#fff8eb] text-[#b46b00] border-[#f2be54]'
       case 'WAIVED':
         return isDark
           ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'

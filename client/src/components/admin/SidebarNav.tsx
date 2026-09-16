@@ -3,26 +3,12 @@ import { useLocation } from 'react-router-dom'
 import {
   IconLayoutDashboard,
   IconBooks,
-  IconBook2,
-  IconStack2,
   IconRefresh,
-  IconDesk,
-  IconClockExclamation,
-  IconRotateClockwise,
-  IconCalendarEvent,
+  IconVip,
+  IconReceiptDollar,
   IconUsers,
-  IconId,
-  IconUserStar,
-  IconLabel,
   IconReportAnalytics,
   IconSettings,
-  IconUserCog,
-  IconHistory,
-  IconCreditCard,
-  IconVip,
-  IconReceiptTax,
-  IconClockDollar,
-  IconReceiptDollar,
 } from '@tabler/icons-react'
 import { useAuth } from '@/context/AuthContext'
 import { SidebarNavItem } from './SidebarNavItem'
@@ -84,6 +70,7 @@ export function SidebarNav() {
 
   // When a group is currently open, items outside that group should not be highlighted
   const isOutsideDisabled = openGroup !== null
+  const currentActiveGroup = getGroupByPath(location.pathname)
 
   return (
     <nav className="space-y-3">
@@ -103,32 +90,29 @@ export function SidebarNav() {
         title="Books"
         icon={<IconBooks size={17} />}
         isOpen={openGroup === 'books'}
+        isActive={currentActiveGroup === 'books'}
         onToggle={() => handleToggleGroup('books')}
       >
         <SidebarNavItem
           to="/admin/books"
-          icon={<IconBook2 size={15} />}
           label="Catalog"
           isSubItem={true}
           disableActive={openGroup !== 'books'}
         />
         <SidebarNavItem
           to="/admin/copies"
-          icon={<IconStack2 size={15} />}
           label="Copies"
           isSubItem={true}
           disableActive={openGroup !== 'books'}
         />
         <SidebarNavItem
           to="/admin/authors"
-          icon={<IconUserStar size={15} />}
           label="Authors"
           isSubItem={true}
           disableActive={openGroup !== 'books'}
         />
         <SidebarNavItem
           to="/admin/genres"
-          icon={<IconLabel size={15} />}
           label="Genres"
           isSubItem={true}
           disableActive={openGroup !== 'books'}
@@ -140,11 +124,11 @@ export function SidebarNav() {
         title="Circulation"
         icon={<IconRefresh size={17} />}
         isOpen={openGroup === 'circulation'}
+        isActive={currentActiveGroup === 'circulation'}
         onToggle={() => handleToggleGroup('circulation')}
       >
         <SidebarNavItem
           to="/admin/circulation"
-          icon={<IconDesk size={15} />}
           label="Desk"
           isSubItem={true}
           disableActive={openGroup !== 'circulation'}
@@ -152,21 +136,18 @@ export function SidebarNav() {
         />
         <SidebarNavItem
           to="/admin/circulation/overdue"
-          icon={<IconClockExclamation size={15} />}
           label="Overdue"
           isSubItem={true}
           disableActive={openGroup !== 'circulation'}
         />
         <SidebarNavItem
           to="/admin/circulation/renewals"
-          icon={<IconRotateClockwise size={15} />}
           label="Renewals"
           isSubItem={true}
           disableActive={openGroup !== 'circulation'}
         />
         <SidebarNavItem
           to="/admin/circulation/reservations"
-          icon={<IconCalendarEvent size={15} />}
           label="Reservations"
           isSubItem={true}
           disableActive={openGroup !== 'circulation'}
@@ -176,20 +157,19 @@ export function SidebarNav() {
       {/* 4. Membership Group (Plans & Subscriptions) */}
       <SidebarNavGroup
         title="Membership"
-        icon={<IconId size={17} />}
+        icon={<IconVip size={17} />}
         isOpen={openGroup === 'membership'}
+        isActive={currentActiveGroup === 'membership'}
         onToggle={() => handleToggleGroup('membership')}
       >
         <SidebarNavItem
           to="/admin/membership/plans"
-          icon={<IconVip size={15} />}
           label="Plans"
           isSubItem={true}
           disableActive={openGroup !== 'membership'}
         />
         <SidebarNavItem
           to="/admin/membership/subscriptions"
-          icon={<IconCreditCard size={15} />}
           label="Subscriptions"
           isSubItem={true}
           disableActive={openGroup !== 'membership'}
@@ -199,13 +179,13 @@ export function SidebarNav() {
       {/* 5. Fines Group (Fees & Penalties) */}
       <SidebarNavGroup
         title="Fines"
-        icon={<IconReceiptTax size={17} />}
+        icon={<IconReceiptDollar size={17} />}
         isOpen={openGroup === 'fines'}
+        isActive={currentActiveGroup === 'fines'}
         onToggle={() => handleToggleGroup('fines')}
       >
         <SidebarNavItem
           to="/admin/fines/fees"
-          icon={<IconClockDollar size={15} />}
           label="Fees"
           isSubItem={true}
           disableActive={openGroup !== 'fines'}
@@ -219,7 +199,6 @@ export function SidebarNav() {
         />
         <SidebarNavItem
           to="/admin/fines/penalties"
-          icon={<IconReceiptDollar size={15} />}
           label="Penalties"
           isSubItem={true}
           disableActive={openGroup !== 'fines'}
@@ -246,25 +225,24 @@ export function SidebarNav() {
         />
       </div>
 
-      {/* 6. Admin (Role Admin only) */}
+      {/* 7. Admin (Role Admin only) */}
       {isAdmin && (
         <div className="pt-1">
           <SidebarNavGroup
             title="Admin"
             icon={<IconSettings size={17} />}
             isOpen={openGroup === 'admin'}
+            isActive={currentActiveGroup === 'admin'}
             onToggle={() => handleToggleGroup('admin')}
           >
             <SidebarNavItem
               to="/admin/staff-settings"
-              icon={<IconUserCog size={15} />}
               label="Staff"
               isSubItem={true}
               disableActive={openGroup !== 'admin'}
             />
             <SidebarNavItem
               to="/admin/activity-log"
-              icon={<IconHistory size={15} />}
               label="Logs"
               isSubItem={true}
               disableActive={openGroup !== 'admin'}

@@ -70,7 +70,7 @@ const INITIAL_LOGS: ActivityLogItem[] = [
 ]
 
 export function ActivityLogPage() {
-  const { t } = useAdmin()
+  const { t, isDark } = useAdmin()
   const [logs] = useState<ActivityLogItem[]>(INITIAL_LOGS)
   const [keyword, setKeyword] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('')
@@ -146,7 +146,7 @@ export function ActivityLogPage() {
                         : l.entityType === 'BOOK'
                         ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                         : l.entityType === 'FINE'
-                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        ? isDark ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-[#fff8eb] text-[#b46b00] border border-[#f2be54]'
                         : t.statusMuted
                     }`}>
                       {l.action}

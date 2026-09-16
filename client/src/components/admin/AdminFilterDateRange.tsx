@@ -30,13 +30,13 @@ export function AdminFilterDateRange({
           hasValue
             ? isDark
               ? 'bg-[#252a34] border-blue-500/50 text-blue-300'
-              : 'bg-blue-50 border-blue-300 text-blue-800'
+              : 'bg-blue-50 border-blue-300 text-[#0088ff] font-medium'
             : isDark
             ? 'bg-[#181a20] border-[#2c323e] text-[#cbd2de]'
-            : 'bg-white border-gray-300 text-gray-700'
+            : 'bg-white border-[#d3d8de] text-[#212b36]'
         }`}
       >
-        <span className={isDark ? 'text-[#8c94a5]' : 'text-gray-500'}>
+        <span className={isDark ? 'text-[#8c94a5]' : 'text-[#637381]'}>
           {label}:
         </span>
 
@@ -59,10 +59,10 @@ export function AdminFilterDateRange({
               hasValue
                 ? isDark
                   ? 'hover:bg-blue-500/20 text-blue-300'
-                  : 'hover:bg-blue-100 text-blue-700'
+                  : 'hover:bg-blue-100 text-[#0088ff]'
                 : isDark
                 ? 'hover:bg-[#252b36] text-gray-400 hover:text-white'
-                : 'hover:bg-gray-200 text-gray-400 hover:text-gray-700'
+                : 'hover:bg-[#ebf0f5] text-[#8898aa] hover:text-[#212b36]'
             }`}
             title="Remove filter"
           >

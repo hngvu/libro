@@ -298,7 +298,7 @@ export function AdminFineDetailPage() {
 
               <div className="flex items-center justify-between py-3.5 px-2 select-none">
                 <span className={`text-sm font-medium ${t.titleColor}`}>Outstanding Balance</span>
-                <span className={`font-mono text-sm sm:text-base font-semibold ${isPending ? 'text-amber-500' : 'text-emerald-500'}`}>
+                <span className={`font-mono text-sm sm:text-base font-semibold ${isPending ? 'text-[#b46b00] dark:text-amber-400' : 'text-emerald-500'}`}>
                   ${isPending ? Number(fine.amount || 0).toFixed(2) : '0.00'}
                 </span>
               </div>
@@ -333,7 +333,7 @@ export function AdminFineDetailPage() {
               <div className="flex items-center gap-2">
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    isPaid ? 'bg-emerald-500' : isPending ? 'bg-amber-500' : 'bg-blue-400'
+                    isPaid ? 'bg-emerald-500' : isPending ? 'bg-[#b46b00] dark:bg-amber-400' : 'bg-blue-400'
                   }`}
                 />
                 <span className={`text-xs font-semibold uppercase ${t.titleColor}`}>
@@ -456,7 +456,7 @@ export function AdminFineDetailPage() {
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className={t.subTextColor}>Amount:</span>
-                <span className="font-mono font-bold text-amber-500">
+                <span className="font-mono font-bold text-[#b46b00] dark:text-amber-400">
                   ${Number(fine.amount || 0).toFixed(2)} USD
                 </span>
               </div>

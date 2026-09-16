@@ -427,18 +427,7 @@ public class LoanService {
                 ? repository.findByUserAndStatus(user, status, pageable)
                 : repository.findByUser(user, pageable);
 
-        return page.map(loan -> LoanPublicResponse.builder()
-                .loanCode(loan.getLoanCode())
-                .bookTitle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getTitle() : null)
-                .bookHandle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getHandle() : null)
-                .bookCover(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getCover() : null)
-                .barcode(loan.getBookCopy() != null ? loan.getBookCopy().getBarcode() : null)
-                .borrowDate(loan.getBorrowDate())
-                .dueDate(loan.getDueDate())
-                .returnDate(loan.getReturnDate())
-                .status(loan.getStatus() != null ? loan.getStatus().name() : null)
-                .renewalCount(loan.getRenewalCount())
-                .build());
+        return page.map(this::toPublicResponse);
     }
 
     @Transactional(readOnly = true)
@@ -449,18 +438,7 @@ public class LoanService {
         Loan loan = repository.findByLoanCodeAndUser(loanCode, user)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
 
-        return LoanPublicResponse.builder()
-                .loanCode(loan.getLoanCode())
-                .bookTitle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getTitle() : null)
-                .bookHandle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getHandle() : null)
-                .bookCover(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getCover() : null)
-                .barcode(loan.getBookCopy() != null ? loan.getBookCopy().getBarcode() : null)
-                .borrowDate(loan.getBorrowDate())
-                .dueDate(loan.getDueDate())
-                .returnDate(loan.getReturnDate())
-                .status(loan.getStatus() != null ? loan.getStatus().name() : null)
-                .renewalCount(loan.getRenewalCount())
-                .build();
+        return toPublicResponse(loan);
     }
 
     @Transactional
@@ -506,11 +484,24 @@ public class LoanService {
         loan.setRenewalCount(currentRenewals + 1);
         loan = repository.save(loan);
 
+        return toPublicResponse(loan);
+    }
+
+    private LoanPublicResponse toPublicResponse(Loan loan) {
+        var book = loan.getBookCopy() != null ? loan.getBookCopy().getBook() : null;
+        java.util.List<String> authorNames = null;
+        if (book != null && book.getAuthors() != null) {
+            authorNames = book.getAuthors().stream()
+                    .map(soqe.libro.server.entity.Author::getName)
+                    .toList();
+        }
+
         return LoanPublicResponse.builder()
                 .loanCode(loan.getLoanCode())
-                .bookTitle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getTitle() : null)
-                .bookHandle(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getHandle() : null)
-                .bookCover(loan.getBookCopy() != null && loan.getBookCopy().getBook() != null ? loan.getBookCopy().getBook().getCover() : null)
+                .bookTitle(book != null ? book.getTitle() : null)
+                .bookHandle(book != null ? book.getHandle() : null)
+                .bookCover(book != null ? book.getCover() : null)
+                .authors(authorNames)
                 .barcode(loan.getBookCopy() != null ? loan.getBookCopy().getBarcode() : null)
                 .borrowDate(loan.getBorrowDate())
                 .dueDate(loan.getDueDate())

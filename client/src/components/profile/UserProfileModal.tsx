@@ -61,17 +61,17 @@ export function UserProfileModal({ open, onOpenChange }: UserProfileModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onClose={() => onOpenChange(false)} className="sm:max-w-md">
+      <DialogContent onClose={() => onOpenChange(false)} className="sm:max-w-md rounded-[6px]">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-full bg-[#3d4b3e] text-[#f5f3e6] flex items-center justify-center font-bold text-lg shadow-xs">
-              {user.fullName ? user.fullName[0].toUpperCase() : 'U'}
+            <div className="h-12 w-12 rounded-full bg-[#3d4b3e] text-[#f5f3e6] flex items-center justify-center font-bold text-base shadow-xs select-none">
+              {(user.fullName || user.username || 'U').trim()[0].toUpperCase()}
             </div>
             <div>
-              <DialogTitle className="font-serif">{user.fullName || user.username}</DialogTitle>
+              <DialogTitle className="font-semibold">{user.fullName || user.username}</DialogTitle>
               <DialogDescription className="flex items-center gap-2 mt-0.5">
                 <span className="text-[#6f7f64] dark:text-[#c8d0b7]">@{user.username}</span>
-                <Badge variant={user.role === 'ADMIN' ? 'destructive' : user.role === 'LIBRARIAN' ? 'default' : 'secondary'}>
+                <Badge variant={user.role === 'ADMIN' ? 'destructive' : user.role === 'LIBRARIAN' ? 'default' : 'secondary'} className="rounded-[4px]">
                   {user.role}
                 </Badge>
               </DialogDescription>
@@ -81,7 +81,7 @@ export function UserProfileModal({ open, onOpenChange }: UserProfileModalProps) 
 
         {message && (
           <div
-            className={`p-3 rounded-lg text-xs flex items-center gap-2 mb-3 ${
+            className={`p-3 rounded-[6px] text-xs flex items-center gap-2 mb-3 ${
               message.type === 'success'
                 ? 'bg-[#c8d0b7]/40 text-[#1e2320] border border-[#c8d0b7]'
                 : 'bg-rose-100 text-rose-800 border border-rose-300'
@@ -99,7 +99,7 @@ export function UserProfileModal({ open, onOpenChange }: UserProfileModalProps) 
             </label>
             <div className="relative">
               <IconMail className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
-              <Input value={user.email} disabled className="pl-9 bg-[#c8d0b7]/20 cursor-not-allowed opacity-80" />
+              <Input value={user.email} disabled className="pl-9 bg-[#c8d0b7]/20 cursor-not-allowed opacity-80 rounded-[5px]" />
             </div>
           </div>
 
@@ -111,7 +111,7 @@ export function UserProfileModal({ open, onOpenChange }: UserProfileModalProps) 
               <IconUser className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
               <Input
                 required
-                className="pl-9"
+                className="pl-9 rounded-[5px]"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
               />
@@ -125,23 +125,23 @@ export function UserProfileModal({ open, onOpenChange }: UserProfileModalProps) 
             <div className="relative">
               <IconPhone className="absolute left-3 top-2.5 text-[#6f7f64]" size={16} />
               <Input
-                className="pl-9"
+                className="pl-9 rounded-[5px]"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-2 p-3 bg-[#c8d0b7]/30 dark:bg-[#3d4b3e]/30 rounded-lg text-xs text-[#1e2320] dark:text-[#f5f3e6] border border-[#c8d0b7] dark:border-[#3d4b3e]">
+          <div className="flex items-center gap-2 p-3 bg-[#c8d0b7]/30 dark:bg-[#3d4b3e]/30 rounded-[6px] text-xs text-[#1e2320] dark:text-[#f5f3e6] border border-[#c8d0b7] dark:border-[#3d4b3e]">
             <IconShieldCheck size={18} className="text-[#3d4b3e] dark:text-[#c8d0b7] shrink-0" />
             <span>Account is verified and currently <strong>{user.status}</strong>.</span>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="rounded-[5px]">
               Close
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving} className="rounded-[5px]">
               {saving ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>

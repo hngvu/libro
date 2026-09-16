@@ -44,6 +44,8 @@ import { ActivityLogPage } from '@/pages/admin/ActivityLogPage'
 import { SettingsPage } from '@/pages/admin/SettingsPage'
 import { AuthModal } from '@/components/auth/AuthModal'
 import { UserProfileModal } from '@/components/profile/UserProfileModal'
+import { MembershipPlansModal } from '@/components/profile/MembershipPlansModal'
+import { MembershipPage } from '@/pages/membership/MembershipPage'
 import type { BookPublicResponse } from '@/types/api'
 
 function CatalogRouteWrapper({
@@ -88,13 +90,16 @@ function AppContent() {
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   const [profileModalOpen, setProfileModalOpen] = useState(false)
+  const [plansModalOpen, setPlansModalOpen] = useState(false)
 
   // Current view derived from URL
-  const currentView: 'catalog' | 'loans' | 'admin' | 'book-detail' =
+  const currentView: 'catalog' | 'loans' | 'membership' | 'admin' | 'book-detail' =
     location.pathname.startsWith('/book/')
       ? 'book-detail'
       : location.pathname === '/loans'
       ? 'loans'
+      : location.pathname === '/membership'
+      ? 'membership'
       : location.pathname.startsWith('/admin')
       ? 'admin'
       : 'catalog'
@@ -104,9 +109,10 @@ function AppContent() {
     setAuthModalOpen(true)
   }
 
-  const handleViewChange = (view: 'catalog' | 'loans' | 'admin' | 'book-detail') => {
+  const handleViewChange = (view: 'catalog' | 'loans' | 'membership' | 'admin' | 'book-detail') => {
     if (view === 'catalog') navigate('/')
     else if (view === 'loans') navigate('/loans')
+    else if (view === 'membership') navigate('/membership')
     else if (view === 'admin') navigate('/admin')
   }
 
@@ -137,7 +143,7 @@ function AppContent() {
     <div
       className={`min-h-screen flex flex-col ${
         isAdminView
-          ? 'bg-[#16181d] text-[#cbd2de]'
+          ? 'bg-[#f3f4f6] dark:bg-[#16181d] text-[#212b36] dark:text-[#cbd2de]'
           : 'bg-[#fafafa] dark:bg-[#1e2320] text-[#1e2320] dark:text-[#f5f3e6]'
       } transition-colors`}
     >
@@ -160,7 +166,7 @@ function AppContent() {
         className={
           isAdminView
             ? 'flex-1 w-full min-h-screen'
-            : 'flex-1 max-w-[1060px] w-full mx-auto px-4 sm:px-8 py-6 sm:py-8'
+            : 'flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8'
         }
       >
         <Routes>
@@ -179,6 +185,14 @@ function AppContent() {
           <Route
             path="/loans"
             element={<MyLoansView onOpenAuth={() => handleOpenAuth('login')} />}
+          />
+          <Route
+            path="/membership"
+            element={<MembershipPage onOpenAuth={handleOpenAuth} />}
+          />
+          <Route
+            path="/pricing"
+            element={<Navigate to="/membership" replace />}
           />
           <Route path="/author/:handle" element={<AuthorDetailPage />} />
           <Route path="/genre/:handle" element={<GenreDetailPage />} />
@@ -246,6 +260,11 @@ function AppContent() {
       <UserProfileModal
         open={profileModalOpen}
         onOpenChange={setProfileModalOpen}
+      />
+
+      <MembershipPlansModal
+        open={plansModalOpen}
+        onOpenChange={setPlansModalOpen}
       />
     </div>
   )

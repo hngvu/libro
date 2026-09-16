@@ -209,7 +209,7 @@ export function AdminReservationDetailPage() {
       case 'PENDING':
         return isDark
           ? 'bg-amber-950/60 text-amber-400 border-amber-800/60'
-          : 'bg-amber-50 text-amber-700 border-amber-200'
+          : 'bg-[#fff8eb] text-[#b46b00] border-[#f2be54]'
       case 'FULFILLED':
         return isDark
           ? 'bg-blue-950/60 text-blue-400 border-blue-800/60'
@@ -282,10 +282,10 @@ export function AdminReservationDetailPage() {
               </div>
 
               <div className="space-y-1">
-                <span className={`text-xs font-medium flex items-center gap-1.5 ${isReady ? 'text-amber-500 font-semibold' : t.subTextColor}`}>
-                  <IconClock size={15} className={isReady ? 'text-amber-500' : 'text-blue-500'} /> Pickup Deadline
+                <span className={`text-xs font-medium flex items-center gap-1.5 ${isReady ? 'text-[#b46b00] dark:text-amber-400 font-semibold' : t.subTextColor}`}>
+                  <IconClock size={15} className={isReady ? 'text-[#b46b00] dark:text-amber-400' : 'text-blue-500'} /> Pickup Deadline
                 </span>
-                <p className={`text-sm font-mono font-medium ${isReady ? 'text-amber-500 font-bold' : t.titleColor}`}>
+                <p className={`text-sm font-mono font-medium ${isReady ? 'text-[#b46b00] dark:text-amber-400 font-bold' : t.titleColor}`}>
                   {formatDate(reservation.pickupDeadline)}
                 </p>
               </div>
@@ -296,7 +296,7 @@ export function AdminReservationDetailPage() {
                 </span>
                 <p className="text-sm font-mono font-medium">
                   {isPending ? (
-                    <span className="text-amber-500 font-semibold">#{reservation.queuePosition || 1} in queue</span>
+                    <span className="text-[#b46b00] dark:text-amber-400 font-semibold">#{reservation.queuePosition || 1} in queue</span>
                   ) : isReady ? (
                     <span className="text-emerald-500 font-semibold">Ready at counter</span>
                   ) : isFulfilled ? (

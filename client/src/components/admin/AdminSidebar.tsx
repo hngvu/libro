@@ -15,7 +15,7 @@ export function AdminSidebar() {
       } ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
     >
       {/* Top: Fixed Brand Header (Logo) */}
-      <div className={`pb-3 border-b shrink-0 ${isDark ? 'border-[#22262e]' : 'border-gray-200'}`}>
+      <div className={`pb-3 border-b shrink-0 ${isDark ? 'border-[#22262e]' : 'border-[#d8dce2]'}`}>
         <SidebarHeader />
       </div>
 
@@ -25,21 +25,33 @@ export function AdminSidebar() {
       </div>
 
       {/* Footer: Settings Link (Navigates to /admin/settings) */}
-      <div className={`pt-3 border-t shrink-0 ${isDark ? 'border-[#22262e]' : 'border-gray-200'}`}>
+      <div className={`pt-3 border-t shrink-0 ${isDark ? 'border-[#22262e]' : 'border-[#d8dce2]'}`}>
         <NavLink
           to="/admin/settings"
           onClick={() => setMobileSidebarOpen(false)}
-          className={({ isActive }) => `w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs transition-colors duration-150 cursor-pointer group ${
+          className={({ isActive }) => `w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] transition-colors duration-150 cursor-pointer group outline-none select-none border ${
             isActive
-              ? (isDark ? 'bg-[#2b2f35] text-white font-semibold shadow-xs hover:bg-[#343a44]' : 'bg-gray-100 text-gray-950 font-semibold border border-gray-200/90 shadow-xs hover:bg-gray-200/70')
-              : (isDark ? 'text-[#8c94a5] hover:text-white hover:bg-[#1f2228]' : 'text-gray-600 hover:text-gray-950 hover:bg-gray-100')
+              ? (isDark ? 'bg-[#2b2f35] text-white font-semibold border-transparent shadow-xs hover:bg-[#343a44]' : 'bg-white text-[#212b36] font-semibold border-[#dce0e5] shadow-[0_1px_2px_rgba(0,0,0,0.05)]')
+              : (isDark ? 'text-[#8c94a5] font-medium border-transparent hover:text-white hover:bg-[#1f2228]' : 'text-[#4b5563] font-medium border-transparent hover:text-[#212b36] hover:bg-[#dfe2e6]/70')
           }`}
         >
-          <IconSettings
-            size={17}
-            className="group-hover:rotate-45 transition-transform duration-200"
-          />
-          <span className="font-semibold">Settings</span>
+          {({ isActive }) => (
+            <>
+              <IconSettings
+                size={17}
+                className={`group-hover:rotate-45 transition-transform duration-200 shrink-0 ${
+                  isActive
+                    ? isDark
+                      ? 'text-white'
+                      : 'text-[#0088ff]'
+                    : isDark
+                    ? 'text-[#8c94a5] group-hover:text-white'
+                    : 'text-[#4b5563] group-hover:text-[#212b36]'
+                }`}
+              />
+              <span className={isActive ? 'font-semibold' : 'font-medium'}>Settings</span>
+            </>
+          )}
         </NavLink>
       </div>
     </aside>

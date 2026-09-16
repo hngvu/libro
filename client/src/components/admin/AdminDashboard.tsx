@@ -525,7 +525,7 @@ export function AdminDashboard() {
       : 'bg-emerald-50 text-emerald-700 border border-emerald-200',
     statusBorrowed: isDark
       ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-      : 'bg-amber-50 text-amber-700 border border-amber-200',
+      : 'bg-[#fff8eb] text-[#b46b00] border border-[#f2be54]',
     statusOverdue: isDark
       ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
       : 'bg-rose-50 text-rose-700 border border-rose-200',
