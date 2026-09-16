@@ -320,7 +320,7 @@ export function AdminFineSettingsPage() {
 
         {/* Row 3: Material Loss & Damage Charges */}
         <div className="space-y-1 pt-3 w-full">
-          <div className="flex items-center justify-between pb-2.5 border-b border-gray-200 dark:border-[#262a34]">
+          <div className="flex items-center justify-between pb-2.5 dark:border-[#262a34]">
             <label className={`block text-sm font-semibold ${t.titleColor}`}>
               Inventory Replacement & Assessments
             </label>

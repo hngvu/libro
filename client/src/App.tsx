@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   BrowserRouter,
   Routes,
@@ -8,7 +8,7 @@ import {
   useLocation,
   useSearchParams,
 } from 'react-router-dom'
-import { AuthProvider } from '@/context/AuthContext'
+import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { Navbar } from '@/components/layout/Navbar'
 import { BookCatalog } from '@/components/catalog/BookCatalog'
 import { BookDetail } from '@/components/catalog/BookDetail'
@@ -46,6 +46,7 @@ import { AuthModal } from '@/components/auth/AuthModal'
 import { UserProfileModal } from '@/components/profile/UserProfileModal'
 import { MembershipPlansModal } from '@/components/profile/MembershipPlansModal'
 import { MembershipPage } from '@/pages/membership/MembershipPage'
+import { MemberHomePage } from '@/components/home/MemberHomePage'
 import type { BookPublicResponse } from '@/types/api'
 
 function CatalogRouteWrapper({
@@ -53,9 +54,19 @@ function CatalogRouteWrapper({
 }: {
   onSelectBook: (book: BookPublicResponse) => void
 }) {
+  const { user } = useAuth()
+  const isMember = user?.role === 'MEMBER'
   const [searchParams, setSearchParams] = useSearchParams()
   const keyword = searchParams.get('keyword') || ''
   const selectedGenre = searchParams.get('genre') || ''
+  const [forceCatalogView, setForceCatalogView] = useState(false)
+
+  // Reset forced catalog view if keyword or genre is cleared
+  useEffect(() => {
+    if (!keyword && !selectedGenre) {
+      setForceCatalogView(false)
+    }
+  }, [keyword, selectedGenre])
 
   const handleKeywordChange = (kw: string) => {
     const params = new URLSearchParams(searchParams)
@@ -69,6 +80,16 @@ function CatalogRouteWrapper({
     if (genre) params.set('genre', genre)
     else params.delete('genre')
     setSearchParams(params)
+  }
+
+  // If member is logged in and not currently querying the catalog, show Goodreads-style Member Lounge
+  if (isMember && !keyword && !selectedGenre && !forceCatalogView) {
+    return (
+      <MemberHomePage
+        onSelectBook={onSelectBook}
+        onBrowseCatalog={() => setForceCatalogView(true)}
+      />
+    )
   }
 
   return (
