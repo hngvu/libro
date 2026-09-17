@@ -9,6 +9,7 @@ import {
   IconChevronDown,
   IconX,
   IconBook,
+  IconActivity,
   IconBell,
   IconCrown,
 } from '@tabler/icons-react'
@@ -315,7 +316,7 @@ export function Navbar({
                         }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 dark:hover:bg-[#3d4b3e]/40 rounded-[4px] transition-colors cursor-pointer"
                       >
-                        <IconBook size={15} /> My Bookshelf
+                        <IconActivity size={15} /> My Activity
                       </button>
 
                       <button

@@ -4,6 +4,7 @@ import type {
   LoanPublicResponse,
   LoanStatus,
   FinePublicResponse,
+  FineStatus,
   ReservationResponse,
   ReservationStatus,
 } from '@/types/api'
@@ -129,10 +130,17 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
   const [resStatusFilter, setResStatusFilter] = useState<ReservationStatus | ''>('')
   const [resStartDateFilter, setResStartDateFilter] = useState('')
   const [resEndDateFilter, setResEndDateFilter] = useState('')
+  const [resSortBy, setResSortBy] = useState<'date-desc' | 'date-asc' | 'deadline-asc' | 'title-asc' | 'title-desc'>('date-desc')
   const [cancellingResId, setCancellingResId] = useState<number | null>(null)
 
   // Fines State
   const [fines, setFines] = useState<FinePublicResponse[]>([])
+  const [fineActiveFilterFields, setFineActiveFilterFields] = useState<string[]>([])
+  const [fineKeyword, setFineKeyword] = useState('')
+  const [fineStatusFilter, setFineStatusFilter] = useState<FineStatus | ''>('')
+  const [fineStartDateFilter, setFineStartDateFilter] = useState('')
+  const [fineEndDateFilter, setFineEndDateFilter] = useState('')
+  const [fineSortBy, setFineSortBy] = useState<'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc' | 'title-asc' | 'title-desc'>('date-desc')
   const [payingFineCode, setPayingFineCode] = useState<string | null>(null)
 
   // Summary Stats
@@ -147,7 +155,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
       const [allLoansRes, resRes, finesRes] = await Promise.all([
         api.getMyLoans({ size: 100 }),
         api.getMyReservations({ size: 50 }),
-        api.getMyFines({ status: 'PENDING' }),
+        api.getMyFines({ size: 100 }),
       ])
       const all = allLoansRes.content || []
       let ongoing = 0
@@ -262,6 +270,21 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
     fetchStats()
   }, [fetchStats])
 
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam === 'reservations') {
+      setActiveTab('reservations')
+    } else if (tabParam === 'fines') {
+      setActiveTab('fines')
+    } else if (tabParam === 'read' || tabParam === 'history') {
+      setActiveTab('loans')
+      setStatusFilter('RETURNED')
+    } else if (tabParam === 'loans') {
+      setActiveTab('loans')
+      setStatusFilter('')
+    }
+  }, [searchParams])
+
   const filteredAndSortedLoans = useMemo(() => {
     let list = [...loans]
     if (keyword.trim()) {
@@ -302,7 +325,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
     return list
   }, [loans, keyword, sortBy, startDateFilter, endDateFilter])
 
-  const filteredReservations = useMemo(() => {
+  const filteredAndSortedReservations = useMemo(() => {
     let list = [...reservations]
     if (resStatusFilter) {
       list = list.filter((r) => r.status === resStatusFilter)
@@ -313,7 +336,8 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
         (r) =>
           (r.bookTitle && r.bookTitle.toLowerCase().includes(kw)) ||
           (r.reservationCode && r.reservationCode.toLowerCase().includes(kw)) ||
-          (r.barcode && r.barcode.toLowerCase().includes(kw))
+          (r.barcode && r.barcode.toLowerCase().includes(kw)) ||
+          (r.bookHandle && r.bookHandle.toLowerCase().includes(kw))
       )
     }
     if (resStartDateFilter) {
@@ -328,8 +352,62 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
         return d ? d <= resEndDateFilter : true
       })
     }
+    if (resSortBy === 'date-desc') {
+      list.sort((a, b) => (b.reservedAt || '').localeCompare(a.reservedAt || ''))
+    } else if (resSortBy === 'date-asc') {
+      list.sort((a, b) => (a.reservedAt || '').localeCompare(b.reservedAt || ''))
+    } else if (resSortBy === 'deadline-asc') {
+      list.sort((a, b) => (a.pickupDeadline || '').localeCompare(b.pickupDeadline || ''))
+    } else if (resSortBy === 'title-asc') {
+      list.sort((a, b) => (a.bookTitle || '').localeCompare(b.bookTitle || ''))
+    } else if (resSortBy === 'title-desc') {
+      list.sort((a, b) => (b.bookTitle || '').localeCompare(a.bookTitle || ''))
+    }
     return list
-  }, [reservations, resStatusFilter, resKeyword, resStartDateFilter, resEndDateFilter])
+  }, [reservations, resStatusFilter, resKeyword, resStartDateFilter, resEndDateFilter, resSortBy])
+
+  const filteredAndSortedFines = useMemo(() => {
+    let list = [...fines]
+    if (fineStatusFilter) {
+      list = list.filter((f) => f.status === fineStatusFilter)
+    }
+    if (fineKeyword.trim()) {
+      const kw = fineKeyword.trim().toLowerCase()
+      list = list.filter(
+        (f) =>
+          (f.fineCode && f.fineCode.toLowerCase().includes(kw)) ||
+          (f.loanCode && f.loanCode.toLowerCase().includes(kw)) ||
+          (f.bookTitle && f.bookTitle.toLowerCase().includes(kw)) ||
+          (f.bookHandle && f.bookHandle.toLowerCase().includes(kw))
+      )
+    }
+    if (fineStartDateFilter) {
+      list = list.filter((f) => {
+        const d = (f.createdAt || f.paidAt || '').split('T')[0]
+        return d ? d >= fineStartDateFilter : true
+      })
+    }
+    if (fineEndDateFilter) {
+      list = list.filter((f) => {
+        const d = (f.createdAt || f.paidAt || '').split('T')[0]
+        return d ? d <= fineEndDateFilter : true
+      })
+    }
+    if (fineSortBy === 'date-desc') {
+      list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+    } else if (fineSortBy === 'date-asc') {
+      list.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''))
+    } else if (fineSortBy === 'amount-desc') {
+      list.sort((a, b) => (b.amount || 0) - (a.amount || 0))
+    } else if (fineSortBy === 'amount-asc') {
+      list.sort((a, b) => (a.amount || 0) - (b.amount || 0))
+    } else if (fineSortBy === 'title-asc') {
+      list.sort((a, b) => (a.bookTitle || '').localeCompare(b.bookTitle || ''))
+    } else if (fineSortBy === 'title-desc') {
+      list.sort((a, b) => (b.bookTitle || '').localeCompare(a.bookTitle || ''))
+    }
+    return list
+  }, [fines, fineStatusFilter, fineKeyword, fineStartDateFilter, fineEndDateFilter, fineSortBy])
 
   if (!user || user.role !== 'MEMBER') {
     return (
@@ -382,7 +460,76 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
     }
   }
 
-  const totalFinesAmount = fines.reduce((sum, f) => sum + (f.amount || 0), 0)
+  const getReservationStatusBadge = (status: ReservationStatus) => {
+    switch (status) {
+      case 'PENDING':
+        return (
+          <Badge variant="warning" className="rounded-[4px] font-semibold">
+            Pending
+          </Badge>
+        )
+      case 'READY_FOR_PICKUP':
+        return (
+          <Badge variant="success" className="rounded-[4px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 font-semibold">
+            Ready for Pickup
+          </Badge>
+        )
+      case 'FULFILLED':
+        return (
+          <Badge variant="outline" className="rounded-[4px] font-semibold text-[#6f7f64] dark:text-[#c8d0b7]">
+            Fulfilled
+          </Badge>
+        )
+      case 'CANCELLED':
+        return (
+          <Badge variant="destructive" className="rounded-[4px] font-semibold">
+            Cancelled
+          </Badge>
+        )
+      case 'EXPIRED':
+        return (
+          <Badge variant="destructive" className="rounded-[4px] font-semibold">
+            Expired
+          </Badge>
+        )
+      default:
+        return <Badge variant="outline" className="rounded-[4px] font-semibold">{status}</Badge>
+    }
+  }
+
+  const getFineStatusBadge = (status: FineStatus) => {
+    switch (status) {
+      case 'PENDING':
+        return (
+          <Badge variant="destructive" className="rounded-[4px] font-semibold">
+            Unpaid
+          </Badge>
+        )
+      case 'PAID':
+        return (
+          <Badge variant="success" className="rounded-[4px] font-semibold">
+            Paid
+          </Badge>
+        )
+      case 'WAIVED':
+        return (
+          <Badge variant="outline" className="rounded-[4px] font-semibold text-[#6f7f64] dark:text-[#c8d0b7]">
+            Waived
+          </Badge>
+        )
+      case 'CANCELLED':
+        return (
+          <Badge variant="outline" className="rounded-[4px] font-semibold text-[#6f7f64] dark:text-[#c8d0b7]">
+            Cancelled
+          </Badge>
+        )
+      default:
+        return <Badge variant="outline" className="rounded-[4px] font-semibold">{status}</Badge>
+    }
+  }
+
+  const pendingFines = fines.filter((f) => f.status === 'PENDING')
+  const totalFinesAmount = pendingFines.reduce((sum, f) => sum + (f.amount || 0), 0)
 
   return (
     <div className="space-y-4">
@@ -403,7 +550,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
               setStatusFilter('ONGOING')
               setSortBy('due-asc')
               setPage(1)
-            } else if (fines.length > 0) {
+            } else if (pendingFines.length > 0) {
               setActiveTab('fines')
             } else {
               setActiveTab('loans')
@@ -416,7 +563,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
             (activeTab === 'loans' && (statusFilter === 'OVERDUE' || (statusFilter === 'ONGOING' && sortBy === 'due-asc' && stats.dueSoon > 0))) ||
             activeTab === 'fines'
               ? 'border-[#7a2323] bg-[#7a2323]/20 dark:bg-[#631c1c]/45 shadow-xs ring-1 ring-[#7a2323]/30'
-              : stats.overdue > 0 || stats.dueSoon > 0 || fines.length > 0
+              : stats.overdue > 0 || stats.dueSoon > 0 || pendingFines.length > 0
               ? 'border-[#a84d4d]/40 dark:border-[#7a2828]/60 bg-[#8b2d2d]/10 dark:bg-[#521919]/30 hover:border-[#7a2323]'
               : 'border-[#c8d0b7] dark:border-[#3d4b3e] bg-white dark:bg-[#252c28] hover:border-[#8b2d2d]/60'
           }`}
@@ -427,7 +574,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                 ? 'Overdue Warning'
                 : stats.dueSoon > 0
                 ? 'Due Soon Warning'
-                : fines.length > 0
+                : pendingFines.length > 0
                 ? 'Unpaid Fines'
                 : 'Overdue & Alerts'}
             </span>
@@ -437,7 +584,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                   ? stats.overdue
                   : stats.dueSoon > 0
                   ? stats.dueSoon
-                  : fines.length > 0
+                  : pendingFines.length > 0
                   ? `$${totalFinesAmount.toFixed(2)}`
                   : 0}
               </span>
@@ -451,7 +598,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                   in ≤ 3 days
                 </span>
               )}
-              {stats.overdue === 0 && stats.dueSoon === 0 && fines.length === 0 && (
+              {stats.overdue === 0 && stats.dueSoon === 0 && pendingFines.length === 0 && (
                 <span className="text-[10px] font-medium text-[#6f7f64] dark:text-[#c8d0b7]">
                   All clear
                 </span>
@@ -459,7 +606,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
             </div>
           </div>
           <div className="w-8 h-8 rounded-full bg-[#801b1b]/15 dark:bg-[#801b1b]/40 text-[#801b1b] dark:text-[#fca5a5] flex items-center justify-center shrink-0">
-            {fines.length > 0 && stats.overdue === 0 && stats.dueSoon === 0 ? (
+            {pendingFines.length > 0 && stats.overdue === 0 && stats.dueSoon === 0 ? (
               <IconCoins size={16} />
             ) : (
               <IconAlertTriangle size={16} />
@@ -584,7 +731,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
           }`}
         >
           <span>Fines</span>
-          {fines.length > 0 && (
+          {pendingFines.length > 0 && (
             <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
           )}
         </button>
@@ -619,7 +766,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
             <IconCheck size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             Payment completed successfully via Stripe! Your fine has been marked as paid.
           </div>
-          <button onClick={() => navigate('/loans', { replace: true })} className="underline text-[11px] font-semibold cursor-pointer shrink-0 ml-2">
+          <button onClick={() => navigate('/activity', { replace: true })} className="underline text-[11px] font-semibold cursor-pointer shrink-0 ml-2">
             Dismiss
           </button>
         </div>
@@ -1028,7 +1175,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
         <div className="space-y-3.5">
           {/* Search & Actions Toolbar */}
           <div className="space-y-2.5">
-            {/* Row 1: Searchbar */}
+            {/* Row 1: Searchbar + Sort Button */}
             <div className="flex items-center gap-2 w-full sm:w-[360px] md:w-[420px]">
               <div className="relative flex-1">
                 <IconSearch size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7f64] dark:text-[#c8d0b7]" />
@@ -1048,6 +1195,55 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                   </button>
                 )}
               </div>
+
+              {/* Sort Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={`h-9 w-9 rounded-[6px] border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                      resSortBy !== 'date-desc'
+                        ? 'bg-[#3d4b3e]/10 dark:bg-[#3d4b3e]/40 border-[#3d4b3e] text-[#3d4b3e] dark:text-[#c8d0b7]'
+                        : 'bg-white dark:bg-[#252c28] border-[#c8d0b7] dark:border-[#3d4b3e] text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/20'
+                    }`}
+                    title="Sort options"
+                  >
+                    <IconArrowsUpDown size={15} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-[6px] border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#faf9f4] dark:bg-[#252c28] text-xs">
+                  <DropdownMenuItem
+                    onClick={() => setResSortBy('date-desc')}
+                    className={resSortBy === 'date-desc' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                  >
+                    Reserved Date (Newest)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setResSortBy('date-asc')}
+                    className={resSortBy === 'date-asc' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                  >
+                    Reserved Date (Oldest)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setResSortBy('deadline-asc')}
+                    className={resSortBy === 'deadline-asc' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                  >
+                    Pickup Deadline (Soonest)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setResSortBy('title-asc')}
+                    className={resSortBy === 'title-asc' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                  >
+                    Title (A-Z)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setResSortBy('title-desc')}
+                    className={resSortBy === 'title-desc' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                  >
+                    Title (Z-A)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Row 2: Filter Section Under Searchbar */}
@@ -1076,6 +1272,8 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                             ? 'Fulfilled'
                             : resStatusFilter === 'CANCELLED'
                             ? 'Cancelled'
+                            : resStatusFilter === 'EXPIRED'
+                            ? 'Expired'
                             : 'All'}
                         </span>
                       </button>
@@ -1110,6 +1308,12 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                         className={resStatusFilter === 'CANCELLED' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
                       >
                         Cancelled
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setResStatusFilter('EXPIRED')}
+                        className={resStatusFilter === 'EXPIRED' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                      >
+                        Expired
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -1203,71 +1407,128 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
             </div>
           </div>
 
-          {/* Reservations List */}
-          {filteredReservations.length === 0 ? (
+          {/* Reservations Table */}
+          {filteredAndSortedReservations.length === 0 ? (
             <div className="p-10 text-center bg-[#faf9f4] dark:bg-[#252c28] rounded-[6px] border border-[#c8d0b7] dark:border-[#3d4b3e]">
               <IconBookmark className="mx-auto text-[#6f7f64] opacity-50 mb-2" size={32} />
               <p className="text-sm font-semibold text-[#1e2320] dark:text-[#f5f3e6]">No book holds or reservations found</p>
               <p className="text-xs text-[#6f7f64] dark:text-[#c8d0b7] mt-1">
-                When copies of popular titles are unavailable, you can place a hold to reserve your place in line.
+                {resKeyword || resStatusFilter ? 'Try clearing your filters to see more results.' : 'When copies of popular titles are unavailable, you can place a hold to reserve your place in line.'}
               </p>
             </div>
           ) : (
-            <div className="space-y-2.5">
-              {filteredReservations.map((res) => (
-                <div
-                  key={res.id}
-                  className="p-3.5 rounded-[6px] border border-[#c8d0b7]/70 dark:border-[#3d4b3e] bg-white dark:bg-[#252c28] flex items-center justify-between gap-3 text-xs shadow-2xs"
-                >
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span
-                        onClick={() => res.bookHandle && navigate(`/book/${res.bookHandle}`)}
-                        className="font-semibold text-sm text-[#1e2320] dark:text-[#f5f3e6] hover:underline cursor-pointer truncate"
-                      >
-                        {res.bookTitle || 'Untitled Book'}
-                      </span>
-                      {res.status === 'READY_FOR_PICKUP' ? (
-                        <Badge variant="success" className="text-[10px] rounded-[4px]">
-                          Ready for pickup
-                        </Badge>
-                      ) : res.status === 'PENDING' ? (
-                        <Badge variant="warning" className="text-[10px] rounded-[4px]">
-                          Queue #{res.queuePosition || 1}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px] rounded-[4px]">
-                          {res.status}
-                        </Badge>
-                      )}
-                    </div>
+            <Table className="min-w-[680px]">
+              <TableHeader>
+                <TableRow className="bg-[#faf9f4] dark:bg-[#252c28] border-b border-[#c8d0b7] dark:border-[#3d4b3e] hover:bg-[#faf9f4] dark:hover:bg-[#252c28]">
+                  <TableHead className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6] min-w-[220px]">Book</TableHead>
+                  <TableHead className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6] w-[140px] whitespace-nowrap">Hold Code</TableHead>
+                  <TableHead className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6] w-[110px] whitespace-nowrap">Reserved</TableHead>
+                  <TableHead className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6] w-[130px] whitespace-nowrap">Pickup Deadline</TableHead>
+                  <TableHead className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6] w-[110px] whitespace-nowrap">Action</TableHead>
+                  <TableHead className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6] w-[120px] text-right whitespace-nowrap">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAndSortedReservations.map((res) => (
+                  <TableRow key={res.id} className="border-b border-[#c8d0b7]/40 dark:border-[#3d4b3e]/40 hover:bg-[#c8d0b7]/15 dark:hover:bg-[#3d4b3e]/30 transition-colors">
+                    {/* Rich Book Column: Cover + Title + Authors */}
+                    <TableCell className="font-medium text-xs py-2.5">
+                      <div className="flex items-center gap-3">
+                        <div
+                          onClick={() => res.bookHandle && navigate(`/book/${res.bookHandle}`)}
+                          className="w-10 h-14 sm:w-11 sm:h-15 rounded-[4px] bg-[#c8d0b7]/20 dark:bg-[#3d4b3e]/30 border border-[#c8d0b7]/50 dark:border-[#3d4b3e] overflow-hidden shrink-0 flex items-center justify-center cursor-pointer shadow-2xs group"
+                        >
+                          {res.bookCover ? (
+                            <img
+                              src={res.bookCover}
+                              alt={res.bookTitle}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <IconBook size={18} className="text-[#6f7f64] dark:text-[#c8d0b7] opacity-60" />
+                          )}
+                        </div>
 
-                    <div className="flex items-center gap-3 text-[#6f7f64] dark:text-[#c8d0b7] text-xs flex-wrap">
-                      <span>Code: <code className="font-mono font-bold text-[#1e2320] dark:text-[#f5f3e6]">{res.reservationCode}</code></span>
-                      <span>Reserved: {formatDate(res.reservedAt)}</span>
-                      {res.pickupDeadline && (
-                        <span className="text-amber-700 dark:text-amber-400 font-semibold">
-                          Pickup deadline: {formatDate(res.pickupDeadline)}
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <span
+                            onClick={() => res.bookHandle && navigate(`/book/${res.bookHandle}`)}
+                            className="font-semibold text-xs sm:text-sm text-[#1e2320] dark:text-[#f5f3e6] hover:underline cursor-pointer truncate block"
+                            title={res.bookTitle || 'Untitled Book'}
+                          >
+                            {res.bookTitle || 'Untitled Book'}
+                          </span>
+                          {res.authors && res.authors.length > 0 && (
+                            <span
+                              className="text-[11px] text-[#6f7f64] dark:text-[#c8d0b7] truncate block"
+                              title={res.authors.join(', ')}
+                            >
+                              by {res.authors.join(', ')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* Hold Code */}
+                    <TableCell className="text-xs sm:text-[13px] font-mono font-medium text-[#1e2320] dark:text-[#f5f3e6] whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span>{res.reservationCode}</span>
+                        {res.status === 'PENDING' && res.queuePosition ? (
+                          <span
+                            title={`Position #${res.queuePosition} in queue`}
+                            className="font-sans text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 rounded-[4px] border border-amber-300 dark:border-amber-700 shadow-2xs select-none"
+                          >
+                            #{res.queuePosition}
+                          </span>
+                        ) : null}
+                      </div>
+                    </TableCell>
+
+                    {/* Reserved Date */}
+                    <TableCell className="text-xs sm:text-[13px] text-[#1e2320] dark:text-[#f5f3e6] whitespace-nowrap">
+                      {formatDate(res.reservedAt)}
+                    </TableCell>
+
+                    {/* Pickup Deadline */}
+                    <TableCell className="text-xs sm:text-[13px] font-medium whitespace-nowrap">
+                      {res.pickupDeadline ? (
+                        <span className={res.status === 'READY_FOR_PICKUP' ? 'text-emerald-700 dark:text-emerald-400 font-bold' : 'text-[#1e2320] dark:text-[#f5f3e6]'}>
+                          {formatDate(res.pickupDeadline)}
                         </span>
+                      ) : (
+                        <span className="text-[#6f7f64] dark:text-[#c8d0b7]">—</span>
                       )}
-                    </div>
-                  </div>
+                    </TableCell>
 
-                  {(res.status === 'PENDING' || res.status === 'READY_FOR_PICKUP') && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={cancellingResId === res.id}
-                      onClick={() => handleCancelReservation(res.id)}
-                      className="text-xs h-8 gap-1.5 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-[5px] shrink-0"
-                    >
-                      <IconTrash size={13} />
-                      {cancellingResId === res.id ? 'Cancelling...' : 'Cancel Hold'}
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
+                    {/* Action */}
+                    <TableCell className="text-xs sm:text-[13px] text-[#1e2320] dark:text-[#f5f3e6] whitespace-nowrap">
+                      {(res.status === 'PENDING' || res.status === 'READY_FOR_PICKUP') ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={cancellingResId === res.id}
+                          onClick={() => handleCancelReservation(res.id)}
+                          className="text-[11px] h-6 px-2.5 gap-1 rounded-[4px] border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors shadow-2xs font-semibold cursor-pointer"
+                        >
+                          <IconTrash size={11} />
+                          {cancellingResId === res.id ? 'Cancelling...' : 'Cancel'}
+                        </Button>
+                      ) : (
+                        <span className="text-[#6f7f64] dark:text-[#c8d0b7]">—</span>
+                      )}
+                    </TableCell>
+
+                    {/* Status */}
+                    <TableCell className="text-right whitespace-nowrap">
+                      {getReservationStatusBadge(res.status)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </div>
       )}
@@ -1275,65 +1536,379 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
       {/* TAB 3: FINES & PENALTIES */}
       {activeTab === 'fines' && (
         <div className="space-y-3.5">
-          {fines.length === 0 ? (
+          {/* Outstanding Balance Banner if pending fines */}
+          {totalFinesAmount > 0 && (
+            <div className="p-3.5 rounded-[6px] border border-amber-300 dark:border-amber-700 bg-amber-50/70 dark:bg-amber-950/30 flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-amber-200/80 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 flex items-center justify-center shrink-0">
+                  <IconCoins size={15} />
+                </div>
+                <div>
+                  <span className="font-semibold text-amber-950 dark:text-amber-200">
+                    Outstanding Library Balance: ${totalFinesAmount.toFixed(2)}
+                  </span>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+                    Please settle unpaid balances to maintain borrowing privileges. Payments are processed securely via Stripe.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Search & Actions Toolbar */}
+          <div className="space-y-2.5">
+            {/* Row 1: Searchbar + Sort Button */}
+            <div className="flex items-center gap-2 w-full sm:w-[360px] md:w-[420px]">
+              <div className="relative flex-1">
+                <IconSearch size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7f64] dark:text-[#c8d0b7]" />
+                <input
+                  placeholder="Search fine code, loan or title..."
+                  value={fineKeyword}
+                  onChange={(e) => setFineKeyword(e.target.value)}
+                  className="h-9 pl-9 pr-8 text-xs sm:text-sm w-full rounded-[6px] border border-[#c8d0b7] dark:border-[#3d4b3e] bg-white dark:bg-[#252c28] text-[#1e2320] dark:text-[#f5f3e6] placeholder:text-[#6f7f64] dark:placeholder:text-[#8e9d89] outline-none focus:border-[#3d4b3e] dark:focus:border-[#c8d0b7] transition-colors"
+                />
+                {fineKeyword && (
+                  <button
+                    type="button"
+                    onClick={() => setFineKeyword('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6f7f64] hover:text-[#1e2320] dark:hover:text-[#f5f3e6] cursor-pointer"
+                  >
+                    <IconX size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Sort Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={`h-9 w-9 rounded-[6px] border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                      fineSortBy !== 'date-desc'
+                        ? 'bg-[#3d4b3e]/10 dark:bg-[#3d4b3e]/40 border-[#3d4b3e] text-[#3d4b3e] dark:text-[#c8d0b7]'
+                        : 'bg-white dark:bg-[#252c28] border-[#c8d0b7] dark:border-[#3d4b3e] text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/20'
+                    }`}
+                    title="Sort options"
+                  >
+                    <IconArrowsUpDown size={15} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-[6px] border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#faf9f4] dark:bg-[#252c28] text-xs">
+                  <DropdownMenuItem
+                    onClick={() => setFineSortBy('date-desc')}
+                    className={fineSortBy === 'date-desc' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                  >
+                    Date (Newest)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setFineSortBy('date-asc')}
+                    className={fineSortBy === 'date-asc' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                  >
+                    Date (Oldest)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setFineSortBy('amount-desc')}
+                    className={fineSortBy === 'amount-desc' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                  >
+                    Amount (High to Low)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setFineSortBy('amount-asc')}
+                    className={fineSortBy === 'amount-asc' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                  >
+                    Amount (Low to High)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setFineSortBy('title-asc')}
+                    className={fineSortBy === 'title-asc' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                  >
+                    Title (A-Z)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setFineSortBy('title-desc')}
+                    className={fineSortBy === 'title-desc' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                  >
+                    Title (Z-A)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Row 2: Filter Section Under Searchbar */}
+            <div className="flex items-center gap-2 flex-wrap pt-0.5">
+              <div className="h-9 flex items-center gap-1.5 px-3 rounded-[6px] border border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#faf9f4] dark:bg-[#252c28] text-[#1e2320] dark:text-[#f5f3e6] text-xs font-semibold select-none">
+                <IconFilter2 size={15} className="text-[#6f7f64] dark:text-[#c8d0b7]" />
+                <span>Filter</span>
+              </div>
+
+              {/* Status Filter Field Chip */}
+              {fineActiveFilterFields.includes('status') && (
+                <div className="h-9 flex items-center gap-1 pl-3 pr-1 rounded-[6px] border border-[#3d4b3e] dark:border-[#c8d0b7] bg-[#3d4b3e]/10 dark:bg-[#3d4b3e]/40 text-[#1e2320] dark:text-[#f5f3e6] text-xs font-medium">
+                  <span className="text-[#6f7f64] dark:text-[#c8d0b7]">Status:</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="font-semibold flex items-center gap-1 hover:underline cursor-pointer outline-none px-1 py-0.5 rounded-[4px]"
+                      >
+                        <span>
+                          {fineStatusFilter === 'PENDING'
+                            ? 'Unpaid (Pending)'
+                            : fineStatusFilter === 'PAID'
+                            ? 'Paid'
+                            : fineStatusFilter === 'WAIVED'
+                            ? 'Waived'
+                            : fineStatusFilter === 'CANCELLED'
+                            ? 'Cancelled'
+                            : 'All'}
+                        </span>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="rounded-[6px] border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#faf9f4] dark:bg-[#252c28] text-xs">
+                      <DropdownMenuItem
+                        onClick={() => setFineStatusFilter('')}
+                        className={!fineStatusFilter ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                      >
+                        All Statuses
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setFineStatusFilter('PENDING')}
+                        className={fineStatusFilter === 'PENDING' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                      >
+                        Unpaid (Pending)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setFineStatusFilter('PAID')}
+                        className={fineStatusFilter === 'PAID' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                      >
+                        Paid
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setFineStatusFilter('WAIVED')}
+                        className={fineStatusFilter === 'WAIVED' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                      >
+                        Waived
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setFineStatusFilter('CANCELLED')}
+                        className={fineStatusFilter === 'CANCELLED' ? 'font-semibold text-[#3d4b3e] dark:text-[#c8d0b7]' : ''}
+                      >
+                        Cancelled
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFineActiveFilterFields((prev) => prev.filter((f) => f !== 'status'))
+                      setFineStatusFilter('')
+                    }}
+                    className="p-1 hover:bg-[#c8d0b7]/40 dark:hover:bg-[#3d4b3e] rounded-[3px] cursor-pointer text-[#6f7f64] hover:text-[#1e2320] dark:hover:text-[#f5f3e6] ml-0.5"
+                    title="Remove status filter"
+                  >
+                    <IconX size={12} />
+                  </button>
+                </div>
+              )}
+
+              {/* Date Range Filter Field Chip */}
+              {fineActiveFilterFields.includes('date') && (
+                <div className="h-9 flex items-center gap-1 pl-3 pr-1.5 rounded-[6px] border border-[#3d4b3e] dark:border-[#c8d0b7] bg-[#3d4b3e]/10 dark:bg-[#3d4b3e]/40 text-[#1e2320] dark:text-[#f5f3e6] text-xs font-medium">
+                  <span className="text-[#6f7f64] dark:text-[#c8d0b7] shrink-0">Date:</span>
+                  <DateRangePicker
+                    value={{ start: fineStartDateFilter, end: fineEndDateFilter }}
+                    onChange={(range) => {
+                      setFineStartDateFilter(range.start || '')
+                      setFineEndDateFilter(range.end || '')
+                    }}
+                    placeholder="All dates"
+                    allowClear={false}
+                    format="dd/MM/yyyy"
+                    className="h-7 border-none bg-transparent hover:border-none hover:bg-transparent dark:hover:bg-transparent shadow-none px-1 text-xs font-semibold focus:border-none focus:ring-0 text-[#1e2320] dark:text-[#f5f3e6]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFineActiveFilterFields((prev) => prev.filter((f) => f !== 'date'))
+                      setFineStartDateFilter('')
+                      setFineEndDateFilter('')
+                    }}
+                    className="p-1 hover:bg-[#c8d0b7]/40 dark:hover:bg-[#3d4b3e] rounded-[3px] cursor-pointer text-[#6f7f64] hover:text-[#1e2320] dark:hover:text-[#f5f3e6]"
+                    title="Remove date filter"
+                  >
+                    <IconX size={12} />
+                  </button>
+                </div>
+              )}
+
+              {/* Plus Button to add unselected filters */}
+              {fineActiveFilterFields.length < 2 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="h-9 w-9 rounded-[6px] border border-[#c8d0b7] dark:border-[#3d4b3e] bg-white dark:bg-[#252c28] hover:bg-[#c8d0b7]/20 flex items-center justify-center text-[#1e2320] dark:text-[#f5f3e6] cursor-pointer transition-colors"
+                      title="Add filter"
+                    >
+                      <IconPlus size={15} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="rounded-[6px] border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#faf9f4] dark:bg-[#252c28] text-xs">
+                    {!fineActiveFilterFields.includes('status') && (
+                      <DropdownMenuItem onClick={() => setFineActiveFilterFields((prev) => [...prev, 'status'])}>
+                        Status
+                      </DropdownMenuItem>
+                    )}
+                    {!fineActiveFilterFields.includes('date') && (
+                      <DropdownMenuItem onClick={() => setFineActiveFilterFields((prev) => [...prev, 'date'])}>
+                        Date Range
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              {/* Reset Filters Button */}
+              {(fineActiveFilterFields.length > 0 || fineStatusFilter || fineStartDateFilter || fineEndDateFilter || fineKeyword) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFineActiveFilterFields([])
+                    setFineStatusFilter('')
+                    setFineStartDateFilter('')
+                    setFineEndDateFilter('')
+                    setFineKeyword('')
+                  }}
+                  className="h-9 px-2.5 rounded-[6px] text-xs text-[#6f7f64] hover:text-[#1e2320] dark:hover:text-[#f5f3e6] hover:bg-[#c8d0b7]/30 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                >
+                  <IconX size={13} /> Reset
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Fines Table */}
+          {filteredAndSortedFines.length === 0 ? (
             <div className="p-10 text-center bg-[#faf9f4] dark:bg-[#252c28] rounded-[6px] border border-[#c8d0b7] dark:border-[#3d4b3e]">
               <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3">
                 <IconCheck size={24} />
               </div>
-              <p className="text-sm font-semibold text-[#1e2320] dark:text-[#f5f3e6]">No Outstanding Fines</p>
+              <p className="text-sm font-semibold text-[#1e2320] dark:text-[#f5f3e6]">No Fines or Penalties Found</p>
               <p className="text-xs text-[#6f7f64] dark:text-[#c8d0b7] mt-1">
-                Your library account is in great standing with zero pending fines. Happy reading!
+                {fineKeyword || fineStatusFilter ? 'Try clearing your filters to see more records.' : 'Your account has zero recorded fines. Keep enjoying your library reads!'}
               </p>
             </div>
           ) : (
-            <div className="p-4 rounded-[6px] border border-amber-300 dark:border-amber-700 bg-amber-50/70 dark:bg-amber-950/30 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <IconCoins className="text-amber-600 dark:text-amber-400" size={20} />
-                  <h3 className="font-semibold text-sm text-amber-900 dark:text-amber-200">
-                    Outstanding Library Fines & Penalties ({fines.length})
-                  </h3>
-                </div>
-                <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                  Total Due: ${totalFinesAmount.toFixed(2)}
-                </span>
-              </div>
-              <p className="text-xs text-amber-800 dark:text-amber-300">
-                Outstanding balances prevent borrowing additional titles until settled. You can pay securely via Stripe.
-              </p>
-              <div className="divide-y divide-amber-200 dark:divide-amber-800">
-                {fines.map((fine) => (
-                  <div key={fine.fineCode} className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                    <div>
-                      <span className="font-mono font-bold text-amber-950 dark:text-amber-100">{fine.fineCode}</span>
-                      <span className="text-muted-foreground mx-1.5">•</span>
-                      <span className="font-medium">{fine.bookTitle || 'Library Item'}</span>
-                      <span className="text-muted-foreground mx-1.5">•</span>
-                      <Badge variant="outline" className="text-[10px] uppercase rounded-[4px]">
-                        {fine.reason.replace('_', ' ')}
-                      </Badge>
-                      {fine.daysOverdue && fine.daysOverdue > 0 && (
-                        <span className="text-rose-600 dark:text-rose-400 ml-1.5">({fine.daysOverdue} days late)</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 self-end sm:self-auto">
-                      <span className="font-mono font-bold text-sm text-amber-900 dark:text-amber-200">
-                        ${fine.amount.toFixed(2)}
-                      </span>
-                      <Button
-                        size="sm"
-                        disabled={payingFineCode === fine.fineCode}
-                        onClick={() => handlePayFineWithStripe(fine.fineCode)}
-                        className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-xs rounded-[5px]"
-                      >
-                        <IconCreditCard size={14} />
-                        {payingFineCode === fine.fineCode ? 'Redirecting...' : 'Pay with Stripe'}
-                      </Button>
-                    </div>
-                  </div>
+            <Table className="min-w-[680px]">
+              <TableHeader>
+                <TableRow className="bg-[#faf9f4] dark:bg-[#252c28] border-b border-[#c8d0b7] dark:border-[#3d4b3e] hover:bg-[#faf9f4] dark:hover:bg-[#252c28]">
+                  <TableHead className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6] min-w-[220px]">Book / Item</TableHead>
+                  <TableHead className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6] w-[140px] whitespace-nowrap">Fine Code</TableHead>
+                  <TableHead className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6] w-[130px] whitespace-nowrap">Reason</TableHead>
+                  <TableHead className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6] w-[110px] whitespace-nowrap">Date</TableHead>
+                  <TableHead className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6] w-[140px] whitespace-nowrap">Amount & Action</TableHead>
+                  <TableHead className="text-xs font-semibold text-[#1e2320] dark:text-[#f5f3e6] w-[110px] text-right whitespace-nowrap">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAndSortedFines.map((fine) => (
+                  <TableRow key={fine.fineCode} className="border-b border-[#c8d0b7]/40 dark:border-[#3d4b3e]/40 hover:bg-[#c8d0b7]/15 dark:hover:bg-[#3d4b3e]/30 transition-colors">
+                    {/* Rich Book / Item Column */}
+                    <TableCell className="font-medium text-xs py-2.5">
+                      <div className="flex items-center gap-3">
+                        <div
+                          onClick={() => fine.bookHandle && navigate(`/book/${fine.bookHandle}`)}
+                          className={`w-10 h-14 sm:w-11 sm:h-15 rounded-[4px] bg-[#c8d0b7]/20 dark:bg-[#3d4b3e]/30 border border-[#c8d0b7]/50 dark:border-[#3d4b3e] overflow-hidden shrink-0 flex items-center justify-center shadow-2xs group ${fine.bookHandle ? 'cursor-pointer' : ''}`}
+                        >
+                          {fine.bookCover ? (
+                            <img
+                              src={fine.bookCover}
+                              alt={fine.bookTitle || 'Fine Item'}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <IconBook size={18} className="text-[#6f7f64] dark:text-[#c8d0b7] opacity-60" />
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <span
+                            onClick={() => fine.bookHandle && navigate(`/book/${fine.bookHandle}`)}
+                            className={`font-semibold text-xs sm:text-sm text-[#1e2320] dark:text-[#f5f3e6] truncate block ${fine.bookHandle ? 'hover:underline cursor-pointer' : ''}`}
+                            title={fine.bookTitle || 'Library Item'}
+                          >
+                            {fine.bookTitle || 'Library Item'}
+                          </span>
+                          {fine.loanCode && (
+                            <span className="text-[11px] text-[#6f7f64] dark:text-[#c8d0b7] truncate block">
+                              Loan: <code className="font-mono">{fine.loanCode}</code>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* Fine Code */}
+                    <TableCell className="text-xs sm:text-[13px] font-mono font-medium text-[#1e2320] dark:text-[#f5f3e6] whitespace-nowrap">
+                      {fine.fineCode}
+                    </TableCell>
+
+                    {/* Reason */}
+                    <TableCell className="text-xs sm:text-[13px] font-medium text-[#1e2320] dark:text-[#f5f3e6] whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span>
+                          {fine.reason === 'OVERDUE'
+                            ? 'Overdue Loan'
+                            : fine.reason === 'LOST_BOOK'
+                            ? 'Lost Book'
+                            : fine.reason === 'DAMAGED_BOOK'
+                            ? 'Damaged Book'
+                            : 'Other Fee'}
+                        </span>
+                        {fine.daysOverdue && fine.daysOverdue > 0 ? (
+                          <span className="text-rose-600 dark:text-rose-400 text-[10px] font-bold">
+                            ({fine.daysOverdue}d)
+                          </span>
+                        ) : null}
+                      </div>
+                    </TableCell>
+
+                    {/* Date */}
+                    <TableCell className="text-xs sm:text-[13px] text-[#1e2320] dark:text-[#f5f3e6] whitespace-nowrap">
+                      {formatDate(fine.createdAt || fine.paidAt)}
+                    </TableCell>
+
+                    {/* Amount & Action */}
+                    <TableCell className="text-xs sm:text-[13px] whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-xs sm:text-[13px] text-[#1e2320] dark:text-[#f5f3e6]">
+                          ${fine.amount.toFixed(2)}
+                        </span>
+                        {fine.status === 'PENDING' ? (
+                          <Button
+                            size="sm"
+                            disabled={payingFineCode === fine.fineCode}
+                            onClick={() => handlePayFineWithStripe(fine.fineCode)}
+                            className="text-[11px] h-6 px-2.5 gap-1 rounded-[4px] bg-[#3d4b3e] hover:bg-[#252c28] text-white dark:bg-[#c8d0b7] dark:hover:bg-[#dfe5d1] dark:text-[#1e2320] transition-colors shadow-2xs font-semibold cursor-pointer"
+                          >
+                            <IconCreditCard size={11} />
+                            {payingFineCode === fine.fineCode ? 'Redirecting...' : 'Pay'}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </TableCell>
+
+                    {/* Status */}
+                    <TableCell className="text-right whitespace-nowrap">
+                      {getFineStatusBadge(fine.status)}
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </div>
-            </div>
+              </TableBody>
+            </Table>
           )}
         </div>
       )}

@@ -165,7 +165,7 @@ export function BookDetail({
                         onOpenAuth('login')
                         return
                       }
-                      navigate('/loans')
+                      navigate('/activity')
                     }}
                     className="flex-1 px-4 text-[14px] font-semibold flex items-center justify-center cursor-pointer select-none"
                   >
@@ -190,11 +190,11 @@ export function BookDetail({
                             onOpenAuth('login')
                             return
                           }
-                          navigate('/loans')
+                          navigate('/activity')
                         }}
                         className="w-full text-left px-3.5 py-2 hover:bg-[#f0f4f1] text-[#3d4b3e] font-medium"
                       >
-                        My Library Loans
+                        My Activity
                       </button>
                       <button onClick={() => { setBorrowDropdownOpen(false); window.open(`https://www.amazon.com/s?k=${encodeURIComponent(book.title)}`, '_blank') }}
                         className="w-full text-left px-3.5 py-2 hover:bg-[#fafafa] text-[#666]">

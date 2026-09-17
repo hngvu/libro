@@ -190,10 +190,10 @@ export function MembershipPage({ onOpenAuth }: MembershipPageProps) {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => navigate('/loans')}
+            onClick={() => navigate('/activity')}
             className="text-xs h-7 rounded-[4px] border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 cursor-pointer"
           >
-            Go to My Bookshelf
+            Go to My Activity
           </Button>
         </div>
       )}
