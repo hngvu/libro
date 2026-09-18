@@ -10,6 +10,7 @@ import {
 } from 'react-router-dom'
 import { AuthProvider } from '@/context/AuthContext'
 import { Navbar } from '@/components/layout/Navbar'
+import { Footer } from '@/components/layout/Footer'
 import { BookCatalog } from '@/components/catalog/BookCatalog'
 import { BookDetail } from '@/components/catalog/BookDetail'
 import { MyLoansView } from '@/components/loans/MyLoansView'
@@ -50,8 +51,10 @@ import type { BookPublicResponse } from '@/types/api'
 
 function CatalogRouteWrapper({
   onSelectBook,
+  onOpenAuth,
 }: {
   onSelectBook: (book: BookPublicResponse) => void
+  onOpenAuth: (mode?: 'login' | 'register') => void
 }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const keyword = searchParams.get('keyword') || ''
@@ -78,6 +81,7 @@ function CatalogRouteWrapper({
       selectedGenre={selectedGenre}
       onGenreChange={handleGenreChange}
       onSelectBook={onSelectBook}
+      onOpenAuth={onOpenAuth}
     />
   )
 }
@@ -162,17 +166,16 @@ function AppContent() {
       )}
 
       {/* Main Content Area Routing */}
-      <main
-        className={
-          isAdminView
-            ? 'flex-1 w-full min-h-screen'
-            : 'flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8'
-        }
-      >
+      <main className={isAdminView ? 'flex-1 w-full min-h-screen' : 'flex-1 w-full'}>
         <Routes>
           <Route
             path="/"
-            element={<CatalogRouteWrapper onSelectBook={handleSelectBook} />}
+            element={
+              <CatalogRouteWrapper
+                onSelectBook={handleSelectBook}
+                onOpenAuth={handleOpenAuth}
+              />
+            }
           />
           <Route
             path="/book/:handle/:slug"
@@ -253,6 +256,9 @@ function AppContent() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+
+      {/* Footer: Shown on public reader views only */}
+      {!isAdminView && <Footer onOpenAuth={handleOpenAuth} />}
 
       {/* Global Modals */}
       <AuthModal

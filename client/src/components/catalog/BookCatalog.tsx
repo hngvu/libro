@@ -54,12 +54,15 @@ function formatDate(dateStr?: string | null): string {
   }
 }
 
+import { GuestHomePage } from '@/components/home/GuestHomePage'
+
 interface BookCatalogProps {
   keyword: string
   onKeywordChange: (kw: string) => void
   selectedGenre: string
   onGenreChange: (genre: string) => void
   onSelectBook: (book: BookPublicResponse) => void
+  onOpenAuth?: (mode?: 'login' | 'register') => void
 }
 
 type ShelfType = 'all' | 'loans' | 'reservations' | 'read'
@@ -70,8 +73,23 @@ export function BookCatalog({
   selectedGenre,
   onGenreChange,
   onSelectBook,
+  onOpenAuth,
 }: BookCatalogProps) {
   const { user } = useAuth()
+
+  // If user is guest / not a logged-in member, show the dedicated OpenLibrary-style Guest Home Page
+  if (!user || user.role !== 'MEMBER') {
+    return (
+      <GuestHomePage
+        keyword={keyword}
+        onKeywordChange={onKeywordChange}
+        selectedGenre={selectedGenre}
+        onGenreChange={onGenreChange}
+        onSelectBook={onSelectBook}
+        onOpenAuth={onOpenAuth}
+      />
+    )
+  }
 
   // Dynamic Shelf State
   const [selectedShelf, setSelectedShelf] = useState<ShelfType>('all')
@@ -204,7 +222,7 @@ export function BookCatalog({
   const quotaPercentage = Math.min(100, Math.round((ongoingLoans.length / maxLoans) * 100))
 
   return (
-    <div className="max-w-[1140px] mx-auto space-y-4">
+    <div className="max-w-[1140px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-4">
       {/* Search status tag if searching from navbar */}
       {keyword && (
         <div className="inline-flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 rounded-md text-xs">

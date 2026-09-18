@@ -9,13 +9,22 @@
   --color-sage-300: #c8d0b7;
   --color-parchment: #fafafa;
   --color-parchment-light: #ffffff;
-  --font-serif: 'Merriweather', Georgia, Cambria, 'Times New Roman', Times, serif;
+  --font-serif: 'Cormorant Garamond', Georgia, Cambria, serif;
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-cormorant: 'Cormorant Garamond', Georgia, serif;
+  --font-newsreader: 'Newsreader', Georgia, serif;
+  --font-lora: 'Lora', Georgia, serif;
+  --font-playfair: 'Playfair Display', Georgia, serif;
+  --font-dmserif: 'DM Serif Display', Georgia, serif;
+  --font-fraunces: 'Fraunces', Georgia, serif;
+  --font-jakarta: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-manrope: 'Manrope', system-ui, -apple-system, sans-serif;
+  --font-outfit: 'Outfit', system-ui, -apple-system, sans-serif;
 }
 
 :root {
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-serif: 'Merriweather', Georgia, Cambria, serif;
+  --font-serif: 'Cormorant Garamond', Georgia, Cambria, serif;
   color-scheme: light dark;
 }
 
