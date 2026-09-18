@@ -8,7 +8,7 @@ import {
   useLocation,
   useSearchParams,
 } from 'react-router-dom'
-import { AuthProvider } from '@/context/AuthContext'
+import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { BookCatalog } from '@/components/catalog/BookCatalog'
@@ -143,6 +143,9 @@ function AppContent() {
 
   const isAdminView = currentView === 'admin'
 
+  const { user } = useAuth()
+  const isGuestHomePage = (!user || user.role !== 'MEMBER') && location.pathname === '/'
+
   return (
     <div
       className={`min-h-screen flex flex-col ${
@@ -151,8 +154,8 @@ function AppContent() {
           : 'bg-[#fafafa] dark:bg-[#1e2320] text-[#1e2320] dark:text-[#f5f3e6]'
       } transition-colors`}
     >
-      {/* Top Navigation: Shown on public reader views only */}
-      {!isAdminView && (
+      {/* Top Navigation: Shown on public reader views only, except guest homepage */}
+      {!isAdminView && !isGuestHomePage && (
         <Navbar
           currentView={currentView}
           onViewChange={handleViewChange}

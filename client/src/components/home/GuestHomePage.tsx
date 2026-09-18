@@ -256,33 +256,55 @@ export function GuestHomePage({
   }
 
   return (
-    <div className="space-y-10 pb-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-0">
+    <div>
+      {/* Top Header Bar for Guest (Matching banner wall color #f4eddd) */}
+      <header className="w-full border-b border-[#dfd9cb] dark:border-[#2f3a31] bg-[#f4eddd] dark:bg-[#181f19] transition-colors">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center">
+          {/* Brand Logo with Title */}
+          <div className="flex items-center gap-2 select-none cursor-pointer group">
+            <img
+              src="/favicon.svg"
+              alt="Libro logo"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-md object-contain shadow-2xs group-hover:scale-105 transition-transform"
+            />
+            <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-[#2c392d] dark:text-[#d8e2cf] group-hover:text-[#4d664f] transition-colors">
+              libro
+            </span>
+          </div>
+        </div>
+      </header>
+
       {/* ========================================================================= */}
-      {/* HERO BANNER SECTION (Harmonized with Warm Parchment & Deep Sage)          */}
+      {/* HERO BANNER SECTION (FULL WIDTH SCREEN, Using /banner_minimal_desk.jpg)   */}
       {/* ========================================================================= */}
-      <section className="relative overflow-hidden rounded-none border border-t-0 border-[#dfd9cb] dark:border-[#2f3a31] shadow-2xs bg-[#f8f5ee] dark:bg-[#181f19] min-h-[300px] sm:min-h-[360px] flex items-stretch">
-        {/* Background Image */}
+      <section className="relative overflow-hidden w-full border-b border-[#dfd9cb] dark:border-[#2f3a31] bg-[#f4eddd] dark:bg-[#181f19] min-h-[320px] sm:min-h-[380px] flex items-stretch">
+        {/* Background Image: banner_minimal_desk.jpg */}
         <div
-          className="absolute inset-0 bg-cover bg-right opacity-95 dark:opacity-35 transition-opacity duration-300 pointer-events-none"
-          style={{ backgroundImage: "url('/banner.jpg')" }}
+          className="absolute inset-0 bg-cover bg-right sm:bg-center opacity-95 dark:opacity-40 transition-opacity duration-300 pointer-events-none"
+          style={{ backgroundImage: "url('/banner_minimal_desk.jpg')" }}
         />
         {/* Harmonious Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#f8f5ee] via-[#f8f5ee]/90 to-transparent dark:from-[#181f19] dark:via-[#181f19]/85 dark:to-transparent w-full sm:w-3/4 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#f4eddd] via-[#f4eddd]/80 to-transparent dark:from-[#181f19] dark:via-[#181f19]/80 dark:to-transparent w-full sm:w-2/3 pointer-events-none" />
 
-        {/* Content Box (Headline at top, CTA pushed down near bottom) */}
-        <div className="relative z-10 px-6 sm:px-8 md:px-10 pt-7 sm:pt-9 pb-7 sm:pb-8 max-w-2xl flex flex-col justify-between w-full">
-          <h1 className="text-3xl sm:text-4xl lg:text-[45px] font-extrabold leading-[1.14] w-fit" style={{ fontFamily: "'Plus Jakarta Sans', var(--font-sans), sans-serif" }}>
-            <span className="block whitespace-nowrap tracking-[0.035em] text-[#2c392d] dark:text-[#d8e2cf]">
-              Find your mindful
-            </span>
-            <span className="block whitespace-nowrap tracking-tight text-[#2c392d] dark:text-[#d8e2cf] text-center">
-              reading sanctuary
-            </span>
-          </h1>
+        {/* Content Box aligned with max-w-5xl container */}
+        <div className="relative z-10 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 flex flex-col justify-between">
+          <div className="max-w-xl">
+            <h1
+              className="text-3xl sm:text-4xl lg:text-[45px] font-extrabold leading-[1.14] text-[#2c392d] dark:text-[#d8e2cf]"
+              style={{ fontFamily: "'Plus Jakarta Sans', var(--font-sans), sans-serif" }}
+            >
+              <span className="block whitespace-nowrap tracking-[0.035em]">
+                Find your mindful
+              </span>
+              <span className="block whitespace-nowrap tracking-tight">
+                reading sanctuary
+              </span>
+            </h1>
+          </div>
 
-          {/* Action Links Container (Near bottom of banner, matching width) */}
+          {/* Action Links Container (Near bottom of banner) */}
           <div className="pt-8 sm:pt-11">
-            <div className="flex flex-col items-center w-[220px] sm:w-[224px] space-y-3.5">
+            <div className="flex flex-col items-start w-[220px] sm:w-[224px] space-y-3.5">
               <Button
                 onClick={() => onOpenAuth?.('register')}
                 className="w-full bg-[#2d3a2e] hover:bg-[#1e271f] text-[#f8f6f0] dark:bg-[#c9d5be] dark:text-[#182219] dark:hover:bg-[#b8c6ab] h-10 text-xs sm:text-[13px] font-semibold rounded-md shadow-2xs cursor-pointer transition-all tracking-wide flex items-center justify-center text-center"
@@ -303,6 +325,9 @@ export function GuestHomePage({
           </div>
         </div>
       </section>
+
+      {/* Main Guest Content */}
+      <div className="space-y-10 pb-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10">
       <section className="pt-2">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Card 1: Curated Catalog (Discovery) */}
@@ -518,8 +543,8 @@ export function GuestHomePage({
           ))}
         </div>
       </section>
-
     </div>
-  )
+  </div>
+)
 }
 
