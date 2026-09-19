@@ -129,7 +129,7 @@ export function MembershipPage({ onOpenAuth }: MembershipPageProps) {
   ]
 
   return (
-    <div className="space-y-10 max-w-5xl mx-auto py-2">
+    <div className="space-y-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* 1. Header & Hero */}
       <div className="text-center space-y-3 max-w-2xl mx-auto">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[4px] bg-[#3d4b3e]/10 dark:bg-[#3d4b3e]/30 text-[#3d4b3e] dark:text-[#c8d0b7] text-xs font-semibold">

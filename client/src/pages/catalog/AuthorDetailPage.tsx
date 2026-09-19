@@ -42,7 +42,7 @@ export function AuthorDetailPage() {
 
   if (loading) {
     return (
-      <div className="w-full max-w-5xl mx-auto py-16 space-y-6 animate-pulse">
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 animate-pulse">
         <div className="h-6 w-32 bg-[#c8d0b7]/30 dark:bg-[#3d4b3e]/30 rounded" />
         <div className="flex gap-6 items-start">
           <div className="w-24 h-24 rounded-full bg-[#c8d0b7]/30 dark:bg-[#3d4b3e]/30 shrink-0" />
@@ -58,7 +58,7 @@ export function AuthorDetailPage() {
 
   if (!author) {
     return (
-      <div className="w-full max-w-xl mx-auto py-20 text-center space-y-4">
+      <div className="w-full max-w-xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center space-y-4">
         <IconUser size={48} className="mx-auto text-[#6f7f64] opacity-50" />
         <h2 className="font-serif font-bold text-2xl text-[#1e2320] dark:text-[#f5f3e6]">
           Author Not Found
@@ -77,7 +77,7 @@ export function AuthorDetailPage() {
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-8 animate-in fade-in duration-150">
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 animate-in fade-in duration-150">
       {/* Back Navigation */}
       <div>
         <Link

@@ -532,7 +532,7 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
   const totalFinesAmount = pendingFines.reduce((sum, f) => sum + (f.amount || 0), 0)
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-4">
       {/* 1. Compact Stat Cards (4 Equal Width Cards) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
         {/* Card 1: Overdue & Due Soon (Warning - Reddish Brown) */}

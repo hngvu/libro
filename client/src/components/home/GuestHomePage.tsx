@@ -4,7 +4,6 @@ import { api } from '@/services/api'
 import type { BookPublicResponse } from '@/types/api'
 import {
   IconSearch,
-  IconArrowRight,
   IconBook,
   IconBooks,
   IconBookDownload,
@@ -132,12 +131,30 @@ const MOCK_COLLECTIONS: MockCollection[] = [
         authors: [{ name: 'J.D. Salinger', handle: 'j-d-salinger', biography: null }],
         genres: [{ name: 'Classics', handle: 'classics', description: null }],
       },
+      {
+        id: 117,
+        title: 'Pride and Prejudice',
+        handle: 'pride-and-prejudice',
+        slug: 'pride-and-prejudice',
+        isbn: '9780141439518',
+        publicationYear: 1813,
+        cover: 'https://images-na.ssl-images-amazon.com/images/I/71Q1tPupKjL.jpg',
+        edition: 'Penguin Classics',
+        format: 'PAPERBACK',
+        pageCount: 279,
+        language: 'English',
+        description: null,
+        totalCopies: 6,
+        availableCopies: 3,
+        authors: [{ name: 'Jane Austen', handle: 'jane-austen', biography: null }],
+        genres: [{ name: 'Classics', handle: 'classics', description: null }],
+      },
     ],
   },
   {
-    id: 'mind-and-adventure',
-    name: 'Mind & Modern Worlds',
-    description: 'Captivating epics, transformative habits, and timeless wisdom',
+    id: 'epic-worlds',
+    name: 'Epic Worlds & Fantasy',
+    description: 'Captivating sagas, vast realms, and magical wonders',
     books: [
       {
         id: 104,
@@ -176,23 +193,66 @@ const MOCK_COLLECTIONS: MockCollection[] = [
         genres: [{ name: 'Fantasy', handle: 'fantasy', description: null }],
       },
       {
-        id: 107,
-        title: 'Crime and Punishment',
-        handle: 'crime-and-punishment',
-        slug: 'crime-and-punishment',
-        isbn: '9780140449136',
-        publicationYear: 1866,
-        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1382846449i/7144.jpg',
-        edition: 'Vintage Classics',
+        id: 109,
+        title: 'Dune',
+        handle: 'dune',
+        slug: 'dune',
+        isbn: '9780441172719',
+        publicationYear: 1965,
+        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1555447414i/44767458.jpg',
+        edition: 'Ace Books',
         format: 'PAPERBACK',
-        pageCount: 671,
+        pageCount: 658,
         language: 'English',
         description: null,
-        totalCopies: 3,
-        availableCopies: 2,
-        authors: [{ name: 'Fyodor Dostoevsky', handle: 'fyodor-dostoevsky', biography: null }],
-        genres: [{ name: 'Classics', handle: 'classics', description: null }],
+        totalCopies: 7,
+        availableCopies: 4,
+        authors: [{ name: 'Frank Herbert', handle: 'frank-herbert', biography: null }],
+        genres: [{ name: 'Science Fiction', handle: 'science-fiction', description: null }],
       },
+      {
+        id: 110,
+        title: 'The Lord of the Rings',
+        handle: 'the-lord-of-the-rings',
+        slug: 'the-lord-of-the-rings',
+        isbn: '9780618640157',
+        publicationYear: 1954,
+        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1566425108i/33.jpg',
+        edition: '50th Anniversary',
+        format: 'HARDCOVER',
+        pageCount: 1178,
+        language: 'English',
+        description: null,
+        totalCopies: 9,
+        availableCopies: 5,
+        authors: [{ name: 'J.R.R. Tolkien', handle: 'j-r-r-tolkien', biography: null }],
+        genres: [{ name: 'Fantasy', handle: 'fantasy', description: null }],
+      },
+      {
+        id: 118,
+        title: 'A Game of Thrones',
+        handle: 'a-game-of-thrones',
+        slug: 'a-game-of-thrones',
+        isbn: '9780553103540',
+        publicationYear: 1996,
+        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1562726234i/13496.jpg',
+        edition: 'Bantam Spectra',
+        format: 'HARDCOVER',
+        pageCount: 694,
+        language: 'English',
+        description: null,
+        totalCopies: 5,
+        availableCopies: 2,
+        authors: [{ name: 'George R.R. Martin', handle: 'george-r-r-martin', biography: null }],
+        genres: [{ name: 'Fantasy', handle: 'fantasy', description: null }],
+      },
+    ],
+  },
+  {
+    id: 'mind-and-humanity',
+    name: 'Mind, Habits & Humanity',
+    description: 'Transformative habits, psychology, and the human condition',
+    books: [
       {
         id: 108,
         title: 'Atomic Habits',
@@ -211,6 +271,175 @@ const MOCK_COLLECTIONS: MockCollection[] = [
         authors: [{ name: 'James Clear', handle: 'james-clear', biography: null }],
         genres: [{ name: 'Self Help', handle: 'self-help', description: null }],
       },
+      {
+        id: 107,
+        title: 'Crime and Punishment',
+        handle: 'crime-and-punishment',
+        slug: 'crime-and-punishment',
+        isbn: '9780140449136',
+        publicationYear: 1866,
+        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1382846449i/7144.jpg',
+        edition: 'Vintage Classics',
+        format: 'PAPERBACK',
+        pageCount: 671,
+        language: 'English',
+        description: null,
+        totalCopies: 3,
+        availableCopies: 2,
+        authors: [{ name: 'Fyodor Dostoevsky', handle: 'fyodor-dostoevsky', biography: null }],
+        genres: [{ name: 'Classics', handle: 'classics', description: null }],
+      },
+      {
+        id: 111,
+        title: 'Slaughterhouse-Five',
+        handle: 'slaughterhouse-five',
+        slug: 'slaughterhouse-five',
+        isbn: '9780440180296',
+        publicationYear: 1969,
+        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1440319389i/4981.jpg',
+        edition: 'Dell',
+        format: 'PAPERBACK',
+        pageCount: 275,
+        language: 'English',
+        description: null,
+        totalCopies: 4,
+        availableCopies: 2,
+        authors: [{ name: 'Kurt Vonnegut', handle: 'kurt-vonnegut', biography: null }],
+        genres: [{ name: 'Fiction', handle: 'fiction', description: null }],
+      },
+      {
+        id: 112,
+        title: 'I, Robot',
+        handle: 'i-robot',
+        slug: 'i-robot',
+        isbn: '9780553382563',
+        publicationYear: 1950,
+        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1609035271i/41804.jpg',
+        edition: 'Spectra',
+        format: 'PAPERBACK',
+        pageCount: 256,
+        language: 'English',
+        description: null,
+        totalCopies: 5,
+        availableCopies: 3,
+        authors: [{ name: 'Isaac Asimov', handle: 'isaac-asimov', biography: null }],
+        genres: [{ name: 'Science Fiction', handle: 'science-fiction', description: null }],
+      },
+      {
+        id: 119,
+        title: 'Thinking, Fast and Slow',
+        handle: 'thinking-fast-and-slow',
+        slug: 'thinking-fast-and-slow',
+        isbn: '9780374533557',
+        publicationYear: 2011,
+        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1317793965i/11468377.jpg',
+        edition: 'Farrar, Straus and Giroux',
+        format: 'PAPERBACK',
+        pageCount: 499,
+        language: 'English',
+        description: null,
+        totalCopies: 6,
+        availableCopies: 3,
+        authors: [{ name: 'Daniel Kahneman', handle: 'daniel-kahneman', biography: null }],
+        genres: [{ name: 'Psychology', handle: 'psychology', description: null }],
+      },
+    ],
+  },
+  {
+    id: 'future-and-frontiers',
+    name: 'Future & Frontiers',
+    description: 'Visionary epics and adventures beyond the horizon',
+    books: [
+      {
+        id: 113,
+        title: 'Foundation',
+        handle: 'foundation',
+        slug: 'foundation',
+        isbn: '9780553293357',
+        publicationYear: 1951,
+        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1417900846i/29579.jpg',
+        edition: 'Bantam Spectra',
+        format: 'PAPERBACK',
+        pageCount: 255,
+        language: 'English',
+        description: null,
+        totalCopies: 6,
+        availableCopies: 4,
+        authors: [{ name: 'Isaac Asimov', handle: 'isaac-asimov', biography: null }],
+        genres: [{ name: 'Science Fiction', handle: 'science-fiction', description: null }],
+      },
+      {
+        id: 114,
+        title: 'Ready Player One',
+        handle: 'ready-player-one',
+        slug: 'ready-player-one',
+        isbn: '9780307887436',
+        publicationYear: 2011,
+        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1500930947i/9969571.jpg',
+        edition: 'Crown',
+        format: 'HARDCOVER',
+        pageCount: 374,
+        language: 'English',
+        description: null,
+        totalCopies: 6,
+        availableCopies: 3,
+        authors: [{ name: 'Ernest Cline', handle: 'ernest-cline', biography: null }],
+        genres: [{ name: 'Science Fiction', handle: 'science-fiction', description: null }],
+      },
+      {
+        id: 115,
+        title: 'The Gods Themselves',
+        handle: 'the-gods-themselves',
+        slug: 'the-gods-themselves',
+        isbn: '9780553288100',
+        publicationYear: 1972,
+        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1351076141i/41821.jpg',
+        edition: 'Spectra',
+        format: 'PAPERBACK',
+        pageCount: 288,
+        language: 'English',
+        description: null,
+        totalCopies: 4,
+        availableCopies: 2,
+        authors: [{ name: 'Isaac Asimov', handle: 'isaac-asimov', biography: null }],
+        genres: [{ name: 'Science Fiction', handle: 'science-fiction', description: null }],
+      },
+      {
+        id: 116,
+        title: 'Starship Troopers',
+        handle: 'starship-troopers',
+        slug: 'starship-troopers',
+        isbn: '9780441783588',
+        publicationYear: 1959,
+        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1614054412i/17214.jpg',
+        edition: 'Ace',
+        format: 'PAPERBACK',
+        pageCount: 263,
+        language: 'English',
+        description: null,
+        totalCopies: 5,
+        availableCopies: 3,
+        authors: [{ name: 'Robert A. Heinlein', handle: 'robert-a-heinlein', biography: null }],
+        genres: [{ name: 'Science Fiction', handle: 'science-fiction', description: null }],
+      },
+      {
+        id: 120,
+        title: 'Neuromancer',
+        handle: 'neuromancer',
+        slug: 'neuromancer',
+        isbn: '9780441569595',
+        publicationYear: 1984,
+        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1554437249i/6088007.jpg',
+        edition: 'Ace',
+        format: 'PAPERBACK',
+        pageCount: 271,
+        language: 'English',
+        description: null,
+        totalCopies: 5,
+        availableCopies: 3,
+        authors: [{ name: 'William Gibson', handle: 'william-gibson', biography: null }],
+        genres: [{ name: 'Science Fiction', handle: 'science-fiction', description: null }],
+      },
     ],
   },
 ]
@@ -227,9 +456,9 @@ interface GuestHomePageProps {
 export function GuestHomePage({
   keyword = '',
   onKeywordChange,
-  selectedGenre = '',
-  onGenreChange,
-  onSelectBook,
+  selectedGenre: _selectedGenre = '',
+  onGenreChange: _onGenreChange,
+  onSelectBook: _onSelectBook,
   onOpenAuth,
 }: GuestHomePageProps) {
   const [, setBooks] = useState<BookPublicResponse[]>([])
@@ -442,32 +671,21 @@ export function GuestHomePage({
           </form>
         </div>
 
-        {/* Rich Goodreads-style text links for genres (No badges) */}
+        {/* Rich Goodreads-style text links for genres (No badges, purely illustrative) */}
         <div className="pt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-[#5e6e5c] dark:text-[#9fab97] leading-relaxed">
           <span className="font-semibold text-[#2c392d] dark:text-[#d8e2cf] mr-0.5">
             Subjects:
           </span>
-          {POPULAR_GENRES.map((name, idx) => {
-            const handle = name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-            const isSelected = selectedGenre === handle
-            return (
-              <span key={name} className="inline-flex items-center gap-2.5">
-                <button
-                  onClick={() => onGenreChange?.(isSelected ? '' : handle)}
-                  className={`cursor-pointer transition-colors ${
-                    isSelected
-                      ? 'font-bold text-[#2c392d] dark:text-[#d8e2cf] underline underline-offset-4'
-                      : 'hover:text-[#2c392d] dark:hover:text-[#d8e2cf]'
-                  }`}
-                >
-                  {name}
-                </button>
-                {idx < POPULAR_GENRES.length - 1 && (
-                  <span className="text-[#c8cebe] dark:text-[#384639] select-none text-[10px]">·</span>
-                )}
+          {POPULAR_GENRES.map((name, idx) => (
+            <span key={name} className="inline-flex items-center gap-2.5">
+              <span className="hover:text-[#2c392d] dark:hover:text-[#d8e2cf] transition-colors select-none cursor-default">
+                {name}
               </span>
-            )
-          })}
+              {idx < POPULAR_GENRES.length - 1 && (
+                <span className="text-[#c8cebe] dark:text-[#384639] select-none text-[10px]">·</span>
+              )}
+            </span>
+          ))}
         </div>
       </section>
 
@@ -475,69 +693,51 @@ export function GuestHomePage({
       {/* 3. CURATED COLLECTIONS SHOWCASE (Illustrating 2 collections, 4 books each) */}
       {/* ========================================================================= */}
       <section className="space-y-6 pt-2">
-        <div className="flex items-center justify-between border-b border-[#dfd9cb] dark:border-[#2a352b] pb-3">
+        <div className="border-b border-[#dfd9cb] dark:border-[#2a352b] pb-3">
           <h3
             className="text-base sm:text-lg font-bold text-[#2c392d] dark:text-[#d8e2cf] tracking-tight"
             style={{ fontFamily: "'Plus Jakarta Sans', var(--font-sans), sans-serif" }}
           >
             Curated Collections
           </h3>
-          
-          <button
-            onClick={() => onOpenAuth?.('register')}
-            className="text-xs font-semibold text-[#2d3a2e] dark:text-[#c9d5be] hover:underline underline-offset-4 flex items-center gap-1 cursor-pointer transition-colors"
-          >
-            <span>Explore all collections</span>
-            <IconArrowRight size={14} />
-          </button>
         </div>
 
-        <div className="space-y-5 pt-1">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-7 pt-1">
           {MOCK_COLLECTIONS.map((col) => (
             <div key={col.id} className="space-y-2">
               <h4 className="text-sm font-bold text-[#2c392d] dark:text-[#d8e2cf] tracking-tight">
                 {col.name}
               </h4>
 
-              {/* Tightly packed covers with View collection right next to covers, no arrow */}
-              <div className="flex items-center gap-2.5 sm:gap-3 w-fit">
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  {col.books.map((b) => (
-                    <div
-                      key={b.id}
-                      onClick={() => onSelectBook?.(b)}
-                      title={`${b.title} by ${b.authors?.map((a) => a.name).join(', ')}`}
-                      className="cursor-pointer select-none"
-                    >
-                      <div className="w-20 sm:w-24 aspect-[2/3] rounded bg-[#ede8dc] dark:bg-[#202921] border border-[#dfd9cb] dark:border-[#2f3a31] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden flex items-center justify-center p-0.5">
-                        {b.cover ? (
-                          <img
-                            src={b.cover}
-                            alt={b.title}
-                            className="w-full h-full object-contain select-none"
-                            onError={(e) => {
-                              ;(e.target as HTMLElement).style.display = 'none'
-                            }}
-                          />
-                        ) : (
-                          <div className="p-1 flex flex-col items-center justify-center text-center">
-                            <IconBook size={16} className="text-[#8f9f8c] opacity-60 mb-0.5" />
-                            <span className="text-[8px] font-semibold uppercase tracking-wider text-[#4d5e4b] dark:text-[#a8b89e] line-clamp-2 leading-tight">
-                              {b.title}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+              {/* Tightly packed covers */}
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                {col.books.map((b) => (
+                  <div
+                    key={b.id}
+                    title={`${b.title} by ${b.authors?.map((a) => a.name).join(', ')}`}
+                    className="select-none"
+                  >
+                    <div className="w-[64px] sm:w-[80px] aspect-[2/3] rounded-none bg-[#ede8dc] dark:bg-[#202921] border border-[#dfd9cb] dark:border-[#2f3a31] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden flex items-center justify-center">
+                      {b.cover ? (
+                        <img
+                          src={b.cover}
+                          alt={b.title}
+                          className="w-full h-full object-cover select-none"
+                          onError={(e) => {
+                            ;(e.target as HTMLElement).style.display = 'none'
+                          }}
+                        />
+                      ) : (
+                        <div className="p-1 flex flex-col items-center justify-center text-center">
+                          <IconBook size={14} className="text-[#8f9f8c] opacity-60 mb-0.5" />
+                          <span className="text-[7px] font-semibold uppercase tracking-wider text-[#4d5e4b] dark:text-[#a8b89e] line-clamp-2 leading-tight">
+                            {b.title}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => onOpenAuth?.('register')}
-                  className="text-xs font-semibold text-[#4a5f4b] dark:text-[#a8bca5] hover:underline cursor-pointer select-none whitespace-nowrap pl-1"
-                >
-                  View collection
-                </button>
+                  </div>
+                ))}
               </div>
             </div>
           ))}

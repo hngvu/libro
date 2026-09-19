@@ -222,7 +222,7 @@ export function BookCatalog({
   const quotaPercentage = Math.min(100, Math.round((ongoingLoans.length / maxLoans) * 100))
 
   return (
-    <div className="max-w-[1140px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-4">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-4">
       {/* Search status tag if searching from navbar */}
       {keyword && (
         <div className="inline-flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 rounded-md text-xs">

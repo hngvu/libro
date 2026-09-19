@@ -115,7 +115,7 @@ export function BookDetail({
   const genresList = book.genres && book.genres.length > 0 ? book.genres : []
 
   return (
-    <div className="w-full animate-in fade-in duration-150">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full animate-in fade-in duration-150">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-10 items-start">
         {/* ===== LEFT STICKY COLUMN (Book Cover & Actions) ===== */}
         <div className="md:col-span-4 lg:col-span-4 md:sticky md:top-6 flex flex-col items-stretch gap-3 w-full max-w-[280px] mx-auto md:max-w-none">
