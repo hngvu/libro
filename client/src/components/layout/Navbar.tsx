@@ -73,8 +73,8 @@ export function Navbar({
     const timer = setTimeout(async () => {
       setSearchLoading(true)
       try {
-        const res = await api.getBooks({ keyword: searchTerm.trim(), size: 5 })
-        setSuggestions(res.content || [])
+        const res = await api.getBooks({ keyword: searchTerm.trim(), size: 4 })
+        setSuggestions((res.content || []).slice(0, 4))
         setShowDropdown(true)
       } catch {
         setSuggestions([])
@@ -175,7 +175,7 @@ export function Navbar({
             {showDropdown && suggestions.length > 0 && (
               <div className="absolute left-0 right-0 top-full mt-0 bg-white dark:bg-[#252c28] border border-[#d8d8d8] dark:border-[#3d4b3e] border-t-0 rounded-b-[6px] shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-99">
                 <div className="max-h-80 overflow-y-auto divide-y divide-[#e8e8e8] dark:divide-[#3d4b3e]">
-                  {suggestions.map((b) => (
+                  {suggestions.slice(0, 4).map((b) => (
                     <div
                       key={b.handle}
                       onClick={() => handleSelectSuggestion(b)}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { api } from '@/services/api'
 import type { MembershipPlanResponse, UserSubscriptionResponse } from '@/types/api'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ interface MembershipPageProps {
 }
 
 export function MembershipPage({ onOpenAuth }: MembershipPageProps) {
+  useDocumentTitle('Membership & Borrowing Plans')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { user } = useAuth()

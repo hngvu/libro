@@ -131,7 +131,10 @@ export function AuthModal({ open, onOpenChange, defaultMode = 'login' }: AuthMod
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onClose={() => onOpenChange(false)} className="w-full max-w-[400px] p-6 sm:p-7">
         <DialogHeader className="mb-4 text-center sm:text-center">
-          <DialogTitle className="font-serif text-2xl font-bold text-[#181818] dark:text-[#f5f3e6] tracking-tight">
+          <DialogTitle
+            className="text-xl sm:text-2xl font-bold text-[#1e2320] dark:text-[#f5f3e6] tracking-tight"
+            style={{ fontFamily: "'Plus Jakarta Sans', var(--font-sans), sans-serif" }}
+          >
             {mode === 'login' ? 'Sign In' : 'Create Account'}
           </DialogTitle>
         </DialogHeader>

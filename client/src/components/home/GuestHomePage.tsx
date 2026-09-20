@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { api } from '@/services/api'
 import type { BookPublicResponse } from '@/types/api'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import {
   IconSearch,
   IconBook,
@@ -461,6 +462,8 @@ export function GuestHomePage({
   onSelectBook: _onSelectBook,
   onOpenAuth,
 }: GuestHomePageProps) {
+  useDocumentTitle(keyword ? `Search: "${keyword}"` : _selectedGenre ? `${_selectedGenre} Books` : undefined)
+
   const [, setBooks] = useState<BookPublicResponse[]>([])
   const [localSearch, setLocalSearch] = useState(keyword)
 

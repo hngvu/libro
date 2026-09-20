@@ -33,6 +33,7 @@ import {
   IconCrown,
   IconQuote,
   IconActivity,
+  IconSparkles,
 } from '@tabler/icons-react'
 
 function formatDate(dateStr?: string | null): string {
@@ -55,6 +56,7 @@ function formatDate(dateStr?: string | null): string {
 }
 
 import { GuestHomePage } from '@/components/home/GuestHomePage'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 interface BookCatalogProps {
   keyword: string
@@ -65,34 +67,29 @@ interface BookCatalogProps {
   onOpenAuth?: (mode?: 'login' | 'register') => void
 }
 
-type ShelfType = 'all' | 'loans' | 'reservations' | 'read'
+type ShelfType = 'catalog' | 'all' | 'loans' | 'reservations' | 'read'
 
-export function BookCatalog({
+export function BookCatalog(props: BookCatalogProps) {
+  const { user } = useAuth()
+
+  // If user is guest / not a logged-in member, show the dedicated OpenLibrary-style Guest Home Page
+  if (!user || user.role !== 'MEMBER') {
+    return <GuestHomePage {...props} />
+  }
+
+  return <MemberCatalogContent {...props} user={user} />
+}
+
+function MemberCatalogContent({
   keyword,
   onKeywordChange,
   selectedGenre,
   onGenreChange,
   onSelectBook,
-  onOpenAuth,
-}: BookCatalogProps) {
-  const { user } = useAuth()
-
-  // If user is guest / not a logged-in member, show the dedicated OpenLibrary-style Guest Home Page
-  if (!user || user.role !== 'MEMBER') {
-    return (
-      <GuestHomePage
-        keyword={keyword}
-        onKeywordChange={onKeywordChange}
-        selectedGenre={selectedGenre}
-        onGenreChange={onGenreChange}
-        onSelectBook={onSelectBook}
-        onOpenAuth={onOpenAuth}
-      />
-    )
-  }
-
-  // Dynamic Shelf State
-  const [selectedShelf, setSelectedShelf] = useState<ShelfType>('all')
+  user,
+}: BookCatalogProps & { user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
+  // Dynamic Shelf State ('catalog' for full library catalog, 'all' for all user's shelved books)
+  const [selectedShelf, setSelectedShelf] = useState<ShelfType>('catalog')
 
   // Catalog State (All Books)
   const [books, setBooks] = useState<BookPublicResponse[]>([])
@@ -110,6 +107,13 @@ export function BookCatalog({
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
+
+  // Automatically switch to 'catalog' view if user performs search or selects genre filter
+  useEffect(() => {
+    if (keyword || selectedGenre) {
+      setSelectedShelf('catalog')
+    }
+  }, [keyword, selectedGenre])
 
   // Fetch Genres once
   useEffect(() => {
@@ -144,7 +148,7 @@ export function BookCatalog({
       setReadLoans([])
       setReservations([])
       setSubscription(null)
-      setSelectedShelf('all')
+      setSelectedShelf('catalog')
     }
   }, [user])
 
@@ -178,7 +182,7 @@ export function BookCatalog({
     setSelectedFormat('')
     onGenreChange('')
     setPage(1)
-    setSelectedShelf('all')
+    setSelectedShelf('catalog')
   }
 
   // Convert Loan to Book for BookCard display
@@ -218,6 +222,20 @@ export function BookCatalog({
   })
 
   const selectedGenreObj = genres.find((g) => g.handle === selectedGenre)
+  const catalogTitle = keyword
+    ? `Search: "${keyword}"`
+    : selectedGenre
+    ? `${selectedGenreObj?.name || selectedGenre} Books`
+    : selectedShelf === 'catalog'
+    ? 'Recommendations'
+    : selectedShelf === 'loans'
+    ? 'Currently Borrowing'
+    : selectedShelf === 'reservations'
+    ? 'Saved Reservations'
+    : 'Reading History'
+
+  useDocumentTitle(catalogTitle)
+
   const maxLoans = subscription?.maxActiveLoans || 3
   const quotaPercentage = Math.min(100, Math.round((ongoingLoans.length / maxLoans) * 100))
 
@@ -283,87 +301,87 @@ export function BookCatalog({
             </div>
           )}
 
-          {/* Reading Shelves Menu */}
+          {/* Explore Section */}
           <div className="space-y-1">
             <h3 className="text-xs font-semibold text-[#6f7f64] dark:text-[#a0b096] uppercase tracking-wider pb-1.5 border-b border-[#e5e3db] dark:border-[#384239]">
-              Reading Shelves
+              Explore
             </h3>
             <nav className="space-y-0.5 pt-1 text-[13px]">
-              {/* Shelf: All Books */}
               <button
                 onClick={() => {
-                  setSelectedShelf('all')
+                  setSelectedShelf('catalog')
                   onKeywordChange('')
                   onGenreChange('')
                 }}
                 className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer ${
-                  selectedShelf === 'all' && !selectedGenre && !keyword
+                  selectedShelf === 'catalog'
                     ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
                     : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
                 }`}
               >
-                <IconBook size={15} className="shrink-0 text-[#6f7f64] dark:text-[#a0b096]" />
-                <span>All Books</span>
-                {totalElements > 0 && (
-                  <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] -ml-0.5">
-                    ({totalElements})
-                  </span>
-                )}
+                <IconSparkles size={15} className="shrink-0 text-[#6f7f64] dark:text-[#a0b096]" />
+                <span>Recommendations</span>
               </button>
-
-              {user ? (
-                <>
-                  {/* Shelf: Currently Reading */}
-                  <button
-                    onClick={() => setSelectedShelf('loans')}
-                    className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer ${
-                      selectedShelf === 'loans'
-                        ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
-                        : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
-                    }`}
-                  >
-                    <IconClock size={15} className="shrink-0 text-[#6f7f64] dark:text-[#a0b096]" />
-                    <span>Currently Reading</span>
-                    <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] -ml-0.5">
-                      ({ongoingLoans.length})
-                    </span>
-                  </button>
-
-                  {/* Shelf: Want to Read */}
-                  <button
-                    onClick={() => setSelectedShelf('reservations')}
-                    className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer ${
-                      selectedShelf === 'reservations'
-                        ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
-                        : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
-                    }`}
-                  >
-                    <IconBookmark size={15} className="shrink-0 text-[#6f7f64] dark:text-[#a0b096]" />
-                    <span>Want to Read</span>
-                    <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] -ml-0.5">
-                      ({reservations.length})
-                    </span>
-                  </button>
-
-                  {/* Shelf: Read */}
-                  <button
-                    onClick={() => setSelectedShelf('read')}
-                    className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer ${
-                      selectedShelf === 'read'
-                        ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
-                        : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
-                    }`}
-                  >
-                    <IconCheck size={15} className="shrink-0 text-[#6f7f64] dark:text-[#a0b096]" />
-                    <span>Read</span>
-                    <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] -ml-0.5">
-                      ({readLoans.length})
-                    </span>
-                  </button>
-                </>
-              ) : null}
             </nav>
           </div>
+
+          {/* Personal Reading Shelves */}
+          {user ? (
+            <div className="space-y-1">
+              <h3 className="text-xs font-semibold text-[#6f7f64] dark:text-[#a0b096] uppercase tracking-wider pb-1.5 border-b border-[#e5e3db] dark:border-[#384239]">
+                My Shelves
+              </h3>
+              <nav className="space-y-0.5 pt-1 text-[13px]">
+                {/* Shelf: Currently Reading */}
+                <button
+                  onClick={() => setSelectedShelf('loans')}
+                  className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer ${
+                    selectedShelf === 'loans'
+                      ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
+                      : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
+                  }`}
+                >
+                  <IconClock size={15} className="shrink-0 text-[#6f7f64] dark:text-[#a0b096]" />
+                  <span>Currently Reading</span>
+                  <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] -ml-0.5">
+                    ({ongoingLoans.length})
+                  </span>
+                </button>
+
+                {/* Shelf: Want to Read */}
+                <button
+                  onClick={() => setSelectedShelf('reservations')}
+                  className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer ${
+                    selectedShelf === 'reservations'
+                      ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
+                      : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
+                  }`}
+                >
+                  <IconBookmark size={15} className="shrink-0 text-[#6f7f64] dark:text-[#a0b096]" />
+                  <span>Want to Read</span>
+                  <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] -ml-0.5">
+                    ({reservations.length})
+                  </span>
+                </button>
+
+                {/* Shelf: Read */}
+                <button
+                  onClick={() => setSelectedShelf('read')}
+                  className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer ${
+                    selectedShelf === 'read'
+                      ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
+                      : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
+                  }`}
+                >
+                  <IconCheck size={15} className="shrink-0 text-[#6f7f64] dark:text-[#a0b096]" />
+                  <span>Read</span>
+                  <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] -ml-0.5">
+                    ({readLoans.length})
+                  </span>
+                </button>
+              </nav>
+            </div>
+          ) : null}
 
           {/* Library Services Section */}
           <div className="space-y-1">
@@ -396,8 +414,8 @@ export function BookCatalog({
           {/* Dynamic Header based on Selected Shelf */}
           <div className="pb-1.5 border-b border-zinc-200 dark:border-zinc-800">
             <h1 className="text-sm sm:text-base font-semibold text-zinc-900 dark:text-zinc-100">
-              {selectedShelf === 'all'
-                ? selectedGenreObj ? selectedGenreObj.name : 'Library Catalog'
+              {selectedShelf === 'catalog'
+                ? selectedGenreObj ? selectedGenreObj.name : 'Recommendations'
                 : selectedShelf === 'loans'
                 ? `Currently Reading (${ongoingLoans.length})`
                 : selectedShelf === 'reservations'
@@ -408,8 +426,8 @@ export function BookCatalog({
 
           {/* Bookshelf Section */}
           <div className="space-y-3">
-            {/* DYNAMIC SHELF 1: ALL BOOKS (CATALOG) */}
-            {selectedShelf === 'all' && (
+            {/* DYNAMIC SHELF: LIBRARY CATALOG */}
+            {selectedShelf === 'catalog' && (
               <>
                 {loading ? (
                   <div className="flex flex-wrap gap-2.5 sm:gap-3">
@@ -488,7 +506,7 @@ export function BookCatalog({
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                       You are not currently reading any books. Browse our catalog to find your next great read!
                     </p>
-                    <Button variant="outline" size="sm" onClick={() => setSelectedShelf('all')} className="mt-3 text-xs h-7 rounded-md cursor-pointer">
+                    <Button variant="outline" size="sm" onClick={() => setSelectedShelf('catalog')} className="mt-3 text-xs h-7 rounded-md cursor-pointer">
                       Explore Library Catalog
                     </Button>
                   </div>
@@ -557,7 +575,7 @@ export function BookCatalog({
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                       Add books or place holds to keep track of what you'd like to read next.
                     </p>
-                    <Button variant="outline" size="sm" onClick={() => setSelectedShelf('all')} className="mt-3 text-xs h-7 rounded-md cursor-pointer">
+                    <Button variant="outline" size="sm" onClick={() => setSelectedShelf('catalog')} className="mt-3 text-xs h-7 rounded-md cursor-pointer">
                       Explore Library Catalog
                     </Button>
                   </div>
@@ -626,7 +644,7 @@ export function BookCatalog({
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                       Books you finish reading will be collected on this shelf to track your reading journey.
                     </p>
-                    <Button variant="outline" size="sm" onClick={() => setSelectedShelf('all')} className="mt-3 text-xs h-7 rounded-md cursor-pointer">
+                    <Button variant="outline" size="sm" onClick={() => setSelectedShelf('catalog')} className="mt-3 text-xs h-7 rounded-md cursor-pointer">
                       Explore Library Catalog
                     </Button>
                   </div>

@@ -8,6 +8,7 @@ import {
 } from '@tabler/icons-react'
 import { api } from '@/services/api'
 import type { GenrePublicResponse, BookPublicResponse } from '@/types/api'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { BookCard } from '@/components/catalog/BookCard'
 
 export function GenreDetailPage() {
@@ -17,6 +18,8 @@ export function GenreDetailPage() {
   const [genre, setGenre] = useState<GenrePublicResponse | null>(null)
   const [books, setBooks] = useState<BookPublicResponse[]>([])
   const [loading, setLoading] = useState(true)
+
+  useDocumentTitle(genre?.name ? `${genre.name} Books` : 'Category')
 
   const loadData = useCallback(async () => {
     if (!handle) return

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { api } from '@/services/api'
 import type {
   LoanPublicResponse,
@@ -48,6 +49,7 @@ export function MemberHomePage({
   onSelectBook,
   onBrowseCatalog,
 }: MemberHomePageProps) {
+  useDocumentTitle('Reading Lounge')
   const navigate = useNavigate()
   const { user } = useAuth()
 

@@ -1,5 +1,19 @@
 import type { BookPublicResponse } from '@/types/api'
 import { IconBook } from '@tabler/icons-react'
+import { useState } from 'react'
+
+function convertIsbn13To10(isbn13: string): string | null {
+  const clean = isbn13.replace(/[^0-9]/g, '')
+  if (clean.length !== 13 || !clean.startsWith('978')) return null
+  const body = clean.substring(3, 12)
+  let sum = 0
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(body[i], 10) * (10 - i)
+  }
+  const rem = (11 - (sum % 11)) % 11
+  const checkDigit = rem === 10 ? 'X' : rem.toString()
+  return body + checkDigit
+}
 
 interface BookCardProps {
   book: BookPublicResponse
@@ -7,6 +21,30 @@ interface BookCardProps {
 }
 
 export function BookCard({ book, onSelect }: BookCardProps) {
+  const [imgStage, setImgStage] = useState<number>(0)
+
+  const getCoverUrl = (): string | null => {
+    if (imgStage === 0 && book.cover) {
+      return book.cover
+    }
+
+    if (imgStage <= 1 && book.isbn) {
+      const cleanIsbn = book.isbn.replace(/[^0-9X]/gi, '')
+      const isbn10 = cleanIsbn.length === 13 ? convertIsbn13To10(cleanIsbn) : cleanIsbn
+      if (isbn10 && isbn10.length === 10) {
+        return `https://images-na.ssl-images-amazon.com/images/P/${isbn10}.01._SCLZZZZZZZ_SX500_.jpg`
+      }
+    }
+
+    if (imgStage <= 2 && book.isbn) {
+      return `https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg`
+    }
+
+    return null
+  }
+
+  const coverUrl = getCoverUrl()
+
   const tooltipText = `${book.title}${
     book.authors && book.authors.length > 0
       ? ` by ${book.authors.map((a) => a.name).join(', ')}`
@@ -21,14 +59,12 @@ export function BookCard({ book, onSelect }: BookCardProps) {
     >
       {/* Book Cover with subtle 3D spine shadow */}
       <div className="relative aspect-[2/3] w-full rounded-[3px] bg-zinc-100 dark:bg-zinc-800 shadow-[0_2px_5px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] overflow-hidden flex items-center justify-center transition-all duration-150 group-hover:-translate-y-1 group-hover:shadow-[0_6px_14px_rgba(0,0,0,0.18)]">
-        {book.cover ? (
+        {coverUrl ? (
           <img
-            src={book.cover}
+            src={coverUrl}
             alt={book.title}
             className="h-full w-full object-fill select-none"
-            onError={(e) => {
-              ;(e.target as HTMLElement).style.display = 'none'
-            }}
+            onError={() => setImgStage((prev) => prev + 1)}
           />
         ) : (
           <div className="flex flex-col items-center justify-center p-1.5 text-center text-zinc-500 dark:text-zinc-400">

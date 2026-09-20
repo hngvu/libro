@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import type { BookPublicResponse } from '@/types/api'
 import { api } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { Button } from '@/components/ui/button'
 import {
   IconBook,
@@ -15,6 +16,19 @@ import {
 interface BookDetailProps {
   initialBook?: BookPublicResponse | null
   onOpenAuth: (mode?: 'login' | 'register') => void
+}
+
+function convertIsbn13To10(isbn13: string): string | null {
+  const clean = isbn13.replace(/[^0-9]/g, '')
+  if (clean.length !== 13 || !clean.startsWith('978')) return null
+  const body = clean.substring(3, 12)
+  let sum = 0
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(body[i], 10) * (10 - i)
+  }
+  const rem = (11 - (sum % 11)) % 11
+  const checkDigit = rem === 10 ? 'X' : rem.toString()
+  return body + checkDigit
 }
 
 export function BookDetail({
@@ -39,6 +53,8 @@ export function BookDetail({
   const [reserving, setReserving] = useState(false)
   const [reserveSuccess, setReserveSuccess] = useState<string | null>(null)
   const [reserveError, setReserveError] = useState<string | null>(null)
+
+  const [imgStage, setImgStage] = useState<number>(0)
 
   const handleReserve = async () => {
     if (!user || user.role !== 'MEMBER') {
@@ -72,17 +88,10 @@ export function BookDetail({
     }
   }, [handle, initialBook])
 
-  // Set document title to "book title | Libro"
-  useEffect(() => {
-    if (book?.title) {
-      document.title = `${book.title} | Libro`
-    } else {
-      document.title = 'Libro | Discover Books & Library Catalog'
-    }
-    return () => {
-      document.title = 'Libro | Discover Books & Library Catalog'
-    }
-  }, [book?.title])
+  const bookTitleWithAuthor = book?.title
+    ? `${book.title}${book.authors && book.authors.length > 0 ? ` by ${book.authors.map((a) => a.name).join(', ')}` : ''}`
+    : 'Book Details'
+  useDocumentTitle(bookTitleWithAuthor)
 
   if (loadingBook) {
     return (
@@ -114,6 +123,25 @@ export function BookDetail({
   const authorsList = book.authors && book.authors.length > 0 ? book.authors : []
   const genresList = book.genres && book.genres.length > 0 ? book.genres : []
 
+  const getCoverUrl = (): string | null => {
+    if (imgStage === 0 && book.cover) {
+      return book.cover
+    }
+    if (imgStage <= 1 && book.isbn) {
+      const cleanIsbn = book.isbn.replace(/[^0-9X]/gi, '')
+      const isbn10 = cleanIsbn.length === 13 ? convertIsbn13To10(cleanIsbn) : cleanIsbn
+      if (isbn10 && isbn10.length === 10) {
+        return `https://images-na.ssl-images-amazon.com/images/P/${isbn10}.01._SCLZZZZZZZ_SX500_.jpg`
+      }
+    }
+    if (imgStage <= 2 && book.isbn) {
+      return `https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg`
+    }
+    return null
+  }
+
+  const coverUrl = getCoverUrl()
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full animate-in fade-in duration-150">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-10 items-start">
@@ -121,8 +149,13 @@ export function BookDetail({
         <div className="md:col-span-4 lg:col-span-4 md:sticky md:top-6 flex flex-col items-stretch gap-3 w-full max-w-[280px] mx-auto md:max-w-none">
           {/* Cover with realistic shadow & archive framing */}
           <div className="relative w-full aspect-[2/3] rounded-sm bg-[#f7f5ee] shadow-[0_4px_16px_rgba(0,0,0,0.16)] border border-[#d6d2c4] overflow-hidden flex items-center justify-center shrink-0 before:absolute before:inset-y-0 before:left-0 before:w-[10px] before:bg-gradient-to-r before:from-black/25 before:to-transparent before:z-10">
-            {book.cover ? (
-              <img src={book.cover} alt={book.title} className="h-full w-full object-fill select-none" />
+            {coverUrl ? (
+              <img
+                src={coverUrl}
+                alt={book.title}
+                className="h-full w-full object-fill select-none"
+                onError={() => setImgStage((prev) => prev + 1)}
+              />
             ) : (
               <div className="p-4 text-center text-[#666] flex flex-col items-center justify-center">
                 <IconBook size={44} className="mb-2 text-[#999]" />
@@ -250,13 +283,13 @@ export function BookDetail({
 
         {/* ===== RIGHT MAIN COLUMN ===== */}
         <div className="md:col-span-8 lg:col-span-8 w-full">
-          {/* Title - Bold Serif matching reference samples */}
-          <h1 className="font-serif font-bold text-[34px] sm:text-[38px] md:text-[40px] text-[#181818] leading-[1.12] tracking-tight mb-2">
+          {/* Title - Exact Goodreads Merriweather 700 Bold typography */}
+          <h1 className="font-['Merriweather',serif] font-bold text-[32px] sm:text-[36px] md:text-[40px] text-[#181818] dark:text-[#f5f3e6] leading-[1.18] tracking-normal mb-1.5">
             {book.title}
           </h1>
 
-          {/* Author line - Goodreads thin serif style */}
-          <div className="font-serif text-[16px] sm:text-[17px] text-[#333333] dark:text-[#c8d0b7] mb-5 flex items-center gap-1.5 flex-wrap">
+          {/* Author line - Exact Goodreads Merriweather 400 Serif style with author badge */}
+          <div className="font-['Merriweather',serif] text-[18px] sm:text-[20px] font-normal text-[#181818] dark:text-[#f5f3e6] mb-5 flex items-center gap-1.5 flex-wrap">
             {authorsList.length > 0 ? (
               authorsList.map((a, idx) => (
                 <span key={a.handle || idx} className="inline-flex items-center gap-1">
@@ -267,7 +300,7 @@ export function BookDetail({
                         ? navigate(`/author/${a.handle}`)
                         : navigate(`/?keyword=${encodeURIComponent(a.name)}`)
                     }
-                    className="font-light text-[#181818] dark:text-[#f5f3e6] hover:underline hover:text-[#00635d] dark:hover:text-[#4db6ac] transition-colors cursor-pointer"
+                    className="font-['Merriweather',serif] font-normal text-[#181818] dark:text-[#f5f3e6] hover:underline hover:text-[#00635d] dark:hover:text-[#4db6ac] transition-colors cursor-pointer"
                   >
                     {a.name}
                   </button>
@@ -275,7 +308,7 @@ export function BookDetail({
                 </span>
               ))
             ) : (
-              <span className="text-[#767676] font-light italic">Unknown Author</span>
+              <span className="text-[#767676] font-normal italic">Unknown Author</span>
             )}
           </div>
 

@@ -8,6 +8,7 @@ import {
 } from '@tabler/icons-react'
 import { api } from '@/services/api'
 import type { AuthorPublicResponse, BookPublicResponse } from '@/types/api'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { BookCard } from '@/components/catalog/BookCard'
 
 export function AuthorDetailPage() {
@@ -18,6 +19,8 @@ export function AuthorDetailPage() {
   const [books, setBooks] = useState<BookPublicResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [bioExpanded, setBioExpanded] = useState(false)
+
+  useDocumentTitle(author?.name ? `${author.name} — Author Profile` : 'Author Profile')
 
   const loadData = useCallback(async () => {
     if (!handle) return

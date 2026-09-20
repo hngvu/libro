@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   IconMenu2,
@@ -79,6 +80,12 @@ export function AdminHeader() {
 
     return 'Admin'
   }
+
+  // Update document.title on route change or headerTitle change
+  useEffect(() => {
+    const title = getPageTitle()
+    document.title = `${title} | Libro Admin`
+  }, [location.pathname, headerTitle])
 
   return (
     <header className={`flex items-center justify-between gap-3 pb-3 border-b ${t.headerBorder}`}>

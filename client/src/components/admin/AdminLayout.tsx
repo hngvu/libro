@@ -42,6 +42,15 @@ function AdminLayoutInner() {
     setHeaderAction(null)
   }, [location.pathname, setHeaderTitle, setHeaderAction])
 
+  // Set document title for login and unauthorized gates
+  useEffect(() => {
+    if (!user) {
+      document.title = 'Admin Sign In | Libro'
+    } else if (!canAccessAdmin) {
+      document.title = 'Unauthorized Access | Libro'
+    }
+  }, [user, canAccessAdmin])
+
   // Gate 1: Login form state
   const [gateEmail, setGateEmail] = useState('')
   const [gatePassword, setGatePassword] = useState('')

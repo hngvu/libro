@@ -10,6 +10,7 @@ import type {
 } from '@/types/api'
 import { api } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
@@ -109,6 +110,14 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
 
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<'loans' | 'reservations' | 'fines'>('loans')
+
+  const tabTitle =
+    activeTab === 'loans'
+      ? 'My Borrowed Books'
+      : activeTab === 'reservations'
+      ? 'My Reservations'
+      : 'My Fines & Fees'
+  useDocumentTitle(tabTitle)
 
   // Loans State
   const [loans, setLoans] = useState<LoanPublicResponse[]>([])
