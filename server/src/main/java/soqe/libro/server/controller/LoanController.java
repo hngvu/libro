@@ -48,4 +48,16 @@ public class LoanController {
         }
         return ResponseEntity.ok(loanService.renewMyLoan(principal.getName(), loanCode));
     }
+
+    @PostMapping("/borrow")
+    public ResponseEntity<LoanPublicResponse> borrowBook(
+            Principal principal,
+            @RequestParam(required = false) Long bookId,
+            @RequestParam(required = false) String bookHandle) {
+        if (principal == null) {
+            throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("Not authenticated");
+        }
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(loanService.borrowBookByPatron(principal.getName(), bookId, bookHandle));
+    }
 }

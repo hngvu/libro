@@ -32,7 +32,11 @@ export function MembershipPlansModal({ open, onOpenChange }: MembershipPlansModa
   const handleSubscribe = async (planCode: string, cycle: 'MONTHLY' | 'YEARLY' = 'MONTHLY') => {
     setSubscribingCode(planCode)
     try {
-      const res = await api.createSubscriptionCheckoutSession(planCode, cycle, window.location.origin)
+      const res = await api.createSubscriptionCheckoutSession(
+        planCode,
+        cycle,
+        `${window.location.origin}/membership?status=success`
+      )
       if (res.checkoutUrl) {
         window.location.href = res.checkoutUrl
       }

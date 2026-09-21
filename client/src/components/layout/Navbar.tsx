@@ -11,7 +11,9 @@ import {
   IconActivity,
   IconBell,
   IconCrown,
+  IconBookmark,
 } from '@tabler/icons-react'
+import { BookmarkDrawer } from '@/components/bookmark/BookmarkDrawer'
 
 interface NavbarProps {
   currentView: 'catalog' | 'loans' | 'membership' | 'admin' | 'book-detail'
@@ -36,6 +38,29 @@ export function Navbar({
   const { user, logout } = useAuth()
   const isMemberUser = user?.role === 'MEMBER'
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
+  const [bookmarkDrawerOpen, setBookmarkDrawerOpen] = useState(false)
+  const [bookmarkCount, setBookmarkCount] = useState(0)
+
+  useEffect(() => {
+    if (!isMemberUser) {
+      setBookmarkCount(0)
+      return
+    }
+
+    const fetchBookmarkCount = () => {
+      api.getBookmarkCount()
+        .then((res) => setBookmarkCount(res.count))
+        .catch(() => {})
+    }
+
+    fetchBookmarkCount()
+
+    const handleSync = () => {
+      fetchBookmarkCount()
+    }
+    window.addEventListener('libro:bookmarks-changed', handleSync)
+    return () => window.removeEventListener('libro:bookmarks-changed', handleSync)
+  }, [isMemberUser])
 
   // Header Search Autocomplete State
   const [searchTerm, setSearchTerm] = useState(searchKeyword)
@@ -99,7 +124,8 @@ export function Navbar({
   }
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#fafafa] dark:bg-[#1e2320] shadow-xs transition-colors">
+    <>
+      <header className="sticky top-0 z-40 w-full border-b border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#fafafa] dark:bg-[#1e2320] shadow-xs transition-colors">
       <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-4 sm:gap-6">
         {/* Left: Logo (Aligned with Banner) */}
         <div className="flex items-center shrink-0">
@@ -216,6 +242,20 @@ export function Navbar({
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <button
                 type="button"
+                onClick={() => setBookmarkDrawerOpen(true)}
+                className="relative p-1.5 text-[#6f7f64] hover:text-[#1e2320] dark:hover:text-[#f5f3e6] rounded-[6px] hover:bg-[#c8d0b7]/30 transition-colors cursor-pointer"
+                title="Saved Bookmarks"
+              >
+                <IconBookmark size={18} />
+                {bookmarkCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-[#2e7d56] text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs">
+                    {bookmarkCount > 99 ? '99+' : bookmarkCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
                 className="p-1.5 text-[#6f7f64] hover:text-[#1e2320] dark:hover:text-[#f5f3e6] rounded-[6px] hover:bg-[#c8d0b7]/30 transition-colors hidden sm:block cursor-pointer"
                 title="Notifications"
               >
@@ -251,6 +291,23 @@ export function Navbar({
                           {user.email}
                         </p>
                       </div>
+
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false)
+                          setBookmarkDrawerOpen(true)
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 text-xs text-[#1e2320] dark:text-[#f5f3e6] hover:bg-[#c8d0b7]/40 dark:hover:bg-[#3d4b3e]/40 rounded-[4px] transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          <IconBookmark size={15} /> Saved Bookmarks
+                        </span>
+                        {bookmarkCount > 0 && (
+                          <span className="px-1.5 py-0.5 bg-[#2e7d56] text-white text-[10px] font-bold rounded-full">
+                            {bookmarkCount}
+                          </span>
+                        )}
+                      </button>
 
                       <button
                         onClick={() => {
@@ -305,5 +362,35 @@ export function Navbar({
         </div>
       </div>
     </header>
+
+    {isMemberUser && (
+      <BookmarkDrawer
+        open={bookmarkDrawerOpen}
+        onClose={() => setBookmarkDrawerOpen(false)}
+        onSelectBook={(b) => {
+          setBookmarkDrawerOpen(false)
+          api.getBookByHandle(b.handle)
+            .then((fullBook) => onSelectBook(fullBook))
+            .catch(() => {
+              onSelectBook({
+                title: '',
+                handle: b.handle,
+                slug: b.slug || b.handle,
+                isbn: '',
+                publicationYear: 0,
+                cover: null,
+                edition: null,
+                format: null,
+                pageCount: null,
+                language: null,
+                description: null,
+                totalCopies: 0,
+                availableCopies: 0,
+              })
+            })
+        }}
+      />
+    )}
+  </>
   )
 }

@@ -11,6 +11,8 @@ import {
   IconClock,
   IconChevronDown,
   IconChevronUp,
+  IconBookmark,
+  IconSparkles,
 } from '@tabler/icons-react'
 
 interface BookDetailProps {
@@ -46,15 +48,83 @@ export function BookDetail({
   const [bookDetailsExpanded, setBookDetailsExpanded] = useState(false)
   const [genresExpanded, setGenresExpanded] = useState(false)
 
-  const [shelfStatus, setShelfStatus] = useState<'want_to_read' | 'currently_reading' | 'read' | null>(null)
-  const [shelfDropdownOpen, setShelfDropdownOpen] = useState(false)
+  const [isBookmarked, setIsBookmarked] = useState(false)
+  const [bookmarkLoading, setBookmarkLoading] = useState(false)
+  const [similarBooks, setSimilarBooks] = useState<BookPublicResponse[]>([])
+  const [loadingSimilar, setLoadingSimilar] = useState(false)
   const [borrowDropdownOpen, setBorrowDropdownOpen] = useState(false)
 
   const [reserving, setReserving] = useState(false)
   const [reserveSuccess, setReserveSuccess] = useState<string | null>(null)
   const [reserveError, setReserveError] = useState<string | null>(null)
 
+  const [borrowing, setBorrowing] = useState(false)
+  const [borrowSuccess, setBorrowSuccess] = useState<string | null>(null)
+  const [borrowError, setBorrowError] = useState<string | null>(null)
+
   const [imgStage, setImgStage] = useState<number>(0)
+
+  // Check bookmark status on load & user change
+  useEffect(() => {
+    if (book?.id && user && user.role === 'MEMBER') {
+      api.checkBookmarked(book.id)
+        .then((res) => setIsBookmarked(res.bookmarked))
+        .catch(() => setIsBookmarked(false))
+    } else {
+      setIsBookmarked(false)
+    }
+  }, [book?.id, user])
+
+  // Sync bookmark state across app
+  useEffect(() => {
+    const handleSync = (e: Event) => {
+      const custom = e as CustomEvent
+      if (book?.id && custom.detail?.bookId === book.id) {
+        setIsBookmarked(custom.detail.bookmarked)
+      } else if (book?.id && user && user.role === 'MEMBER') {
+        api.checkBookmarked(book.id)
+          .then((res) => setIsBookmarked(res.bookmarked))
+          .catch(() => {})
+      }
+    }
+    window.addEventListener('libro:bookmarks-changed', handleSync)
+    return () => window.removeEventListener('libro:bookmarks-changed', handleSync)
+  }, [book?.id, user])
+
+  // Fetch similar books
+  useEffect(() => {
+    if (book?.id) {
+      setLoadingSimilar(true)
+      api.getSimilarBooks(book.id, 6)
+        .then((res) => setSimilarBooks(res || []))
+        .catch(() => setSimilarBooks([]))
+        .finally(() => setLoadingSimilar(false))
+    } else {
+      setSimilarBooks([])
+    }
+  }, [book?.id])
+
+  const handleToggleBookmark = async () => {
+    if (!user || user.role !== 'MEMBER') {
+      onOpenAuth('login')
+      return
+    }
+    if (!book?.id || bookmarkLoading) return
+    setBookmarkLoading(true)
+    try {
+      const res = await api.toggleBookmark(book.id)
+      setIsBookmarked(res.bookmarked)
+      window.dispatchEvent(
+        new CustomEvent('libro:bookmarks-changed', {
+          detail: { bookId: book.id, bookmarked: res.bookmarked },
+        })
+      )
+    } catch (err) {
+      console.error('Failed to toggle bookmark:', err)
+    } finally {
+      setBookmarkLoading(false)
+    }
+  }
 
   const handleReserve = async () => {
     if (!user || user.role !== 'MEMBER') {
@@ -73,6 +143,27 @@ export function BookDetail({
       setReserveError(msg)
     } finally {
       setReserving(false)
+    }
+  }
+
+  const handleBorrow = async () => {
+    if (!user || user.role !== 'MEMBER') {
+      onOpenAuth('login')
+      return
+    }
+    if (!book || borrowing) return
+    setBorrowing(true)
+    setBorrowSuccess(null)
+    setBorrowError(null)
+    try {
+      const res = await api.borrowBook({ bookId: book.id, bookHandle: book.handle })
+      setBorrowSuccess(`Checked out successfully! Due date: ${res.dueDate} (Loan: ${res.loanCode})`)
+      setBook((prev) => (prev ? { ...prev, availableCopies: Math.max(0, prev.availableCopies - 1) } : prev))
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to borrow book'
+      setBorrowError(msg)
+    } finally {
+      setBorrowing(false)
     }
   }
 
@@ -189,95 +280,114 @@ export function BookDetail({
                 )}
               </div>
             ) : (
-              <div className="relative w-full">
-                <div className="flex h-[42px] rounded-md bg-[#3d4b3e] hover:bg-[#2e3a2f] text-white shadow-xs transition-colors overflow-hidden font-sans">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!user || user.role !== 'MEMBER') {
-                        onOpenAuth('login')
-                        return
-                      }
-                      navigate('/activity')
-                    }}
-                    className="flex-1 px-4 text-[14px] font-semibold flex items-center justify-center cursor-pointer select-none"
-                  >
-                    Borrow
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBorrowDropdownOpen(!borrowDropdownOpen)}
-                    className="px-3 border-l border-white/20 hover:bg-black/15 flex items-center justify-center cursor-pointer transition-colors"
-                  >
-                    <IconChevronDown size={14} />
-                  </button>
+              <div className="w-full flex flex-col gap-1.5">
+                <div className="relative w-full">
+                  <div className="flex h-[42px] rounded-md bg-[#3d4b3e] hover:bg-[#2e3a2f] text-white shadow-xs transition-colors overflow-hidden font-sans">
+                    <button
+                      type="button"
+                      disabled={borrowing}
+                      onClick={handleBorrow}
+                      className="flex-1 px-4 text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer select-none disabled:opacity-60"
+                    >
+                      {borrowing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          <span>Checking out...</span>
+                        </>
+                      ) : (
+                        <span>Borrow</span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBorrowDropdownOpen(!borrowDropdownOpen)}
+                      className="px-3 border-l border-white/20 hover:bg-black/15 flex items-center justify-center cursor-pointer transition-colors"
+                    >
+                      <IconChevronDown size={14} />
+                    </button>
+                  </div>
+                  {borrowDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setBorrowDropdownOpen(false)} />
+                      <div className="absolute left-0 right-0 mt-1 rounded-md border border-[#c8d0b7] bg-white shadow-lg py-1 z-50 text-[13px]">
+                        <button
+                          onClick={() => {
+                            setBorrowDropdownOpen(false)
+                            if (!user || user.role !== 'MEMBER') {
+                              onOpenAuth('login')
+                              return
+                            }
+                            navigate('/activity')
+                          }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-[#f0f4f1] text-[#3d4b3e] font-medium"
+                        >
+                          My Activity / Loans
+                        </button>
+                        <button onClick={() => { setBorrowDropdownOpen(false); window.open(`https://www.amazon.com/s?k=${encodeURIComponent(book.title)}`, '_blank') }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-[#fafafa] text-[#666]">
+                          Search on Amazon
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
-                {borrowDropdownOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setBorrowDropdownOpen(false)} />
-                    <div className="absolute left-0 right-0 mt-1 rounded-md border border-[#c8d0b7] bg-white shadow-lg py-1 z-50 text-[13px]">
-                      <button
-                        onClick={() => {
-                          setBorrowDropdownOpen(false)
-                          if (!user || user.role !== 'MEMBER') {
-                            onOpenAuth('login')
-                            return
-                          }
-                          navigate('/activity')
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-[#f0f4f1] text-[#3d4b3e] font-medium"
-                      >
-                        My Activity
-                      </button>
-                      <button onClick={() => { setBorrowDropdownOpen(false); window.open(`https://www.amazon.com/s?k=${encodeURIComponent(book.title)}`, '_blank') }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-[#fafafa] text-[#666]">
-                        Search on Amazon
-                      </button>
+                {borrowSuccess && (
+                  <div className="p-2.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex flex-col gap-1.5 animate-in fade-in">
+                    <div className="flex items-center gap-1.5 font-semibold">
+                      <IconCheck size={15} className="shrink-0 text-emerald-600" />
+                      <span>{borrowSuccess}</span>
                     </div>
-                  </>
+                    <div className="flex items-center gap-2 pt-1 border-t border-emerald-200/60">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate('/activity')}
+                        className="text-xs h-6 px-2 text-emerald-800 border-emerald-300 hover:bg-emerald-100 cursor-pointer"
+                      >
+                        View in My Loans →
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {borrowError && (
+                  <div className="p-2.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-xs flex flex-col gap-1.5 animate-in fade-in">
+                    <div>{borrowError}</div>
+                    {(borrowError.toLowerCase().includes('limit') || borrowError.toLowerCase().includes('membership') || borrowError.toLowerCase().includes('plan')) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate('/membership')}
+                        className="text-xs h-6 px-2 w-fit text-rose-800 border-rose-300 hover:bg-rose-100 cursor-pointer"
+                      >
+                        Upgrade Membership Plan →
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
 
-            {/* Want to Read button */}
-            <div className="relative w-full">
-              <div className="flex h-[38px] rounded-md border border-[#3d4b3e]/60 bg-white hover:bg-[#f0f4f1] text-[#3d4b3e] transition-colors overflow-hidden font-sans">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!user) { onOpenAuth('login'); return }
-                    setShelfStatus(shelfStatus === 'want_to_read' ? null : 'want_to_read')
-                  }}
-                  className="flex-1 px-3 text-[13px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer select-none"
-                >
-                  {shelfStatus === 'want_to_read' ? <><IconCheck size={14} /> In Reading Log</>
-                    : shelfStatus === 'currently_reading' ? <><IconClock size={14} /> Currently Reading</>
-                    : shelfStatus === 'read' ? <><IconCheck size={14} /> Already Read</>
-                    : 'Want to Read'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShelfDropdownOpen(!shelfDropdownOpen)}
-                  className="px-2.5 border-l border-[#3d4b3e]/25 hover:bg-[#3d4b3e]/10 flex items-center justify-center cursor-pointer transition-colors"
-                >
-                  <IconChevronDown size={13} />
-                </button>
-              </div>
-              {shelfDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShelfDropdownOpen(false)} />
-                  <div className="absolute left-0 right-0 mt-1 rounded-md border border-[#c8d0b7] bg-white shadow-lg py-1 z-50 text-[13px]">
-                    {(['want_to_read', 'currently_reading', 'read'] as const).map((s) => (
-                      <button key={s} onClick={() => { setShelfStatus(s); setShelfDropdownOpen(false) }}
-                        className={`w-full text-left px-3.5 py-2 flex items-center justify-between hover:bg-[#f0f4f1] ${shelfStatus === s ? 'font-semibold text-[#3d4b3e] bg-[#f0f4f1]/60' : 'text-[#333]'}`}>
-                        <span>{s === 'want_to_read' ? 'Want to Read' : s === 'currently_reading' ? 'Currently Reading' : 'Already Read'}</span>
-                        {shelfStatus === s && <IconCheck size={14} className="text-[#3d4b3e]" />}
-                      </button>
-                    ))}
-                  </div>
-                </>
+            {/* Live Bookmark button */}
+            <button
+              type="button"
+              onClick={handleToggleBookmark}
+              disabled={bookmarkLoading}
+              className={`w-full h-[40px] rounded-md border font-sans text-[13.5px] font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all duration-200 shadow-2xs ${
+                isBookmarked
+                  ? 'border-[#2e7d56] bg-[#2e7d56]/12 dark:bg-[#2e7d56]/25 text-[#2e7d56] dark:text-[#66bb6a] hover:bg-[#2e7d56]/20'
+                  : 'border-[#3d4b3e]/60 dark:border-[#3d4b3e] bg-white dark:bg-[#252c28] hover:bg-[#f0f4f1] dark:hover:bg-[#333d36] text-[#3d4b3e] dark:text-[#c8d0b7]'
+              } disabled:opacity-50`}
+            >
+              {bookmarkLoading ? (
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <IconBookmark
+                  size={17}
+                  className={isBookmarked ? 'fill-current text-[#2e7d56] dark:text-[#66bb6a]' : ''}
+                />
               )}
-            </div>
+              <span>{isBookmarked ? 'Bookmarked 🔖' : 'Bookmark'}</span>
+            </button>
           </div>
         </div>
 
@@ -405,6 +515,86 @@ export function BookDetail({
           </div>
         </div>
       </div>
+
+      {/* ===== READERS ALSO ENJOYED / BOOKS YOU MIGHT LIKE ===== */}
+      {(similarBooks.length > 0 || loadingSimilar) && (
+        <section className="mt-14 pt-8 border-t border-[#d6d2c4]/70 dark:border-[#3d4b3e]">
+          <div className="flex items-end justify-between mb-6">
+            <div>
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#2e7d56] dark:text-[#66bb6a] mb-1">
+                <IconSparkles size={14} />
+                <span>Readers Also Enjoyed</span>
+              </div>
+              <h2 className="font-serif font-bold text-2xl sm:text-3xl text-[#181818] dark:text-[#f5f3e6] tracking-tight">
+                Books You Might Like
+              </h2>
+              <p className="text-xs text-[#6f7f64] dark:text-[#a0b096] mt-0.5">
+                Curated recommendations based on this edition's genre, themes, and authors
+              </p>
+            </div>
+          </div>
+
+          {loadingSimilar ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-5 animate-pulse">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="space-y-2">
+                  <div className="aspect-[2/3] bg-stone-200 dark:bg-zinc-800 rounded-md" />
+                  <div className="h-3 w-3/4 bg-stone-200 dark:bg-zinc-800 rounded-sm" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-5">
+              {similarBooks.map((simBook) => {
+                const authorsText =
+                  simBook.authors && simBook.authors.length > 0
+                    ? simBook.authors.map((a) => a.name).join(', ')
+                    : 'Unknown Author'
+
+                return (
+                  <div
+                    key={simBook.id || simBook.handle}
+                    onClick={() => {
+                      navigate(`/book/${simBook.handle}/${simBook.slug || simBook.handle}`)
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    className="group flex flex-col cursor-pointer transition-all duration-200"
+                  >
+                    <div className="relative aspect-[2/3] w-full rounded-r-[6px] rounded-l-[1px] bg-[#f0ede6] dark:bg-[#252c28] shadow-[0_4px_12px_rgba(0,0,0,0.12)] border border-[#d6d2c4]/60 dark:border-[#3d4b3e] overflow-hidden flex items-center justify-center group-hover:scale-105 group-hover:shadow-[0_10px_20px_rgba(0,0,0,0.18)] transition-all duration-200">
+                      {simBook.cover ? (
+                        <img
+                          src={simBook.cover}
+                          alt={simBook.title}
+                          className="h-full w-full object-fill select-none"
+                        />
+                      ) : (
+                        <div className="p-2 text-center text-[#888]">
+                          <IconBook size={24} className="mx-auto text-[#aaa] mb-1 opacity-60" />
+                          <span className="text-[10px] font-serif line-clamp-2">{simBook.title}</span>
+                        </div>
+                      )}
+                      <div className="pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-gradient-to-r from-black/25 to-transparent" />
+                      <div className="pointer-events-none absolute inset-y-0 left-[2px] w-[0.5px] bg-white/20" />
+                    </div>
+
+                    <div className="mt-2.5">
+                      <h3 className="font-serif font-bold text-xs sm:text-[13px] leading-snug text-[#181818] dark:text-[#f5f3e6] line-clamp-2 group-hover:text-[#2e7d56] dark:group-hover:text-[#66bb6a] transition-colors">
+                        {simBook.title}
+                      </h3>
+                      <p className="text-[11px] text-[#6f7f64] dark:text-[#a0b096] truncate mt-0.5">
+                        {authorsText}
+                      </p>
+                      <span className="inline-block mt-1 text-[10px] font-semibold text-[#2e7d56] dark:text-[#66bb6a]">
+                        {simBook.availableCopies > 0 ? 'Available now' : 'Waitlist open'}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
 }

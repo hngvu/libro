@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
@@ -12,6 +12,8 @@ import {
   IconSparkles,
   IconChevronDown,
   IconChevronUp,
+  IconAlertCircle,
+  IconLoader2,
 } from '@tabler/icons-react'
 
 interface MembershipPageProps {
@@ -22,7 +24,7 @@ export function MembershipPage({ onOpenAuth }: MembershipPageProps) {
   useDocumentTitle('Membership & Borrowing Plans')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
 
   const [plans, setPlans] = useState<MembershipPlanResponse[]>([])
   const [subscription, setSubscription] = useState<UserSubscriptionResponse | null>(null)
@@ -32,7 +34,12 @@ export function MembershipPage({ onOpenAuth }: MembershipPageProps) {
   const [openingPortal, setOpeningPortal] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
 
-  const checkoutStatus = searchParams.get('status')
+  const checkoutStatus = searchParams.get('status') || searchParams.get('subscription')
+  const sessionId = searchParams.get('session_id')
+  const [verifyingSession, setVerifyingSession] = useState(false)
+  const [verificationError, setVerificationError] = useState<string | null>(null)
+  const [verificationSuccess, setVerificationSuccess] = useState<string | null>(null)
+  const verifiedSessionIdRef = useRef<string | null>(null)
 
   const fetchMembershipData = async () => {
     setLoading(true)
@@ -64,6 +71,34 @@ export function MembershipPage({ onOpenAuth }: MembershipPageProps) {
   useEffect(() => {
     fetchMembershipData()
   }, [user])
+
+  useEffect(() => {
+    if (checkoutStatus === 'success' && sessionId && user) {
+      if (verifiedSessionIdRef.current === sessionId) return
+      verifiedSessionIdRef.current = sessionId
+
+      setVerifyingSession(true)
+      setVerificationError(null)
+
+      api.verifySubscriptionSession(sessionId)
+        .then((updatedSub) => {
+          setSubscription(updatedSub)
+          setVerificationSuccess(`Your ${updatedSub.planName} subscription is now active!`)
+          refreshUser?.()
+          fetchMembershipData()
+        })
+        .catch((err: any) => {
+          console.error('Failed to verify subscription session:', err)
+          setVerificationError(
+            err.message || 'Could not verify checkout session. Please check your billing portal or contact support.'
+          )
+          fetchMembershipData()
+        })
+        .finally(() => {
+          setVerifyingSession(false)
+        })
+    }
+  }, [checkoutStatus, sessionId, user])
 
   const handleSubscribe = async (planCode: string) => {
     if (!user) {
@@ -180,23 +215,74 @@ export function MembershipPage({ onOpenAuth }: MembershipPageProps) {
       </div>
 
       {/* Stripe Return Feedback Alerts */}
-      {checkoutStatus === 'success' && (
-        <div className="p-4 rounded-[6px] bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs flex items-center justify-between shadow-xs">
+      {verifyingSession && (
+        <div className="p-4 rounded-[6px] bg-blue-50 dark:bg-blue-950/40 border border-blue-300 dark:border-blue-800 text-blue-900 dark:text-blue-200 text-xs flex items-center gap-3 shadow-xs">
+          <IconLoader2 size={20} className="animate-spin text-blue-600 dark:text-blue-400 shrink-0" />
+          <div>
+            <p className="font-semibold">Verifying your subscription with Stripe...</p>
+            <p className="text-[11px] opacity-90">Please wait while we update your account tier and borrowing limits.</p>
+          </div>
+        </div>
+      )}
+
+      {verificationError && (
+        <div className="p-4 rounded-[6px] bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-xs flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-2">
-            <IconCheck size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <IconAlertCircle size={18} className="text-rose-600 dark:text-rose-400 shrink-0" />
             <div>
-              <p className="font-semibold">Subscription checkout completed successfully!</p>
-              <p className="text-[11px] opacity-90">Your new borrowing limits are now active on your account.</p>
+              <p className="font-semibold">Verification Notice</p>
+              <p className="text-[11px] opacity-90">{verificationError}</p>
             </div>
           </div>
           <Button
             size="sm"
             variant="outline"
-            onClick={() => navigate('/activity')}
-            className="text-xs h-7 rounded-[4px] border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 cursor-pointer"
+            onClick={() => handleOpenCustomerPortal()}
+            className="text-xs h-7 rounded-[4px] border-rose-300 dark:border-rose-700 hover:bg-rose-100 dark:hover:bg-rose-900/50 cursor-pointer"
           >
-            Go to My Activity
+            Manage Billing
           </Button>
+        </div>
+      )}
+
+      {!verifyingSession && checkoutStatus === 'success' && !verificationError && (
+        <div className="p-4 rounded-[6px] bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2">
+            <IconCheck size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div>
+              <p className="font-semibold">
+                {verificationSuccess || 'Subscription checkout completed successfully!'}
+              </p>
+              <p className="text-[11px] opacity-90">Your upgraded borrowing limits and loan privileges are now active on your account.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/')}
+              className="text-xs h-7 rounded-[4px] border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 cursor-pointer"
+            >
+              Browse Books
+            </Button>
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => navigate('/activity')}
+              className="text-xs h-7 rounded-[4px] bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer"
+            >
+              My Activity
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {checkoutStatus === 'cancelled' && (
+        <div className="p-3.5 rounded-[6px] bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2">
+            <IconAlertCircle size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>Checkout was cancelled. No charges were made to your card.</span>
+          </div>
         </div>
       )}
 

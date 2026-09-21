@@ -487,6 +487,104 @@ public class LoanService {
         return toPublicResponse(loan);
     }
 
+    @Transactional
+    public LoanPublicResponse borrowBookByPatron(String email, Long bookId, String bookHandle) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (user.getStatus() != User.Status.ACTIVE) {
+            throw new BusinessValidationException("Borrowing denied", Map.of("user", "User account is " + user.getStatus() + " and cannot borrow books"));
+        }
+
+        Book book = null;
+        if (bookId != null) {
+            book = bookRepository.findById(bookId).orElse(null);
+        } else if (StringUtils.hasText(bookHandle)) {
+            book = bookRepository.findByHandle(bookHandle.trim()).orElse(null);
+        }
+
+        if (book == null) {
+            throw new ResourceNotFoundException("Book not found");
+        }
+
+        if (book.getStatus() != Book.Status.ACTIVE) {
+            throw new BusinessValidationException("Borrowing denied", Map.of("book", "This book is not currently active in the catalog"));
+        }
+
+        // 1. Check user membership active loans limit
+        int maxActiveLoans = DEFAULT_FREE_MAX_ACTIVE_LOANS;
+        var activeSubOpt = userSubscriptionRepository.findTopByUserAndStatusOrderByCurrentPeriodEndDesc(
+                user, soqe.libro.server.entity.UserSubscription.SubscriptionStatus.ACTIVE);
+        if (activeSubOpt.isPresent() && activeSubOpt.get().getPlan() != null) {
+            maxActiveLoans = activeSubOpt.get().getPlan().getMaxActiveLoans();
+        }
+
+        long activeLoansCount = repository.countByUserAndStatus(user, Loan.LoanStatus.ONGOING);
+        if (activeLoansCount >= maxActiveLoans) {
+            throw new BusinessValidationException("Borrowing limit reached", Map.of(
+                    "limit", "You have reached your limit of " + maxActiveLoans + " active borrowed book(s) under your current membership plan. Return a book or upgrade your plan to borrow more."
+            ));
+        }
+
+        // 2. Check overdue loans
+        boolean hasOverdue = repository.existsByUserAndStatus(user, Loan.LoanStatus.OVERDUE)
+                || repository.existsByUserAndStatusAndDueDateBefore(user, Loan.LoanStatus.ONGOING, LocalDate.now());
+        if (hasOverdue) {
+            throw new BusinessValidationException("Borrowing denied", Map.of("overdue", "You currently have overdue books that must be returned before borrowing new titles."));
+        }
+
+        // 3. Check unpaid fines
+        boolean hasUnpaidFines = fineRepository.existsByUserAndStatus(user, soqe.libro.server.entity.Fine.FineStatus.PENDING);
+        if (hasUnpaidFines) {
+            throw new BusinessValidationException("Borrowing denied", Map.of("fines", "You have outstanding unpaid library fines. Please settle your fines before borrowing new titles."));
+        }
+
+        // 4. Check if user is already borrowing a copy of this book/work
+        boolean alreadyBorrowing = false;
+        if (StringUtils.hasText(book.getWork())) {
+            alreadyBorrowing = repository.existsByUserAndBookCopy_Book_WorkAndStatus(user, book.getWork(), Loan.LoanStatus.ONGOING);
+        } else {
+            alreadyBorrowing = repository.existsByUserAndBookCopy_BookAndStatus(user, book, Loan.LoanStatus.ONGOING);
+        }
+        if (alreadyBorrowing) {
+            throw new BusinessValidationException("Borrowing denied", Map.of("duplicate", "You are already currently borrowing a copy of this book ('" + book.getTitle() + "'). Please return it before borrowing another copy."));
+        }
+
+        // 5. Find an AVAILABLE BookCopy
+        java.util.List<BookCopy> availableCopies = bookCopyRepository.findByBookAndStatus(book, BookCopy.Status.AVAILABLE);
+        if (availableCopies.isEmpty()) {
+            throw new BusinessValidationException("Out of stock", Map.of("copies", "There are currently no available physical copies of this book to borrow. You may place a reservation hold instead."));
+        }
+
+        BookCopy copy = availableCopies.get(0);
+        copy.setStatus(BookCopy.Status.LOANED);
+        bookCopyRepository.save(copy);
+
+        book.setAvailableCopies(Math.max(0, book.getAvailableCopies() - 1));
+        bookRepository.save(book);
+
+        LocalDate borrowDate = LocalDate.now();
+        int loanDurationDays = DEFAULT_FREE_LOAN_DAYS;
+        if (activeSubOpt.isPresent() && activeSubOpt.get().getPlan() != null) {
+            loanDurationDays = activeSubOpt.get().getPlan().getLoanDurationDays();
+        }
+        LocalDate dueDate = borrowDate.plusDays(loanDurationDays);
+        String loanCode = generateUniqueLoanCode();
+
+        Loan loan = Loan.builder()
+                .loanCode(loanCode)
+                .user(user)
+                .bookCopy(copy)
+                .borrowDate(borrowDate)
+                .dueDate(dueDate)
+                .status(Loan.LoanStatus.ONGOING)
+                .renewalCount(0)
+                .build();
+
+        loan = repository.save(loan);
+        return toPublicResponse(loan);
+    }
+
     private LoanPublicResponse toPublicResponse(Loan loan) {
         var book = loan.getBookCopy() != null ? loan.getBookCopy().getBook() : null;
         java.util.List<String> authorNames = null;

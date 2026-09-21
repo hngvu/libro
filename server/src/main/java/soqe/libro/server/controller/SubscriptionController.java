@@ -37,6 +37,16 @@ public class SubscriptionController {
         return ResponseEntity.ok(subscriptionService.createSubscriptionCheckoutSession(planCode, billingCycle, principal.getName(), clientBaseUrl));
     }
 
+    @PostMapping("/verify-session")
+    public ResponseEntity<UserSubscriptionResponse> verifySubscriptionSession(
+            Principal principal,
+            @RequestParam String sessionId) {
+        if (principal == null) {
+            throw new AuthenticationCredentialsNotFoundException("Not authenticated");
+        }
+        return ResponseEntity.ok(subscriptionService.verifyAndActivateCheckoutSession(sessionId, principal.getName()));
+    }
+
     @PostMapping("/portal-session")
     public ResponseEntity<StripeCheckoutResponse> createCustomerPortalSession(
             Principal principal,

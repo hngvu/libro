@@ -14,6 +14,7 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
 
     long countByAvailableCopies(int availableCopies);
     java.util.List<Book> findByAvailableCopiesLessThanEqual(int copies, org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<Book> findByStatus(Book.Status status, org.springframework.data.domain.Pageable pageable);
 
     @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(b.totalCopies), 0) FROM Book b")
     long sumTotalCopies();

@@ -250,13 +250,19 @@ public class SubscriptionService {
             throw new BusinessValidationException("Subscription failed", Map.of("plan", "Free plan does not require checkout"));
         }
 
-        String baseUrl = StringUtils.hasText(clientBaseUrl) ? clientBaseUrl : "http://localhost:5173";
+        String baseUrl = StringUtils.hasText(clientBaseUrl) ? clientBaseUrl.trim() : "http://localhost:5173/membership";
+        String successUrl = baseUrl.contains("?") 
+                ? baseUrl + "&session_id={CHECKOUT_SESSION_ID}" 
+                : baseUrl + "?subscription=success&session_id={CHECKOUT_SESSION_ID}";
+        String cancelUrl = baseUrl.contains("?")
+                ? baseUrl.replaceAll("status=[^&]*", "status=cancelled")
+                : baseUrl + "?subscription=cancelled";
 
         try {
             SessionCreateParams.Builder params = SessionCreateParams.builder()
                     .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-                    .setSuccessUrl(baseUrl + "/loans?subscription=success&session_id={CHECKOUT_SESSION_ID}")
-                    .setCancelUrl(baseUrl + "/loans?subscription=cancelled")
+                    .setSuccessUrl(successUrl)
+                    .setCancelUrl(cancelUrl)
                     .setCustomerEmail(userEmail)
                     .setClientReferenceId(String.valueOf(user.getId()))
                     .putMetadata("userId", String.valueOf(user.getId()))
@@ -366,6 +372,41 @@ public class SubscriptionService {
         }
     }
 
+    @Transactional
+    public UserSubscriptionResponse verifyAndActivateCheckoutSession(String sessionId, String userEmail) {
+        if (!StringUtils.hasText(sessionId)) {
+            throw new BusinessValidationException("Session verification failed", Map.of("sessionId", "Session ID is required"));
+        }
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        try {
+            Session session = Session.retrieve(sessionId.trim());
+            if (session != null) {
+                String metaUserId = session.getMetadata() != null ? session.getMetadata().get("userId") : null;
+                boolean userMatches = (metaUserId != null && metaUserId.equals(String.valueOf(user.getId())))
+                        || (session.getCustomerEmail() != null && session.getCustomerEmail().equalsIgnoreCase(userEmail));
+
+                if (!userMatches) {
+                    throw new BusinessValidationException("Access denied", Map.of("session", "Checkout session does not belong to the authenticated user"));
+                }
+
+                boolean isPaidOrComplete = "paid".equalsIgnoreCase(session.getPaymentStatus())
+                        || "complete".equalsIgnoreCase(session.getStatus());
+
+                if (isPaidOrComplete) {
+                    handleCheckoutSessionCompleted(session);
+                }
+            }
+        } catch (StripeException e) {
+            log.error("Failed to retrieve Stripe session {}: {}", sessionId, e.getMessage());
+            throw new BusinessValidationException("Stripe error", Map.of("stripe", "Unable to verify Stripe checkout session: " + e.getMessage()));
+        }
+
+        return getMySubscription(userEmail);
+    }
+
     private void handleCheckoutSessionCompleted(Session session) {
         String userIdStr = session.getMetadata() != null ? session.getMetadata().get("userId") : null;
         String planCode = session.getMetadata() != null ? session.getMetadata().get("planCode") : null;
@@ -386,6 +427,29 @@ public class SubscriptionService {
                 String stripeSubId = session.getSubscription();
                 String stripeCustId = session.getCustomer();
 
+                // If user already has an active subscription for this stripeSubId, avoid duplicate
+                Optional<UserSubscription> existingSub = StringUtils.hasText(stripeSubId)
+                        ? subscriptionRepository.findByStripeSubscriptionId(stripeSubId)
+                        : Optional.empty();
+
+                if (existingSub.isPresent()) {
+                    UserSubscription sub = existingSub.get();
+                    sub.setStatus(UserSubscription.SubscriptionStatus.ACTIVE);
+                    sub.setPlan(plan);
+                    sub.setPlanPrice(price);
+                    subscriptionRepository.save(sub);
+                    log.info("Refreshed active subscription for user {} with plan {}", user.getEmail(), plan.getCode());
+                    return;
+                }
+
+                // Deactivate any prior active subscriptions for this user
+                subscriptionRepository.findAllByUserAndStatus(user, UserSubscription.SubscriptionStatus.ACTIVE)
+                        .forEach(prevSub -> {
+                            prevSub.setStatus(UserSubscription.SubscriptionStatus.CANCELED);
+                            prevSub.setCanceledAt(LocalDateTime.now());
+                            subscriptionRepository.save(prevSub);
+                        });
+
                 LocalDateTime periodStart = LocalDateTime.now();
                 boolean isYearly = price != null && price.getBillingCycle() == soqe.libro.server.entity.MembershipPlanPrice.BillingCycle.YEARLY;
                 LocalDateTime periodEnd = isYearly ? periodStart.plusYears(1) : periodStart.plusMonths(1);
@@ -396,7 +460,7 @@ public class SubscriptionService {
                         .planPrice(price)
                         .status(UserSubscription.SubscriptionStatus.ACTIVE)
                         .stripeCustomerId(stripeCustId)
-                        .stripeSubscriptionId(stripeSubId)
+                        .stripeSubscriptionId(StringUtils.hasText(stripeSubId) ? stripeSubId : "sub_" + session.getId())
                         .startDate(periodStart)
                         .currentPeriodStart(periodStart)
                         .currentPeriodEnd(periodEnd)

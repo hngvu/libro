@@ -49,6 +49,7 @@ import type {
   ReservationCreateRequest,
   SystemSettingResponse,
   SystemSettingUpdateRequest,
+  BookmarkResponse,
 } from '@/types/api'
 
 const TOKEN_KEY = 'libro_jwt_token'
@@ -253,6 +254,15 @@ export const api = {
 
   async renewMyLoan(loanCode: string): Promise<LoanPublicResponse> {
     return request<LoanPublicResponse>(`/loans/${loanCode}/renew`, {
+      method: 'POST',
+    })
+  },
+
+  async borrowBook(data: { bookId?: number; bookHandle?: string }): Promise<LoanPublicResponse> {
+    const params = new URLSearchParams()
+    if (data.bookId) params.set('bookId', String(data.bookId))
+    if (data.bookHandle) params.set('bookHandle', data.bookHandle)
+    return request<LoanPublicResponse>(`/loans/borrow?${params.toString()}`, {
       method: 'POST',
     })
   },
@@ -646,6 +656,14 @@ export const api = {
     return request<UserSubscriptionResponse>('/subscriptions/my-subscription')
   },
 
+  async verifySubscriptionSession(sessionId: string): Promise<UserSubscriptionResponse> {
+    const search = new URLSearchParams()
+    search.set('sessionId', sessionId)
+    return request<UserSubscriptionResponse>(`/subscriptions/verify-session?${search.toString()}`, {
+      method: 'POST',
+    })
+  },
+
   async createSubscriptionCheckoutSession(planCode: string, billingCycle: string = 'MONTHLY', clientBaseUrl?: string): Promise<StripeCheckoutResponse> {
     const search = new URLSearchParams()
     search.set('planCode', planCode)
@@ -855,5 +873,43 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(settings),
     })
+  },
+
+  // Bookmarks (Saved Books)
+  async getBookmarks(): Promise<BookmarkResponse[]> {
+    return request<BookmarkResponse[]>('/bookmarks')
+  },
+
+  async toggleBookmark(bookId: number): Promise<{ bookmarked: boolean; count: number; bookId: number }> {
+    return request<{ bookmarked: boolean; count: number; bookId: number }>(`/bookmarks/${bookId}/toggle`, {
+      method: 'POST',
+    })
+  },
+
+  async removeBookmark(bookId: number): Promise<void> {
+    return request<void>(`/bookmarks/${bookId}`, {
+      method: 'DELETE',
+    })
+  },
+
+  async checkBookmarked(bookId: number): Promise<{ bookmarked: boolean }> {
+    return request<{ bookmarked: boolean }>(`/bookmarks/check/${bookId}`)
+  },
+
+  async getBookmarkCount(): Promise<{ count: number }> {
+    return request<{ count: number }>('/bookmarks/count')
+  },
+
+  // Recommendations
+  async getPersonalizedRecommendations(limit: number = 10): Promise<BookPublicResponse[]> {
+    return request<BookPublicResponse[]>(`/recommendations/for-you?limit=${limit}`)
+  },
+
+  async getSimilarBooks(bookId: number, limit: number = 6): Promise<BookPublicResponse[]> {
+    return request<BookPublicResponse[]>(`/recommendations/similar/${bookId}?limit=${limit}`)
+  },
+
+  async getTrendingBooks(limit: number = 10): Promise<BookPublicResponse[]> {
+    return request<BookPublicResponse[]>(`/recommendations/trending?limit=${limit}`)
   },
 }

@@ -507,18 +507,21 @@ export function GuestHomePage({
       </header>
 
       {/* ========================================================================= */}
-      {/* HERO BANNER SECTION (FULL WIDTH SCREEN, Using /banner_minimal_desk.jpg)   */}
+      {/* HERO BANNER SECTION (Seamless Tiled Desk Pattern + Grounded Book Object)  */}
       {/* ========================================================================= */}
-      <section className="relative overflow-hidden w-full border-b border-[#dfd9cb] dark:border-[#2f3a31] bg-[#f4eddd] dark:bg-[#181f19] min-h-[320px] sm:min-h-[380px] flex items-stretch">
-        {/* Background Image: banner_minimal_desk.jpg */}
+      <section className="relative overflow-hidden w-full border-b border-[#dfd9cb] dark:border-[#2f3a31] bg-[#f4eddd] dark:bg-[#181f19] min-h-[320px] sm:min-h-[380px] lg:min-h-[400px] flex items-stretch">
+        {/* Seamless Tiled Wooden Desk Pattern along the bottom (consistent, even color and lowered horizon) */}
         <div
-          className="absolute inset-0 bg-cover bg-right sm:bg-center opacity-95 dark:opacity-40 transition-opacity duration-300 pointer-events-none"
-          style={{ backgroundImage: "url('/banner_minimal_desk.jpg')" }}
+          className="absolute inset-x-0 bottom-0 h-[110px] sm:h-[125px] md:h-[135px] pointer-events-none opacity-95 dark:opacity-35"
+          style={{
+            backgroundImage: "url('/desk_pattern.jpg')",
+            backgroundRepeat: "repeat-x",
+            backgroundPosition: "left top",
+            backgroundSize: "auto 100%",
+          }}
         />
-        {/* Harmonious Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#f4eddd] via-[#f4eddd]/80 to-transparent dark:from-[#181f19] dark:via-[#181f19]/80 dark:to-transparent w-full sm:w-2/3 pointer-events-none" />
 
-        {/* Content Box aligned with max-w-5xl container */}
+        {/* Content Box aligned with max-w-5xl container (text & books locked in golden ratio) */}
         <div className="relative z-10 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 flex flex-col justify-between">
           <div className="max-w-xl">
             <h1
@@ -534,9 +537,9 @@ export function GuestHomePage({
             </h1>
           </div>
 
-          {/* Action Links Container (Near bottom of banner) */}
-          <div className="pt-8 sm:pt-11">
-            <div className="flex flex-col items-start w-[220px] sm:w-[224px] space-y-3.5">
+          {/* Action Links Container */}
+          <div className="pt-8 sm:pt-11 flex items-end justify-between">
+            <div className="flex flex-col items-start w-[220px] sm:w-[224px] space-y-3.5 flex-shrink-0 z-10">
               <Button
                 onClick={() => onOpenAuth?.('register')}
                 className="w-full bg-[#2d3a2e] hover:bg-[#1e271f] text-[#f8f6f0] dark:bg-[#c9d5be] dark:text-[#182219] dark:hover:bg-[#b8c6ab] h-10 text-xs sm:text-[13px] font-semibold rounded-md shadow-2xs cursor-pointer transition-all tracking-wide flex items-center justify-center text-center"
@@ -553,6 +556,15 @@ export function GuestHomePage({
                   Sign In
                 </button>
               </div>
+            </div>
+
+            {/* Standalone Book Stack: Grounded firmly on top of the wooden desk */}
+            <div className="hidden sm:block absolute right-4 sm:right-6 lg:right-8 bottom-3 sm:bottom-4 md:bottom-5 pointer-events-none select-none">
+              <img
+                src="/hero_books_grounded.png"
+                alt="Mindful books stack"
+                className="w-[290px] sm:w-[350px] md:w-[400px] lg:w-[430px] object-contain"
+              />
             </div>
           </div>
         </div>
@@ -720,7 +732,7 @@ export function GuestHomePage({
                     title={`${b.title} by ${b.authors?.map((a) => a.name).join(', ')}`}
                     className="select-none"
                   >
-                    <div className="w-[64px] sm:w-[80px] aspect-[2/3] rounded-none bg-[#ede8dc] dark:bg-[#202921] border border-[#dfd9cb] dark:border-[#2f3a31] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden flex items-center justify-center">
+                    <div className="w-[64px] sm:w-[80px] aspect-[2/3] rounded-none bg-[#ede8dc] dark:bg-[#202921] border border-[#dfd9cb] dark:border-[#2f3a31] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden flex items-center justify-center transition-all duration-200 hover:scale-105 hover:shadow-[0_6px_14px_rgba(0,0,0,0.18)] cursor-pointer">
                       {b.cover ? (
                         <img
                           src={b.cover}

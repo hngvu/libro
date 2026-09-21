@@ -58,23 +58,36 @@ export function MemberHomePage({
   const [activeLoans, setActiveLoans] = useState<LoanPublicResponse[]>([])
   const [books, setBooks] = useState<BookPublicResponse[]>([])
   const [genres, setGenres] = useState<GenrePublicResponse[]>([])
+  const [recommendedForYou, setRecommendedForYou] = useState<BookPublicResponse[]>([])
+  const [trendingBooks, setTrendingBooks] = useState<BookPublicResponse[]>([])
 
   const loadData = useCallback(async () => {
     if (!user || user.role !== 'MEMBER') return
     setLoading(true)
     try {
-      const [loansRes, booksRes, genresRes] = await Promise.all([
+      const [loansRes, booksRes, genresRes, recsRes, trendingRes] = await Promise.all([
         api.getMyLoans({ size: 20 }).catch(() => ({ content: [] })),
         api.getBooks({ page: 1, size: 30 }).catch(() => ({ content: [] })),
         api.getGenres().catch(() => ({ content: [] })),
+        api.getPersonalizedRecommendations(10).catch(() => []),
+        api.getTrendingBooks(10).catch(() => []),
       ])
 
       const allLoans: LoanPublicResponse[] = loansRes.content || []
       const active = allLoans.filter((l) => l.status !== 'RETURNED')
       setActiveLoans(active)
 
-      setBooks(booksRes.content || [])
+      const catalogBooks: BookPublicResponse[] = booksRes.content || []
+      setBooks(catalogBooks)
       setGenres(genresRes.content || [])
+
+      // Use personalized recommendations with fallback to sliced books if empty
+      const recs = recsRes && recsRes.length > 0 ? recsRes : catalogBooks.slice(6, 12)
+      setRecommendedForYou(recs)
+
+      // Use trending books with fallback to sliced books if empty
+      const trending = trendingRes && trendingRes.length > 0 ? trendingRes : catalogBooks.slice(1, 6)
+      setTrendingBooks(trending)
     } catch (err) {
       console.error('Failed to load member dashboard data:', err)
     } finally {
@@ -89,8 +102,6 @@ export function MemberHomePage({
   // Split books into curated editorial sections
   const currentRead = activeLoans.length > 0 ? activeLoans[0] : null
   const heroBook = books.length > 0 ? books[0] : null
-  const trendingBooks = books.slice(1, 6)
-  const recommendedForYou = books.slice(6, 12)
   const quickPicks = books.slice(12, 18)
 
   const randomQuote = LITERARY_QUOTES[Math.floor(Math.random() * LITERARY_QUOTES.length)]
@@ -243,7 +254,7 @@ export function MemberHomePage({
 
             {/* Right: Immersive 3D Floating Book Cover */}
             <div className="shrink-0 flex items-center justify-center py-2">
-              <div className="relative w-44 sm:w-56 lg:w-64 aspect-[2/3] rounded-r-[10px] rounded-l-[2px] bg-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden group-hover:-translate-y-2 group-hover:shadow-[0_28px_60px_rgba(0,0,0,0.7)] transition-all duration-300 flex items-center justify-center">
+              <div className="relative w-44 sm:w-56 lg:w-64 aspect-[2/3] rounded-r-[10px] rounded-l-[2px] bg-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden group-hover:scale-[1.03] group-hover:shadow-[0_28px_60px_rgba(0,0,0,0.7)] transition-all duration-300 flex items-center justify-center">
                 {heroBook.cover ? (
                   <img
                     src={heroBook.cover}
@@ -306,7 +317,7 @@ export function MemberHomePage({
                   onClick={() => onSelectBook(book)}
                   className="group flex flex-col cursor-pointer transition-all duration-300"
                 >
-                  <div className="relative w-full aspect-[2/3] rounded-r-[8px] rounded-l-[2px] bg-stone-100 dark:bg-zinc-800 shadow-[0_8px_20px_-4px_rgba(0,0,0,0.15)] overflow-hidden flex items-center justify-center group-hover:-translate-y-2 group-hover:shadow-[0_16px_30px_-6px_rgba(0,0,0,0.25)] transition-all duration-300">
+                  <div className="relative w-full aspect-[2/3] rounded-r-[8px] rounded-l-[2px] bg-stone-100 dark:bg-zinc-800 shadow-[0_8px_20px_-4px_rgba(0,0,0,0.15)] overflow-hidden flex items-center justify-center group-hover:scale-105 group-hover:shadow-[0_16px_30px_-6px_rgba(0,0,0,0.25)] transition-all duration-300">
                     {/* Rank Badge */}
                     <div className="absolute top-2 left-2 z-10 w-7 h-7 rounded-full bg-black/75 backdrop-blur-md text-white font-serif font-bold text-xs flex items-center justify-center shadow-md">
                       0{idx + 1}
@@ -474,7 +485,7 @@ export function MemberHomePage({
                 onClick={() => onSelectBook(book)}
                 className="group flex flex-col cursor-pointer transition-all duration-200"
               >
-                <div className="relative aspect-[2/3] w-full rounded-r-[6px] rounded-l-[1px] bg-stone-100 dark:bg-zinc-800 shadow-[0_6px_16px_rgba(0,0,0,0.12)] overflow-hidden flex items-center justify-center transition-all duration-300 group-hover:-translate-y-1.5 group-hover:shadow-[0_12px_24px_rgba(0,0,0,0.2)]">
+                <div className="relative aspect-[2/3] w-full rounded-r-[6px] rounded-l-[1px] bg-stone-100 dark:bg-zinc-800 shadow-[0_6px_16px_rgba(0,0,0,0.12)] overflow-hidden flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_12px_24px_rgba(0,0,0,0.2)]">
                   {book.cover ? (
                     <img
                       src={book.cover}

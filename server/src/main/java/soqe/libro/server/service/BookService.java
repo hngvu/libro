@@ -213,7 +213,7 @@ public class BookService {
         }
     }
 
-    private BookPublicResponse mapToPublicResponse(Book book) {
+    public BookPublicResponse mapToPublicResponse(Book book) {
         return BookPublicResponse.builder()
                 .id(book.getId())
                 .title(book.getTitle())

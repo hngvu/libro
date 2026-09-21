@@ -1,6 +1,6 @@
+import { useState } from 'react'
 import type { BookPublicResponse } from '@/types/api'
 import { IconBook } from '@tabler/icons-react'
-import { useState } from 'react'
 
 function convertIsbn13To10(isbn13: string): string | null {
   const clean = isbn13.replace(/[^0-9]/g, '')
@@ -18,6 +18,7 @@ function convertIsbn13To10(isbn13: string): string | null {
 interface BookCardProps {
   book: BookPublicResponse
   onSelect: (book: BookPublicResponse) => void
+  bookmarked?: boolean
 }
 
 export function BookCard({ book, onSelect }: BookCardProps) {
@@ -58,7 +59,7 @@ export function BookCard({ book, onSelect }: BookCardProps) {
       className="group flex flex-col cursor-pointer w-[86px] sm:w-[92px] shrink-0 transition-all duration-150 select-none"
     >
       {/* Book Cover with subtle 3D spine shadow */}
-      <div className="relative aspect-[2/3] w-full rounded-[3px] bg-zinc-100 dark:bg-zinc-800 shadow-[0_2px_5px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] overflow-hidden flex items-center justify-center transition-all duration-150 group-hover:-translate-y-1 group-hover:shadow-[0_6px_14px_rgba(0,0,0,0.18)]">
+      <div className="relative aspect-[2/3] w-full rounded-[3px] bg-zinc-100 dark:bg-zinc-800 shadow-[0_2px_5px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] overflow-hidden flex items-center justify-center transition-all duration-200 group-hover:scale-105 group-hover:shadow-[0_8px_18px_rgba(0,0,0,0.22)]">
         {coverUrl ? (
           <img
             src={coverUrl}
@@ -82,5 +83,3 @@ export function BookCard({ book, onSelect }: BookCardProps) {
     </div>
   )
 }
-
-
