@@ -27,6 +27,7 @@ public class ReservationService {
     public static final int DEFAULT_MAX_ACTIVE_RESERVATIONS = 3;
     public static final int DEFAULT_PICKUP_HOLD_DAYS = 3;
     public static final int DEFAULT_FREE_LOAN_DAYS = 7;
+    public static final int DEFAULT_FREE_MAX_ACTIVE_LOANS = 1;
 
     private static final String ALPHANUMERIC = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -73,14 +74,36 @@ public class ReservationService {
             errors.put("user", "User account is " + user.getStatus() + " and cannot place reservations");
         }
 
-        // Check active reservations quota (max 3)
+        // 1. Membership plan limit check
+        int maxActiveLoans = DEFAULT_FREE_MAX_ACTIVE_LOANS;
+        var activeSubOpt = userSubscriptionRepository.findTopByUserAndStatusOrderByCurrentPeriodEndDesc(
+                user, UserSubscription.SubscriptionStatus.ACTIVE);
+        if (activeSubOpt.isPresent() && activeSubOpt.get().getPlan() != null) {
+            maxActiveLoans = activeSubOpt.get().getPlan().getMaxActiveLoans();
+        }
+
+        long activeLoansCount = loanRepository.countByUserAndStatus(user, Loan.LoanStatus.ONGOING);
         long activeResCount = reservationRepository.countByUserAndStatusIn(user,
                 List.of(Reservation.ReservationStatus.PENDING, Reservation.ReservationStatus.READY_FOR_PICKUP));
+
+        if (activeLoansCount + activeResCount >= maxActiveLoans) {
+            errors.put("limit", "You have reached your limit of " + maxActiveLoans +
+                    " active borrowed book(s) and reservation(s) under your current membership plan. Return a book or upgrade your plan to reserve more.");
+        }
+
+        // 2. Check active reservations quota
         if (activeResCount >= DEFAULT_MAX_ACTIVE_RESERVATIONS) {
             errors.put("reservation", "You have reached the limit of " + DEFAULT_MAX_ACTIVE_RESERVATIONS + " active book reservations");
         }
 
-        // Check unpaid fines
+        // 3. Check overdue loans
+        boolean hasOverdue = loanRepository.existsByUserAndStatus(user, Loan.LoanStatus.OVERDUE)
+                || loanRepository.existsByUserAndStatusAndDueDateBefore(user, Loan.LoanStatus.ONGOING, LocalDate.now());
+        if (hasOverdue) {
+            errors.put("overdue", "You currently have overdue books that must be returned before placing new reservations");
+        }
+
+        // 4. Check unpaid fines
         if (fineRepository.existsByUserAndStatus(user, Fine.FineStatus.PENDING)) {
             errors.put("fines", "You have outstanding unpaid fines. Please settle your fines before placing a hold reservation");
         }
@@ -89,41 +112,66 @@ public class ReservationService {
             errors.put("book", "This book is not currently available for reservation");
         }
 
-        // Check if user is already borrowing a copy of this book
+        // 5. Check if user is already borrowing a copy of this book
         if (loanRepository.existsByUserAndBookCopy_BookAndStatus(user, book, Loan.LoanStatus.ONGOING)) {
             errors.put("loan", "You are currently borrowing a copy of this book");
         }
 
-        // Check if user already has an active reservation for this book
+        // 6. Check if user already has an active reservation for this book
         if (reservationRepository.existsByUserAndBookAndStatusIn(user, book,
                 List.of(Reservation.ReservationStatus.PENDING, Reservation.ReservationStatus.READY_FOR_PICKUP))) {
             errors.put("duplicate", "You already have an active reservation for this book");
-        }
-
-        // Book must have 0 available copies on open shelf
-        if (book.getAvailableCopies() != null && book.getAvailableCopies() > 0) {
-            errors.put("book", "Copies of this title are currently available on the shelf. Please borrow directly instead of reserving");
         }
 
         if (!errors.isEmpty()) {
             throw new BusinessValidationException("Reservation failed", errors);
         }
 
-        long pendingCount = reservationRepository.countByBookAndStatus(book, Reservation.ReservationStatus.PENDING);
-        int queuePosition = (int) pendingCount + 1;
-
         String code = generateUniqueReservationCode();
-        Reservation reservation = Reservation.builder()
-                .reservationCode(code)
-                .user(user)
-                .book(book)
-                .status(Reservation.ReservationStatus.PENDING)
-                .reservedAt(LocalDateTime.now())
-                .queuePosition(queuePosition)
-                .build();
+        Reservation reservation;
+
+        // Check if there are available copies on the open shelf
+        List<BookCopy> availableCopies = bookCopyRepository.findByBookAndStatus(book, BookCopy.Status.AVAILABLE);
+
+        if (!availableCopies.isEmpty()) {
+            // Reserve an available copy immediately for pickup
+            BookCopy copy = availableCopies.get(0);
+            copy.setStatus(BookCopy.Status.RESERVED);
+            bookCopyRepository.save(copy);
+
+            if (book.getAvailableCopies() != null && book.getAvailableCopies() > 0) {
+                book.setAvailableCopies(book.getAvailableCopies() - 1);
+                bookRepository.save(book);
+            }
+
+            reservation = Reservation.builder()
+                    .reservationCode(code)
+                    .user(user)
+                    .book(book)
+                    .bookCopy(copy)
+                    .status(Reservation.ReservationStatus.READY_FOR_PICKUP)
+                    .reservedAt(LocalDateTime.now())
+                    .pickupDeadline(LocalDate.now().plusDays(DEFAULT_PICKUP_HOLD_DAYS))
+                    .queuePosition(0)
+                    .build();
+        } else {
+            // Place on waitlist
+            long pendingCount = reservationRepository.countByBookAndStatus(book, Reservation.ReservationStatus.PENDING);
+            int queuePosition = (int) pendingCount + 1;
+
+            reservation = Reservation.builder()
+                    .reservationCode(code)
+                    .user(user)
+                    .book(book)
+                    .status(Reservation.ReservationStatus.PENDING)
+                    .reservedAt(LocalDateTime.now())
+                    .queuePosition(queuePosition)
+                    .build();
+        }
 
         reservation = reservationRepository.save(reservation);
-        log.info("Created reservation {} for user {} on book {}", code, user.getEmail(), book.getTitle());
+        log.info("Created reservation {} for user {} on book {} (status: {})",
+                code, user.getEmail(), book.getTitle(), reservation.getStatus());
 
         return toResponse(reservation);
     }
@@ -280,13 +328,22 @@ public class ReservationService {
 
         User user = reservation.getUser();
 
-        // Calculate loan due date based on user's active membership plan
+        // Calculate loan due date & verify active loans limit based on user's active membership plan
         int loanDurationDays = DEFAULT_FREE_LOAN_DAYS;
+        int maxActiveLoans = DEFAULT_FREE_MAX_ACTIVE_LOANS;
         if (user != null) {
             var activeSubOpt = userSubscriptionRepository.findTopByUserAndStatusOrderByCurrentPeriodEndDesc(
                     user, UserSubscription.SubscriptionStatus.ACTIVE);
             if (activeSubOpt.isPresent() && activeSubOpt.get().getPlan() != null) {
                 loanDurationDays = activeSubOpt.get().getPlan().getLoanDurationDays();
+                maxActiveLoans = activeSubOpt.get().getPlan().getMaxActiveLoans();
+            }
+
+            long activeLoansCount = loanRepository.countByUserAndStatus(user, Loan.LoanStatus.ONGOING);
+            if (activeLoansCount >= maxActiveLoans) {
+                throw new BusinessValidationException("Borrowing limit reached",
+                        Map.of("limit", "User has reached the limit of " + maxActiveLoans +
+                                " active borrowed books under their current membership plan. Return an existing book before checking out."));
             }
         }
 

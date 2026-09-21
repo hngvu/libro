@@ -603,7 +603,7 @@ export function GuestHomePage({
             </div>
           </div>
 
-          {/* Card 2: Borrow & Reserve (Library Circulation) */}
+          {/* Card 2: Reserve & Collect (Library Circulation) */}
           <div className="group p-6 rounded-xl bg-[#f8f5ee] dark:bg-[#182019] border border-[#dfd9cb] dark:border-[#2a352b] shadow-2xs hover:border-[#8f9f8c] transition-all flex flex-col justify-between">
             <div>
               <div className="w-9 h-9 rounded-lg bg-[#ebf0e6] dark:bg-[#253227] text-[#2c392d] dark:text-[#c9d5be] flex items-center justify-center mb-4">
@@ -613,10 +613,10 @@ export function GuestHomePage({
                 className="text-base font-bold text-[#2c392d] dark:text-[#d8e2cf] tracking-tight mb-2"
                 style={{ fontFamily: "'Plus Jakarta Sans', var(--font-sans), sans-serif" }}
               >
-                Borrow & Reserve
+                Reserve & Collect
               </h3>
               <p className="text-xs sm:text-[13px] text-[#5e6e5c] dark:text-[#9fab97] leading-relaxed">
-                Check real-time shelf availability, reserve titles in advance, and borrow physical or digital copies with ease.
+                Check real-time shelf availability, reserve titles online, and collect your physical books at the circulation desk.
               </p>
             </div>
 

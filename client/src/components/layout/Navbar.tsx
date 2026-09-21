@@ -242,20 +242,6 @@ export function Navbar({
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <button
                 type="button"
-                onClick={() => setBookmarkDrawerOpen(true)}
-                className="relative p-1.5 text-[#6f7f64] hover:text-[#1e2320] dark:hover:text-[#f5f3e6] rounded-[6px] hover:bg-[#c8d0b7]/30 transition-colors cursor-pointer"
-                title="Saved Bookmarks"
-              >
-                <IconBookmark size={18} />
-                {bookmarkCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-[#2e7d56] text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs">
-                    {bookmarkCount > 99 ? '99+' : bookmarkCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
                 className="p-1.5 text-[#6f7f64] hover:text-[#1e2320] dark:hover:text-[#f5f3e6] rounded-[6px] hover:bg-[#c8d0b7]/30 transition-colors hidden sm:block cursor-pointer"
                 title="Notifications"
               >

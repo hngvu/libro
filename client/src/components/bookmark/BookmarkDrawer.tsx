@@ -159,30 +159,27 @@ export function BookmarkDrawer({ open, onClose, onSelectBook }: BookmarkDrawerPr
     }
   }
 
-  const handleReserveOrBorrow = async (bookmark: BookmarkResponse) => {
-    const isAvailable = (bookmark.availableCopies ?? 0) > 0
-
-    if (isAvailable) {
-      // Navigate to book details / activity for checkout
-      handleViewDetails(bookmark)
-    } else {
-      // Direct reservation hold
-      setReservingId(bookmark.bookId)
-      setActionNotice(null)
-      try {
-        const res = await api.placeReservation({
-          bookId: bookmark.bookId,
-          bookHandle: bookmark.bookHandle,
-        })
-        setActionNotice(`Hold placed! Code: ${res.reservationCode}`)
-        setTimeout(() => setActionNotice(null), 4000)
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Reservation failed'
-        setActionNotice(`Notice: ${msg}`)
-        setTimeout(() => setActionNotice(null), 4000)
-      } finally {
-        setReservingId(null)
-      }
+  const handleReserve = async (bookmark: BookmarkResponse) => {
+    setReservingId(bookmark.bookId)
+    setActionNotice(null)
+    try {
+      const res = await api.placeReservation({
+        bookId: bookmark.bookId,
+        bookHandle: bookmark.bookHandle,
+      })
+      const isAvailable = (bookmark.availableCopies ?? 0) > 0
+      setActionNotice(
+        isAvailable
+          ? `Reserved! Code: ${res.reservationCode} (Pick up at desk)`
+          : `Hold placed! Code: ${res.reservationCode} (Waitlist #${res.queuePosition || 1})`
+      )
+      setTimeout(() => setActionNotice(null), 4500)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Reservation failed'
+      setActionNotice(`Notice: ${msg}`)
+      setTimeout(() => setActionNotice(null), 4000)
+    } finally {
+      setReservingId(null)
     }
   }
 
@@ -268,7 +265,7 @@ export function BookmarkDrawer({ open, onClose, onSelectBook }: BookmarkDrawerPr
                   Your reading shelf is quiet
                 </h3>
                 <p className="text-xs text-[#6f7f64] dark:text-[#a0b096] leading-relaxed">
-                  Bookmark titles while exploring the library to easily reserve, borrow, or revisit them later.
+                  Bookmark titles while exploring the library to easily reserve or revisit them later.
                 </p>
               </div>
 
@@ -381,7 +378,7 @@ export function BookmarkDrawer({ open, onClose, onSelectBook }: BookmarkDrawerPr
 
                         <button
                           type="button"
-                          onClick={() => handleReserveOrBorrow(b)}
+                          onClick={() => handleReserve(b)}
                           disabled={reservingId === b.bookId}
                           className={`h-7 px-3 rounded-md text-[11.5px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer shadow-2xs ${
                             isAvailable
@@ -392,7 +389,7 @@ export function BookmarkDrawer({ open, onClose, onSelectBook }: BookmarkDrawerPr
                           {reservingId === b.bookId ? (
                             <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
                           ) : isAvailable ? (
-                            'Borrow'
+                            <span>Borrow</span>
                           ) : (
                             <>
                               <IconClock size={12} />

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import type { BookPublicResponse } from '@/types/api'
+import type { BookPublicResponse, ReservationResponse, LoanPublicResponse } from '@/types/api'
 import { api } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
@@ -52,17 +52,45 @@ export function BookDetail({
   const [bookmarkLoading, setBookmarkLoading] = useState(false)
   const [similarBooks, setSimilarBooks] = useState<BookPublicResponse[]>([])
   const [loadingSimilar, setLoadingSimilar] = useState(false)
-  const [borrowDropdownOpen, setBorrowDropdownOpen] = useState(false)
+  const [reserveDropdownOpen, setReserveDropdownOpen] = useState(false)
 
   const [reserving, setReserving] = useState(false)
-  const [reserveSuccess, setReserveSuccess] = useState<string | null>(null)
   const [reserveError, setReserveError] = useState<string | null>(null)
 
-  const [borrowing, setBorrowing] = useState(false)
-  const [borrowSuccess, setBorrowSuccess] = useState<string | null>(null)
-  const [borrowError, setBorrowError] = useState<string | null>(null)
+  const [existingReservation, setExistingReservation] = useState<ReservationResponse | null>(null)
+  const [existingLoan, setExistingLoan] = useState<LoanPublicResponse | null>(null)
 
   const [imgStage, setImgStage] = useState<number>(0)
+
+  // Check active reservation or ongoing loan for this book
+  useEffect(() => {
+    if (book?.id && user && user.role === 'MEMBER') {
+      api.getMyReservations({ size: 50 })
+        .then((res) => {
+          const myRes = (res.content || []).find(
+            (r) =>
+              (r.bookId === book.id || (book.handle && r.bookHandle === book.handle)) &&
+              (r.status === 'PENDING' || r.status === 'READY_FOR_PICKUP')
+          )
+          setExistingReservation(myRes || null)
+        })
+        .catch(() => setExistingReservation(null))
+
+      api.getMyLoans({ status: 'ONGOING', size: 50 })
+        .then((res) => {
+          const myLoan = (res.content || []).find(
+            (l) =>
+              ((book.handle && l.bookHandle === book.handle) || (book.title && l.bookTitle === book.title)) &&
+              l.status === 'ONGOING'
+          )
+          setExistingLoan(myLoan || null)
+        })
+        .catch(() => setExistingLoan(null))
+    } else {
+      setExistingReservation(null)
+      setExistingLoan(null)
+    }
+  }, [book?.id, book?.handle, book?.title, user])
 
   // Check bookmark status on load & user change
   useEffect(() => {
@@ -131,39 +159,20 @@ export function BookDetail({
       onOpenAuth('login')
       return
     }
-    if (!book) return
+    if (!book || reserving) return
     setReserving(true)
-    setReserveSuccess(null)
     setReserveError(null)
     try {
       const res = await api.placeReservation({ bookId: book.id, bookHandle: book.handle })
-      setReserveSuccess(`Book hold placed! Code: ${res.reservationCode} (Queue #${res.queuePosition || 1})`)
+      setExistingReservation(res)
+      if (book.availableCopies > 0) {
+        setBook((prev) => (prev ? { ...prev, availableCopies: Math.max(0, prev.availableCopies - 1) } : prev))
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to place reservation'
       setReserveError(msg)
     } finally {
       setReserving(false)
-    }
-  }
-
-  const handleBorrow = async () => {
-    if (!user || user.role !== 'MEMBER') {
-      onOpenAuth('login')
-      return
-    }
-    if (!book || borrowing) return
-    setBorrowing(true)
-    setBorrowSuccess(null)
-    setBorrowError(null)
-    try {
-      const res = await api.borrowBook({ bookId: book.id, bookHandle: book.handle })
-      setBorrowSuccess(`Checked out successfully! Due date: ${res.dueDate} (Loan: ${res.loanCode})`)
-      setBook((prev) => (prev ? { ...prev, availableCopies: Math.max(0, prev.availableCopies - 1) } : prev))
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to borrow book'
-      setBorrowError(msg)
-    } finally {
-      setBorrowing(false)
     }
   }
 
@@ -257,8 +266,34 @@ export function BookDetail({
 
           {/* Action Buttons (Scholarly Sage Theme) */}
           <div className="w-full flex flex-col gap-2.5">
-            {/* Primary Borrow or Reserve button */}
-            {book.availableCopies === 0 ? (
+            {/* Primary Action: Existing Loan / Existing Reservation / Reserve / Join Waitlist */}
+            {existingLoan ? (
+              <div className="w-full flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => navigate('/activity')}
+                  className="w-full h-[42px] rounded-md bg-[#2e5d4b] hover:bg-[#254b3d] text-white font-sans text-[13.5px] font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
+                >
+                  <IconBook size={16} />
+                  <span>On Loan</span>
+                </button>
+              </div>
+            ) : existingReservation ? (
+              <div className="w-full flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => navigate('/activity?tab=reservations')}
+                  className="w-full h-[42px] rounded-md bg-[#2e7d56] hover:bg-[#256646] text-white font-sans text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
+                >
+                  <IconCheck size={17} />
+                  <span>
+                    {existingReservation.status === 'READY_FOR_PICKUP'
+                      ? 'Ready to Pick Up'
+                      : 'Queued'}
+                  </span>
+                </button>
+              </div>
+            ) : book.availableCopies === 0 ? (
               <div className="w-full flex flex-col gap-1.5">
                 <button
                   type="button"
@@ -266,16 +301,23 @@ export function BookDetail({
                   disabled={reserving}
                   className="w-full h-[42px] rounded-md bg-amber-600 hover:bg-amber-700 text-white font-sans text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
                 >
-                  <IconClock size={16} /> {reserving ? 'Placing Hold...' : 'Reserve (Out of Stock)'}
+                  <IconClock size={16} /> {reserving ? 'Placing Hold...' : 'Reserve'}
                 </button>
-                {reserveSuccess && (
-                  <div className="p-2 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-1.5">
-                    <IconCheck size={14} className="shrink-0" /> {reserveSuccess}
-                  </div>
-                )}
                 {reserveError && (
-                  <div className="p-2 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-xs">
-                    {reserveError}
+                  <div className="p-2.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-xs flex flex-col gap-1.5 animate-in fade-in">
+                    <div>{reserveError}</div>
+                    {(reserveError.toLowerCase().includes('limit') ||
+                      reserveError.toLowerCase().includes('membership') ||
+                      reserveError.toLowerCase().includes('plan')) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate('/membership')}
+                        className="text-xs h-6 px-2 w-fit text-rose-800 border-rose-300 hover:bg-rose-100 cursor-pointer"
+                      >
+                        Upgrade Membership Plan →
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -285,14 +327,14 @@ export function BookDetail({
                   <div className="flex h-[42px] rounded-md bg-[#3d4b3e] hover:bg-[#2e3a2f] text-white shadow-xs transition-colors overflow-hidden font-sans">
                     <button
                       type="button"
-                      disabled={borrowing}
-                      onClick={handleBorrow}
+                      disabled={reserving}
+                      onClick={handleReserve}
                       className="flex-1 px-4 text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer select-none disabled:opacity-60"
                     >
-                      {borrowing ? (
+                      {reserving ? (
                         <>
                           <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          <span>Checking out...</span>
+                          <span>Requesting...</span>
                         </>
                       ) : (
                         <span>Borrow</span>
@@ -300,19 +342,32 @@ export function BookDetail({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setBorrowDropdownOpen(!borrowDropdownOpen)}
+                      onClick={() => setReserveDropdownOpen(!reserveDropdownOpen)}
                       className="px-3 border-l border-white/20 hover:bg-black/15 flex items-center justify-center cursor-pointer transition-colors"
                     >
                       <IconChevronDown size={14} />
                     </button>
                   </div>
-                  {borrowDropdownOpen && (
+                  {reserveDropdownOpen && (
                     <>
-                      <div className="fixed inset-0 z-40" onClick={() => setBorrowDropdownOpen(false)} />
+                      <div className="fixed inset-0 z-40" onClick={() => setReserveDropdownOpen(false)} />
                       <div className="absolute left-0 right-0 mt-1 rounded-md border border-[#c8d0b7] bg-white shadow-lg py-1 z-50 text-[13px]">
                         <button
                           onClick={() => {
-                            setBorrowDropdownOpen(false)
+                            setReserveDropdownOpen(false)
+                            if (!user || user.role !== 'MEMBER') {
+                              onOpenAuth('login')
+                              return
+                            }
+                            navigate('/activity?tab=reservations')
+                          }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-[#f0f4f1] text-[#3d4b3e] font-medium"
+                        >
+                          My Reservations
+                        </button>
+                        <button
+                          onClick={() => {
+                            setReserveDropdownOpen(false)
                             if (!user || user.role !== 'MEMBER') {
                               onOpenAuth('login')
                               return
@@ -321,38 +376,27 @@ export function BookDetail({
                           }}
                           className="w-full text-left px-3.5 py-2 hover:bg-[#f0f4f1] text-[#3d4b3e] font-medium"
                         >
-                          My Activity / Loans
+                          My Loans
                         </button>
-                        <button onClick={() => { setBorrowDropdownOpen(false); window.open(`https://www.amazon.com/s?k=${encodeURIComponent(book.title)}`, '_blank') }}
-                          className="w-full text-left px-3.5 py-2 hover:bg-[#fafafa] text-[#666]">
+                        <button
+                          onClick={() => {
+                            setReserveDropdownOpen(false)
+                            window.open(`https://www.amazon.com/s?k=${encodeURIComponent(book.title)}`, '_blank')
+                          }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-[#fafafa] text-[#666]"
+                        >
                           Search on Amazon
                         </button>
                       </div>
                     </>
                   )}
                 </div>
-                {borrowSuccess && (
-                  <div className="p-2.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex flex-col gap-1.5 animate-in fade-in">
-                    <div className="flex items-center gap-1.5 font-semibold">
-                      <IconCheck size={15} className="shrink-0 text-emerald-600" />
-                      <span>{borrowSuccess}</span>
-                    </div>
-                    <div className="flex items-center gap-2 pt-1 border-t border-emerald-200/60">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => navigate('/activity')}
-                        className="text-xs h-6 px-2 text-emerald-800 border-emerald-300 hover:bg-emerald-100 cursor-pointer"
-                      >
-                        View in My Loans →
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                {borrowError && (
+                {reserveError && (
                   <div className="p-2.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-xs flex flex-col gap-1.5 animate-in fade-in">
-                    <div>{borrowError}</div>
-                    {(borrowError.toLowerCase().includes('limit') || borrowError.toLowerCase().includes('membership') || borrowError.toLowerCase().includes('plan')) && (
+                    <div>{reserveError}</div>
+                    {(reserveError.toLowerCase().includes('limit') ||
+                      reserveError.toLowerCase().includes('membership') ||
+                      reserveError.toLowerCase().includes('plan')) && (
                       <Button
                         size="sm"
                         variant="outline"
