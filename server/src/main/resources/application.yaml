@@ -6,6 +6,9 @@ server:
 spring:
   application:
     name: libro-server
+  config:
+    import:
+      - optional:file:.env[.properties]
 
   datasource:
     url: ${DB_URL:jdbc:h2:mem:librodb}
@@ -52,3 +55,19 @@ fine:
   daily-rate: ${FINE_DAILY_RATE:0.50}
   default-lost-fee: ${FINE_DEFAULT_LOST_FEE:20.00}
   default-damaged-fee: ${FINE_DEFAULT_DAMAGED_FEE:10.00}
+
+aws:
+  s3:
+    enabled: ${AWS_S3_ENABLED:false}
+    access-key: ${AWS_ACCESS_KEY_ID:}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:}
+    region: ${AWS_REGION:ap-southeast-1}
+    bucket-name: ${AWS_S3_BUCKET_NAME:libro-storage}
+    endpoint: ${AWS_S3_ENDPOINT:}
+    public-url-prefix: ${AWS_S3_PUBLIC_URL_PREFIX:}
+
+storage:
+  local:
+    upload-dir: ${LOCAL_STORAGE_DIR:uploads}
+    base-url: ${LOCAL_STORAGE_BASE_URL:http://localhost:8080/api/storage/files}
+

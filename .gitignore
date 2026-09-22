@@ -1,0 +1,25 @@
+# Environment files
+.env
+.env.*
+*.env
+server/.env
+
+# Dependencies & Build outputs
+node_modules/
+dist/
+target/
+*.class
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.iml
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local storage uploads
+uploads/
+server/uploads/

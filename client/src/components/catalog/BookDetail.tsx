@@ -289,9 +289,14 @@ export function BookDetail({
                   <span>
                     {existingReservation.status === 'READY_FOR_PICKUP'
                       ? 'Ready to Pick Up'
-                      : 'Queued'}
+                      : `Queued (#${existingReservation.queuePosition || 1})`}
                   </span>
                 </button>
+                <p className="text-[11px] text-center text-[#6f7f64]">
+                  {existingReservation.status === 'READY_FOR_PICKUP'
+                    ? `Hold code: ${existingReservation.reservationCode} • Pick up at counter`
+                    : 'In waitlist • You will be notified when a copy is ready'}
+                </p>
               </div>
             ) : book.availableCopies === 0 ? (
               <div className="w-full flex flex-col gap-1.5">
@@ -301,7 +306,7 @@ export function BookDetail({
                   disabled={reserving}
                   className="w-full h-[42px] rounded-md bg-amber-600 hover:bg-amber-700 text-white font-sans text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
                 >
-                  <IconClock size={16} /> {reserving ? 'Placing Hold...' : 'Reserve'}
+                  <IconClock size={16} /> {reserving ? 'Joining Waitlist...' : 'Join Waitlist'}
                 </button>
                 {reserveError && (
                   <div className="p-2.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-xs flex flex-col gap-1.5 animate-in fade-in">
@@ -334,10 +339,10 @@ export function BookDetail({
                       {reserving ? (
                         <>
                           <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          <span>Requesting...</span>
+                          <span>Reserving Hold...</span>
                         </>
                       ) : (
-                        <span>Borrow</span>
+                        <span>Reserve for Pickup</span>
                       )}
                     </button>
                     <button

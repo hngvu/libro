@@ -513,11 +513,15 @@ export function ReservationsPage() {
                       >
                         {r.bookTitle || `Book #${r.bookId}`}
                       </span>
-                      {r.barcode && (
+                      {r.barcode ? (
                         <span className="font-mono text-xs text-emerald-500 dark:text-emerald-400 font-medium block mt-0.5">
                           Copy: {r.barcode} ({r.location || 'Shelf'})
                         </span>
-                      )}
+                      ) : r.status === 'READY_FOR_PICKUP' ? (
+                        <span className="font-sans text-[11px] text-amber-600 dark:text-amber-400 font-medium block mt-0.5">
+                          Assign copy at counter
+                        </span>
+                      ) : null}
                     </td>
 
                     {/* Status Badge */}

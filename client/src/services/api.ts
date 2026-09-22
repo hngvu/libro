@@ -50,6 +50,8 @@ import type {
   SystemSettingResponse,
   SystemSettingUpdateRequest,
   BookmarkResponse,
+  FileUploadResponse,
+  PresignedUploadResponse,
 } from '@/types/api'
 
 const TOKEN_KEY = 'libro_jwt_token'
@@ -80,8 +82,9 @@ function appendMultiParam(search: URLSearchParams, key: string, val?: any) {
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string>),
   }
 
@@ -830,8 +833,12 @@ export const api = {
     })
   },
 
-  async adminFulfillReservation(id: number): Promise<ReservationResponse> {
-    return request<ReservationResponse>(`/admin/reservations/${id}/fulfill`, {
+  async adminFulfillReservation(id: number, params?: { barcode?: string; bookCopyId?: number }): Promise<ReservationResponse> {
+    const search = new URLSearchParams()
+    if (params?.barcode) search.set('barcode', params.barcode.trim())
+    if (params?.bookCopyId) search.set('bookCopyId', params.bookCopyId.toString())
+    const q = search.toString()
+    return request<ReservationResponse>(`/admin/reservations/${id}/fulfill${q ? `?${q}` : ''}`, {
       method: 'POST',
     })
   },
@@ -912,4 +919,36 @@ export const api = {
   async getTrendingBooks(limit: number = 10): Promise<BookPublicResponse[]> {
     return request<BookPublicResponse[]>(`/recommendations/trending?limit=${limit}`)
   },
+
+  // Storage & S3 Upload
+  async uploadFile(file: File, folder: string = 'covers'): Promise<FileUploadResponse> {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<FileUploadResponse>(`/storage/upload?folder=${encodeURIComponent(folder)}`, {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
+  async getPresignedUploadUrl(
+    filename: string,
+    contentType: string = 'image/jpeg',
+    folder: string = 'covers'
+  ): Promise<PresignedUploadResponse> {
+    return request<PresignedUploadResponse>(
+      `/storage/presigned-upload?filename=${encodeURIComponent(filename)}&contentType=${encodeURIComponent(
+        contentType
+      )}&folder=${encodeURIComponent(folder)}`
+    )
+  },
+
+  async deleteStorageFile(fileUrl: string): Promise<{ message: string; fileUrl: string }> {
+    return request<{ message: string; fileUrl: string }>(
+      `/storage?fileUrl=${encodeURIComponent(fileUrl)}`,
+      {
+        method: 'DELETE',
+      }
+    )
+  },
 }
+

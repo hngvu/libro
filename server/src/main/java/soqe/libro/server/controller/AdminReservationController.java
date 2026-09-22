@@ -42,8 +42,11 @@ public class AdminReservationController {
     }
 
     @PostMapping("/{id}/fulfill")
-    public ResponseEntity<ReservationResponse> fulfillReservation(@PathVariable Long id) {
-        return ResponseEntity.ok(reservationService.fulfillReservation(id));
+    public ResponseEntity<ReservationResponse> fulfillReservation(
+            @PathVariable Long id,
+            @RequestParam(required = false) String barcode,
+            @RequestParam(required = false) Long bookCopyId) {
+        return ResponseEntity.ok(reservationService.fulfillReservation(id, barcode, bookCopyId));
     }
 
     @PostMapping("/{id}/cancel")

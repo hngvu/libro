@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
@@ -130,15 +131,13 @@ public class ReservationService {
         String code = generateUniqueReservationCode();
         Reservation reservation;
 
-        // Check if there are available copies on the open shelf
-        List<BookCopy> availableCopies = bookCopyRepository.findByBookAndStatus(book, BookCopy.Status.AVAILABLE);
+        // Title-level Hold: Check if there are available copies on the open shelf
+        boolean hasAvailableCopies = book.getAvailableCopies() != null && book.getAvailableCopies() > 0;
+        if (!hasAvailableCopies) {
+            hasAvailableCopies = bookCopyRepository.countByBookAndStatus(book, BookCopy.Status.AVAILABLE) > 0;
+        }
 
-        if (!availableCopies.isEmpty()) {
-            // Reserve an available copy immediately for pickup
-            BookCopy copy = availableCopies.get(0);
-            copy.setStatus(BookCopy.Status.RESERVED);
-            bookCopyRepository.save(copy);
-
+        if (hasAvailableCopies) {
             if (book.getAvailableCopies() != null && book.getAvailableCopies() > 0) {
                 book.setAvailableCopies(book.getAvailableCopies() - 1);
                 bookRepository.save(book);
@@ -148,7 +147,7 @@ public class ReservationService {
                     .reservationCode(code)
                     .user(user)
                     .book(book)
-                    .bookCopy(copy)
+                    .bookCopy(null) // Title-level hold: assigned by librarian upon physical pickup
                     .status(Reservation.ReservationStatus.READY_FOR_PICKUP)
                     .reservedAt(LocalDateTime.now())
                     .pickupDeadline(LocalDate.now().plusDays(DEFAULT_PICKUP_HOLD_DAYS))
@@ -163,6 +162,7 @@ public class ReservationService {
                     .reservationCode(code)
                     .user(user)
                     .book(book)
+                    .bookCopy(null)
                     .status(Reservation.ReservationStatus.PENDING)
                     .reservedAt(LocalDateTime.now())
                     .queuePosition(queuePosition)
@@ -238,19 +238,15 @@ public class ReservationService {
                     Map.of("status", "Only PENDING or READY_FOR_PICKUP reservations can be cancelled"));
         }
 
-        BookCopy assignedCopy = reservation.getBookCopy();
         Book book = reservation.getBook();
+
+        releaseReservationHold(reservation);
 
         reservation.setStatus(Reservation.ReservationStatus.CANCELLED);
         reservation.setCancellationReason(reason);
         reservation.setQueuePosition(null);
+        reservation.setBookCopy(null);
         reservationRepository.save(reservation);
-
-        // If a copy was already on the hold shelf for this reservation, reassign or release it
-        if (assignedCopy != null) {
-            reservation.setBookCopy(null);
-            reassignOrReleaseCopy(book, assignedCopy);
-        }
 
         // Recalculate queue positions for remaining pending reservations
         recalculateQueuePositions(book);
@@ -312,6 +308,11 @@ public class ReservationService {
 
     @Transactional
     public ReservationResponse fulfillReservation(Long reservationId) {
+        return fulfillReservation(reservationId, null, null);
+    }
+
+    @Transactional
+    public ReservationResponse fulfillReservation(Long reservationId, String barcode, Long bookCopyId) {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservation not found with ID: " + reservationId));
 
@@ -320,10 +321,55 @@ public class ReservationService {
                     Map.of("status", "Only READY_FOR_PICKUP reservations can be fulfilled"));
         }
 
-        BookCopy copy = reservation.getBookCopy();
-        if (copy == null) {
-            throw new BusinessValidationException("Fulfill failed",
-                    Map.of("bookCopy", "No assigned book copy found on this reservation"));
+        Book book = reservation.getBook();
+        BookCopy copy = null;
+
+        if (StringUtils.hasText(barcode)) {
+            copy = bookCopyRepository.findByBarcode(barcode.trim())
+                    .orElseThrow(() -> new BusinessValidationException("Fulfill failed",
+                            Map.of("barcode", "No book copy found with barcode: " + barcode.trim())));
+            if (!copy.getBook().getId().equals(book.getId())) {
+                throw new BusinessValidationException("Fulfill failed",
+                        Map.of("barcode", "Scanned copy ('" + copy.getBarcode() + "') belongs to '" + copy.getBook().getTitle() + "', not '" + book.getTitle() + "'"));
+            }
+            boolean isAssignedToThis = reservation.getBookCopy() != null && reservation.getBookCopy().getId().equals(copy.getId());
+            if (!isAssignedToThis && copy.getStatus() != BookCopy.Status.AVAILABLE) {
+                throw new BusinessValidationException("Fulfill failed",
+                        Map.of("barcode", "Book copy " + barcode.trim() + " is currently " + copy.getStatus() + " and not available for checkout"));
+            }
+        } else if (bookCopyId != null) {
+            copy = bookCopyRepository.findById(bookCopyId)
+                    .orElseThrow(() -> new BusinessValidationException("Fulfill failed",
+                            Map.of("bookCopyId", "No book copy found with ID: " + bookCopyId)));
+            if (!copy.getBook().getId().equals(book.getId())) {
+                throw new BusinessValidationException("Fulfill failed",
+                        Map.of("bookCopyId", "Selected copy belongs to another book title"));
+            }
+            boolean isAssignedToThis = reservation.getBookCopy() != null && reservation.getBookCopy().getId().equals(copy.getId());
+            if (!isAssignedToThis && copy.getStatus() != BookCopy.Status.AVAILABLE) {
+                throw new BusinessValidationException("Fulfill failed",
+                        Map.of("bookCopyId", "Book copy is currently " + copy.getStatus() + " and not available for checkout"));
+            }
+        } else if (reservation.getBookCopy() != null) {
+            copy = reservation.getBookCopy();
+        } else {
+            // Auto-detect an available copy
+            List<BookCopy> availableCopies = bookCopyRepository.findByBookAndStatus(book, BookCopy.Status.AVAILABLE);
+            if (!availableCopies.isEmpty()) {
+                copy = availableCopies.get(0);
+            } else {
+                throw new BusinessValidationException("Fulfill failed",
+                        Map.of("copy", "No AVAILABLE physical copy found for this title. Please scan or select a copy to fulfill."));
+            }
+        }
+
+        // If this reservation previously had a different copy locked, release the old one
+        if (reservation.getBookCopy() != null && !reservation.getBookCopy().getId().equals(copy.getId())) {
+            BookCopy oldCopy = reservation.getBookCopy();
+            if (oldCopy.getStatus() == BookCopy.Status.RESERVED) {
+                oldCopy.setStatus(BookCopy.Status.AVAILABLE);
+                bookCopyRepository.save(oldCopy);
+            }
         }
 
         User user = reservation.getUser();
@@ -350,7 +396,7 @@ public class ReservationService {
         LocalDate borrowDate = LocalDate.now();
         LocalDate dueDate = borrowDate.plusDays(loanDurationDays);
 
-        // Convert reserved copy into active Loan
+        // Convert copy into active Loan
         copy.setStatus(BookCopy.Status.LOANED);
         bookCopyRepository.save(copy);
 
@@ -367,13 +413,14 @@ public class ReservationService {
         loanRepository.save(loan);
 
         // Update reservation to FULFILLED
+        reservation.setBookCopy(copy);
         reservation.setStatus(Reservation.ReservationStatus.FULFILLED);
         reservation.setFulfilledAt(LocalDateTime.now());
         reservation.setQueuePosition(null);
         reservationRepository.save(reservation);
 
-        log.info("Fulfilled reservation {} into loan {} for user {}",
-                reservation.getReservationCode(), loanCode, user.getEmail());
+        log.info("Fulfilled reservation {} into loan {} for user {} with copy {}",
+                reservation.getReservationCode(), loanCode, user != null ? user.getEmail() : "unknown", copy.getBarcode());
 
         return toResponse(reservation);
     }
@@ -423,8 +470,9 @@ public class ReservationService {
 
         int count = 0;
         for (Reservation res : expiredList) {
-            BookCopy copy = res.getBookCopy();
             Book book = res.getBook();
+
+            releaseReservationHold(res);
 
             res.setStatus(Reservation.ReservationStatus.EXPIRED);
             res.setCancellationReason("Pickup deadline passed (" + res.getPickupDeadline() + ")");
@@ -435,38 +483,46 @@ public class ReservationService {
 
             log.info("Reservation {} expired for user {}", res.getReservationCode(), res.getUser().getEmail());
 
-            if (copy != null) {
-                reassignOrReleaseCopy(book, copy);
-            }
             recalculateQueuePositions(book);
         }
 
         return count;
     }
 
-    private void reassignOrReleaseCopy(Book book, BookCopy copy) {
-        List<Reservation> pending = reservationRepository.findByBookAndStatusOrderByReservedAtAsc(
-                book, Reservation.ReservationStatus.PENDING);
+    private void releaseReservationHold(Reservation reservation) {
+        Book book = reservation.getBook();
+        BookCopy assignedCopy = reservation.getBookCopy();
+        boolean wasReadyForPickup = reservation.getStatus() == Reservation.ReservationStatus.READY_FOR_PICKUP;
 
-        if (!pending.isEmpty()) {
-            Reservation next = pending.get(0);
-            next.setBookCopy(copy);
-            next.setStatus(Reservation.ReservationStatus.READY_FOR_PICKUP);
-            next.setPickupDeadline(LocalDate.now().plusDays(DEFAULT_PICKUP_HOLD_DAYS));
-            next.setQueuePosition(0);
-            reservationRepository.save(next);
+        if (wasReadyForPickup) {
+            List<Reservation> pending = reservationRepository.findByBookAndStatusOrderByReservedAtAsc(
+                    book, Reservation.ReservationStatus.PENDING);
 
-            copy.setStatus(BookCopy.Status.RESERVED);
-            bookCopyRepository.save(copy);
-        } else {
-            copy.setStatus(BookCopy.Status.AVAILABLE);
-            bookCopyRepository.save(copy);
-
-            if (book != null) {
-                int currentAvailable = book.getAvailableCopies() != null ? book.getAvailableCopies() : 0;
-                book.setAvailableCopies(currentAvailable + 1);
-                bookRepository.save(book);
+            if (!pending.isEmpty()) {
+                Reservation next = pending.get(0);
+                next.setStatus(Reservation.ReservationStatus.READY_FOR_PICKUP);
+                next.setPickupDeadline(LocalDate.now().plusDays(DEFAULT_PICKUP_HOLD_DAYS));
+                next.setQueuePosition(0);
+                if (assignedCopy != null) {
+                    next.setBookCopy(assignedCopy);
+                    assignedCopy.setStatus(BookCopy.Status.RESERVED);
+                    bookCopyRepository.save(assignedCopy);
+                }
+                reservationRepository.save(next);
+            } else {
+                if (assignedCopy != null) {
+                    assignedCopy.setStatus(BookCopy.Status.AVAILABLE);
+                    bookCopyRepository.save(assignedCopy);
+                }
+                if (book != null) {
+                    int currentAvailable = book.getAvailableCopies() != null ? book.getAvailableCopies() : 0;
+                    book.setAvailableCopies(currentAvailable + 1);
+                    bookRepository.save(book);
+                }
             }
+        } else if (assignedCopy != null) {
+            assignedCopy.setStatus(BookCopy.Status.AVAILABLE);
+            bookCopyRepository.save(assignedCopy);
         }
     }
 

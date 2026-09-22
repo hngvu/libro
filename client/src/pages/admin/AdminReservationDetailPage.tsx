@@ -11,7 +11,8 @@ import {
 } from '@tabler/icons-react'
 import { useAdmin } from '@/components/admin/AdminContext'
 import { api } from '@/services/api'
-import type { ReservationResponse, ReservationStatus } from '@/types/api'
+import type { ReservationResponse, ReservationStatus, BookCopyResponse } from '@/types/api'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 
 function parseDateTime(dateStr?: string | null) {
   if (!dateStr) return { date: '—', time: '' }
@@ -107,17 +108,51 @@ export function AdminReservationDetailPage() {
     }
   }
 
-  const handleFulfill = async () => {
+  const [isFulfillModalOpen, setIsFulfillModalOpen] = useState(false)
+  const [scannedBarcode, setScannedBarcode] = useState('')
+  const [availableCopies, setAvailableCopies] = useState<BookCopyResponse[]>([])
+  const [loadingCopies, setLoadingCopies] = useState(false)
+  const [fulfillSubmitting, setFulfillSubmitting] = useState(false)
+  const [fulfillModalError, setFulfillModalError] = useState<string | null>(null)
+
+  const openFulfillModal = async () => {
     if (!reservation) return
-    setActionLoading(true)
+    setScannedBarcode(reservation.barcode || '')
+    setFulfillModalError(null)
+    setIsFulfillModalOpen(true)
+    if (reservation.bookId) {
+      setLoadingCopies(true)
+      try {
+        const res = await api.adminGetBookCopies({
+          bookId: [reservation.bookId],
+          status: ['AVAILABLE'],
+          size: 50,
+        })
+        setAvailableCopies(res.content || [])
+      } catch {
+        setAvailableCopies([])
+      } finally {
+        setLoadingCopies(false)
+      }
+    }
+  }
+
+  const handleConfirmFulfill = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!reservation) return
+    setFulfillSubmitting(true)
+    setFulfillModalError(null)
     try {
-      await api.adminFulfillReservation(reservation.id)
+      await api.adminFulfillReservation(reservation.id, {
+        barcode: scannedBarcode.trim() || undefined,
+      })
       showFeedback('success', 'Reservation fulfilled and converted into active checkout loan!')
+      setIsFulfillModalOpen(false)
       loadReservation()
     } catch (err: any) {
-      showFeedback('error', err.message || 'Failed to fulfill reservation checkout.')
+      setFulfillModalError(err.message || 'Failed to fulfill reservation checkout.')
     } finally {
-      setActionLoading(false)
+      setFulfillSubmitting(false)
     }
   }
 
@@ -179,7 +214,7 @@ export function AdminReservationDetailPage() {
           </button>
           <button
             type="button"
-            onClick={handleFulfill}
+            onClick={openFulfillModal}
             disabled={actionLoading}
             className={`h-8 px-3.5 text-xs font-semibold rounded-md border border-transparent inline-flex items-center justify-center transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
           >
@@ -439,13 +474,19 @@ export function AdminReservationDetailPage() {
                   </p>
                 )}
 
-                {reservation.barcode && (
+                {reservation.barcode ? (
                   <div className={`flex items-center gap-1.5 text-xs font-semibold ${t.subTextColor} pt-0.5`}>
                     <IconScan size={14} className="shrink-0 opacity-75" />
                     <span>{reservation.barcode}</span>
                     {reservation.location ? <span className="ml-1 text-[11px] font-normal opacity-80">({reservation.location})</span> : ''}
                   </div>
-                )}
+                ) : reservation.status === 'READY_FOR_PICKUP' ? (
+                  <div className="pt-1">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                      Title-level hold • Scan copy at checkout
+                    </span>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -461,6 +502,99 @@ export function AdminReservationDetailPage() {
               </p>
             </div>
           )}
+
+      {/* Check Out (Fulfill) Dialog */}
+      <Dialog open={isFulfillModalOpen} onOpenChange={setIsFulfillModalOpen}>
+        <DialogContent className="max-w-md rounded-xl p-6" onClose={() => setIsFulfillModalOpen(false)}>
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+                <IconScan size={20} className="text-blue-500" />
+                Check Out Book Copy
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Scan or select the physical copy being handed to <strong>{reservation.userFullName || reservation.userEmail}</strong>.
+              </p>
+            </div>
+
+            <form onSubmit={handleConfirmFulfill} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Copy Barcode <span className="text-muted-foreground font-normal">(scan or enter)</span>
+                </label>
+                <div className="relative">
+                  <IconScan size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="e.g. LIB-00042..."
+                    value={scannedBarcode}
+                    onChange={(e) => setScannedBarcode(e.target.value)}
+                    className={`h-9 pl-9 pr-3 text-sm w-full rounded-md border outline-none font-mono transition ${t.inputBg}`}
+                  />
+                </div>
+              </div>
+
+              {/* Quick Select Available Copies */}
+              {reservation.bookId && (
+                <div className="space-y-2 pt-1 border-t border-border">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Available Copies on Shelf ({availableCopies.length}):</span>
+                    {loadingCopies && <span className="text-[11px] animate-pulse">Loading copies...</span>}
+                  </div>
+                  {availableCopies.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-muted/40 rounded-md border border-border">
+                      {availableCopies.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setScannedBarcode(c.barcode)}
+                          className={`px-2 py-1 text-xs font-mono rounded border transition-colors cursor-pointer flex items-center gap-1 ${
+                            scannedBarcode === c.barcode
+                              ? 'bg-blue-600 text-white border-blue-600 font-semibold'
+                              : 'bg-background hover:bg-muted text-foreground border-border'
+                          }`}
+                        >
+                          <span>{c.barcode}</span>
+                          {c.location && <span className="opacity-60 text-[10px]">({c.location})</span>}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">
+                      {loadingCopies ? 'Searching for available copies...' : 'No available copies listed on shelf. You can still scan any valid barcode of this title.'}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {fulfillModalError && (
+                <div className="p-2.5 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs">
+                  {fulfillModalError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setIsFulfillModalOpen(false)}
+                  disabled={fulfillSubmitting}
+                  className="h-8 px-3 text-xs font-medium rounded-md border border-border hover:bg-muted transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={fulfillSubmitting}
+                  className={`h-8 px-4 text-xs font-semibold rounded-md transition-all cursor-pointer shadow-xs disabled:opacity-60 ${t.primaryBtn}`}
+                >
+                  {fulfillSubmitting ? 'Checking Out...' : 'Confirm & Issue Loan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

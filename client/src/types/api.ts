@@ -545,3 +545,19 @@ export interface BookmarkResponse {
   genres?: string[]
   createdAt: string
 }
+
+export interface FileUploadResponse {
+  fileUrl: string
+  key: string
+  originalFilename: string
+  contentType: string
+  sizeBytes: number
+}
+
+export interface PresignedUploadResponse {
+  uploadUrl: string
+  fileUrl: string
+  key: string
+  expiresInSeconds: number
+}
+
