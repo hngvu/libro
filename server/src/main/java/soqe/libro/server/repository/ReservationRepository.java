@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 import soqe.libro.server.entity.Book;
+import soqe.libro.server.entity.BookCopy;
 import soqe.libro.server.entity.Reservation;
 import soqe.libro.server.entity.User;
 
@@ -34,6 +35,12 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     boolean existsByUserAndBookAndStatusIn(User user, Book book, Collection<Reservation.ReservationStatus> statuses);
 
     long countByBookAndStatus(Book book, Reservation.ReservationStatus status);
+
+    long countByBookAndStatusIn(Book book, Collection<Reservation.ReservationStatus> statuses);
+
+    Optional<Reservation> findFirstByBookCopyAndStatus(BookCopy bookCopy, Reservation.ReservationStatus status);
+
+    Optional<Reservation> findFirstByUserAndBookAndStatusInOrderByReservedAtAsc(User user, Book book, Collection<Reservation.ReservationStatus> statuses);
 
     long countByStatus(Reservation.ReservationStatus status);
 }

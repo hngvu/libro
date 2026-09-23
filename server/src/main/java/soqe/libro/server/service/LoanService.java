@@ -1,6 +1,7 @@
 package soqe.libro.server.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -9,12 +10,14 @@ import soqe.libro.server.dto.*;
 import soqe.libro.server.entity.Book;
 import soqe.libro.server.entity.BookCopy;
 import soqe.libro.server.entity.Loan;
+import soqe.libro.server.entity.Reservation;
 import soqe.libro.server.entity.User;
 import soqe.libro.server.exception.BusinessValidationException;
 import soqe.libro.server.exception.ResourceNotFoundException;
 import soqe.libro.server.repository.BookCopyRepository;
 import soqe.libro.server.repository.BookRepository;
 import soqe.libro.server.repository.LoanRepository;
+import soqe.libro.server.repository.ReservationRepository;
 import soqe.libro.server.repository.UserRepository;
 import soqe.libro.server.specification.LoanSpecification;
 
@@ -22,10 +25,13 @@ import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class LoanService {
@@ -47,6 +53,8 @@ public class LoanService {
     private final soqe.libro.server.repository.FineRepository fineRepository;
     private final soqe.libro.server.repository.UserSubscriptionRepository userSubscriptionRepository;
     private final ReservationService reservationService;
+    private final ReservationRepository reservationRepository;
+    private final MetricsService metricsService;
 
     // ==========================================
     // ADMIN METHODS
@@ -156,14 +164,56 @@ public class LoanService {
             errors.put("bookCopy", "Either barcode or bookCopyId must be provided");
         }
 
+        Reservation userReservationToFulfill = null;
+
         if (copy != null) {
-            if (copy.getStatus() != BookCopy.Status.AVAILABLE) {
+            Book book = copy.getBook();
+
+            // 1. Check if this specific physical copy is assigned to an active hold
+            var specificHoldOpt = reservationRepository.findFirstByBookCopyAndStatus(copy, Reservation.ReservationStatus.READY_FOR_PICKUP);
+            if (specificHoldOpt.isPresent()) {
+                Reservation assignedHold = specificHoldOpt.get();
+                if (user != null && assignedHold.getUser().getId().equals(user.getId())) {
+                    userReservationToFulfill = assignedHold;
+                } else {
+                    String patronName = assignedHold.getUser().getFullName() != null
+                            ? assignedHold.getUser().getFullName()
+                            : assignedHold.getUser().getEmail();
+                    errors.put("bookCopy", "This physical copy (barcode: " + copy.getBarcode() +
+                            ") is specifically reserved for patron '" + patronName + "' and is waiting for pickup");
+                }
+            }
+
+            // 2. If not locked to a specific copy, check if this user has an active hold (READY_FOR_PICKUP or PENDING) for this book
+            if (userReservationToFulfill == null && user != null && book != null) {
+                var userHoldOpt = reservationRepository.findFirstByUserAndBookAndStatusInOrderByReservedAtAsc(
+                        user, book, List.of(Reservation.ReservationStatus.READY_FOR_PICKUP, Reservation.ReservationStatus.PENDING));
+                if (userHoldOpt.isPresent()) {
+                    userReservationToFulfill = userHoldOpt.get();
+                }
+            }
+
+            // 3. If user does NOT have a hold, protect held copies from walk-in patrons
+            if (userReservationToFulfill == null && book != null) {
+                long physicalAvailable = bookCopyRepository.countByBookAndStatus(book, BookCopy.Status.AVAILABLE);
+                long readyHolds = reservationRepository.countByBookAndStatus(book, Reservation.ReservationStatus.READY_FOR_PICKUP);
+                if (physicalAvailable <= readyHolds) {
+                    errors.put("bookCopy", "All available copies of '" + book.getTitle() +
+                            "' are currently held for patrons with active reservations waiting for pickup. Cannot issue to a walk-in patron");
+                }
+            }
+
+            // 4. Validate physical copy status (allow if it's the copy already assigned to user's reservation, or must be AVAILABLE)
+            boolean isAssignedToThisUser = userReservationToFulfill != null
+                    && userReservationToFulfill.getBookCopy() != null
+                    && userReservationToFulfill.getBookCopy().getId().equals(copy.getId());
+
+            if (!isAssignedToThisUser && copy.getStatus() != BookCopy.Status.AVAILABLE) {
                 errors.put("bookCopy", "Book copy is currently " + copy.getStatus() + " and not available for borrowing");
             }
 
-            // Check if user is already borrowing a copy of the same book/work
-            if (user != null && copy.getBook() != null) {
-                Book book = copy.getBook();
+            // 5. Check if user is already borrowing a copy of the same book/work
+            if (user != null && book != null) {
                 boolean alreadyBorrowing = false;
 
                 if (StringUtils.hasText(book.getWork())) {
@@ -182,12 +232,26 @@ public class LoanService {
             throw new BusinessValidationException("Loan creation failed", errors);
         }
 
+        // If this reservation previously had a different copy locked, release the old one
+        if (userReservationToFulfill != null && userReservationToFulfill.getBookCopy() != null
+                && !userReservationToFulfill.getBookCopy().getId().equals(copy.getId())) {
+            BookCopy oldCopy = userReservationToFulfill.getBookCopy();
+            if (oldCopy.getStatus() == BookCopy.Status.RESERVED) {
+                oldCopy.setStatus(BookCopy.Status.AVAILABLE);
+                bookCopyRepository.save(oldCopy);
+            }
+        }
+
         // Update book copy and book counters
         copy.setStatus(BookCopy.Status.LOANED);
         Book book = copy.getBook();
         if (book != null) {
-            book.setAvailableCopies(Math.max(0, book.getAvailableCopies() - 1));
-            bookRepository.save(book);
+            boolean wasAlreadyDecremented = userReservationToFulfill != null
+                    && userReservationToFulfill.getStatus() == Reservation.ReservationStatus.READY_FOR_PICKUP;
+            if (!wasAlreadyDecremented) {
+                book.setAvailableCopies(Math.max(0, book.getAvailableCopies() - 1));
+                bookRepository.save(book);
+            }
         }
         bookCopyRepository.save(copy);
 
@@ -215,6 +279,26 @@ public class LoanService {
 
         loan = repository.save(loan);
 
+        // Auto-fulfill reservation if applicable
+        if (userReservationToFulfill != null) {
+            boolean wasPending = userReservationToFulfill.getStatus() == Reservation.ReservationStatus.PENDING;
+            userReservationToFulfill.setBookCopy(copy);
+            userReservationToFulfill.setStatus(Reservation.ReservationStatus.FULFILLED);
+            userReservationToFulfill.setFulfilledAt(LocalDateTime.now());
+            userReservationToFulfill.setQueuePosition(null);
+            reservationRepository.save(userReservationToFulfill);
+
+            if (wasPending && book != null) {
+                reservationService.recalculateQueuePositions(book);
+            }
+
+            log.info("Auto-fulfilled reservation {} via admin loan creation for user {} with copy {}",
+                    userReservationToFulfill.getReservationCode(),
+                    user != null ? user.getEmail() : "unknown",
+                    copy.getBarcode());
+        }
+
+        metricsService.incrementLoansCreated();
         return toAdminResponse(loan);
     }
 

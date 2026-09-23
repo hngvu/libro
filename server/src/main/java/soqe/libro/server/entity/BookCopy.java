@@ -5,7 +5,10 @@ import lombok.*;
 import java.util.List;
 
 @Entity
-@Table(name = "book_copies")
+@Table(name = "book_copies", indexes = {
+    @Index(name = "idx_book_copies_book_status", columnList = "book_id, status"),
+    @Index(name = "idx_book_copies_status", columnList = "status")
+})
 @Getter
 @Setter
 @NoArgsConstructor

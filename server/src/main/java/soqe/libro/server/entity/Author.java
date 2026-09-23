@@ -5,7 +5,9 @@ import lombok.*;
 import java.util.Set;
 
 @Entity
-@Table(name = "authors")
+@Table(name = "authors", indexes = {
+    @Index(name = "idx_authors_status", columnList = "status")
+})
 @Getter
 @Setter
 @NoArgsConstructor

@@ -6,7 +6,12 @@ import java.util.List;
 import java.util.Set;
 
 @Entity
-@Table(name = "books")
+@Table(name = "books", indexes = {
+    @Index(name = "idx_books_status_created_at", columnList = "status, created_at"),
+    @Index(name = "idx_books_publisher_id", columnList = "publisher_id"),
+    @Index(name = "idx_books_work", columnList = "work"),
+    @Index(name = "idx_books_publication_year", columnList = "publication_year")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -64,7 +69,10 @@ public class Book extends BaseEntity {
     @JoinTable(
         name = "book_authors",
         joinColumns = @JoinColumn(name = "book_id"),
-        inverseJoinColumns = @JoinColumn(name = "author_id")
+        inverseJoinColumns = @JoinColumn(name = "author_id"),
+        indexes = {
+            @Index(name = "idx_book_authors_author_id", columnList = "author_id")
+        }
     )
     private Set<Author> authors;
 
@@ -72,7 +80,10 @@ public class Book extends BaseEntity {
     @JoinTable(
         name = "book_genres",
         joinColumns = @JoinColumn(name = "book_id"),
-        inverseJoinColumns = @JoinColumn(name = "genre_id")
+        inverseJoinColumns = @JoinColumn(name = "genre_id"),
+        indexes = {
+            @Index(name = "idx_book_genres_genre_id", columnList = "genre_id")
+        }
     )
     private Set<Genre> genres;
 

@@ -41,6 +41,7 @@ public class ReservationService {
     private final LoanRepository loanRepository;
     private final FineRepository fineRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
+    private final MetricsService metricsService;
 
     @Transactional(readOnly = true)
     public boolean hasPendingReservations(Book book) {
@@ -170,6 +171,7 @@ public class ReservationService {
         }
 
         reservation = reservationRepository.save(reservation);
+        metricsService.incrementReservationsCreated();
         log.info("Created reservation {} for user {} on book {} (status: {})",
                 code, user.getEmail(), book.getTitle(), reservation.getStatus());
 
@@ -526,7 +528,7 @@ public class ReservationService {
         }
     }
 
-    private void recalculateQueuePositions(Book book) {
+    public void recalculateQueuePositions(Book book) {
         List<Reservation> pending = reservationRepository.findByBookAndStatusOrderByReservedAtAsc(
                 book, Reservation.ReservationStatus.PENDING);
 

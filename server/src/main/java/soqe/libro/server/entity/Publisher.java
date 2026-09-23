@@ -5,7 +5,9 @@ import lombok.*;
 import java.util.List;
 
 @Entity
-@Table(name = "publishers")
+@Table(name = "publishers", indexes = {
+    @Index(name = "idx_publishers_status", columnList = "status")
+})
 @Getter
 @Setter
 @NoArgsConstructor

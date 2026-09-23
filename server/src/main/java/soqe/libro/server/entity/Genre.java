@@ -5,7 +5,9 @@ import lombok.*;
 import java.util.Set;
 
 @Entity
-@Table(name = "genres")
+@Table(name = "genres", indexes = {
+    @Index(name = "idx_genres_status", columnList = "status")
+})
 @Getter
 @Setter
 @NoArgsConstructor

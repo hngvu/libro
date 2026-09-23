@@ -289,13 +289,13 @@ export function BookDetail({
                   <span>
                     {existingReservation.status === 'READY_FOR_PICKUP'
                       ? 'Ready to Pick Up'
-                      : `Queued (#${existingReservation.queuePosition || 1})`}
+                      : `Est. ${(existingReservation.queuePosition || 1) === 1 ? '1 week' : `${existingReservation.queuePosition || 1} weeks`}`}
                   </span>
                 </button>
                 <p className="text-[11px] text-center text-[#6f7f64]">
                   {existingReservation.status === 'READY_FOR_PICKUP'
                     ? `Hold code: ${existingReservation.reservationCode} • Pick up at counter`
-                    : 'In waitlist • You will be notified when a copy is ready'}
+                    : `Position #${existingReservation.queuePosition || 1} in waitlist • You will be notified when ready`}
                 </p>
               </div>
             ) : book.availableCopies === 0 ? (
@@ -339,10 +339,10 @@ export function BookDetail({
                       {reserving ? (
                         <>
                           <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          <span>Reserving Hold...</span>
+                          <span>Borrowing...</span>
                         </>
                       ) : (
-                        <span>Reserve for Pickup</span>
+                        <span>Borrow</span>
                       )}
                     </button>
                     <button

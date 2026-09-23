@@ -15,6 +15,11 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private String getRequestId() {
+        String reqId = org.slf4j.MDC.get("requestId");
+        return reqId != null ? reqId : java.util.UUID.randomUUID().toString();
+    }
+
     // 1. Lỗi Validation (khi dùng @Valid ở Controller)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
@@ -26,6 +31,7 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .message("Dữ liệu đầu vào không hợp lệ")
                 .path(request.getRequestURI())
+                .requestId(getRequestId())
                 .validationErrors(errors)
                 .build();
                 
@@ -38,6 +44,7 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
+                .requestId(getRequestId())
                 .build();
                 
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
@@ -49,6 +56,7 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
+                .requestId(getRequestId())
                 .build();
                 
         return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
@@ -59,6 +67,7 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
+                .requestId(getRequestId())
                 .validationErrors(ex.getErrors())
                 .build();
                 
@@ -71,6 +80,7 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
+                .requestId(getRequestId())
                 .build();
                 
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
@@ -85,6 +95,7 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .message("Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.")
                 .path(request.getRequestURI())
+                .requestId(getRequestId())
                 .build();
                 
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -96,6 +107,7 @@ public class GlobalExceptionHandler {
         soqe.libro.server.dto.ErrorResponse errorResponse = soqe.libro.server.dto.ErrorResponse.builder()
                 .message("Xác thực thất bại. Token không hợp lệ, không có hoặc đã hết hạn.")
                 .path(request.getRequestURI())
+                .requestId(getRequestId())
                 .build();
         return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
     }
@@ -106,6 +118,7 @@ public class GlobalExceptionHandler {
         soqe.libro.server.dto.ErrorResponse errorResponse = soqe.libro.server.dto.ErrorResponse.builder()
                 .message("Từ chối truy cập. Bạn không có quyền thực hiện hành động này.")
                 .path(request.getRequestURI())
+                .requestId(getRequestId())
                 .build();
         return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
     }

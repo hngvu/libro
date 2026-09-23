@@ -83,8 +83,13 @@ function appendMultiParam(search: URLSearchParams, key: string, val?: any) {
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
+  const clientRequestId = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+
   const headers: Record<string, string> = {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    'X-Request-ID': clientRequestId,
     ...(options.headers as Record<string, string>),
   }
 
@@ -102,6 +107,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...options,
     headers,
   })
+
+  const serverRequestId = response.headers.get('X-Request-ID') || clientRequestId
 
   if (response.status === 204) {
     return {} as T
@@ -123,7 +130,9 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   if (!response.ok) {
     let errorMsg = 'An error occurred'
-    if (response.status === 502 || response.status === 503 || response.status === 504) {
+    if (response.status === 429) {
+      errorMsg = (json && json.message) ? json.message : 'Too many requests. Please slow down and try again shortly.'
+    } else if (response.status === 502 || response.status === 503 || response.status === 504) {
       errorMsg = 'Cannot connect to backend server. Please make sure the server is running on port 8080.'
     } else if (json) {
       if (typeof json === 'string' && json.trim()) {
@@ -139,7 +148,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
         errorMsg = Array.isArray(json.errors) ? json.errors.join(', ') : Object.values(json.errors).join(', ')
       }
     }
-    throw new Error(errorMsg)
+    const err = new Error(errorMsg)
+    ;(err as any).requestId = serverRequestId
+    ;(err as any).status = response.status
+    throw err
   }
 
   return json as T

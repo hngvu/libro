@@ -1,0 +1,114 @@
+services:
+  # ============================================================================
+  # 1. CORE INFRASTRUCTURE (Chạy mặc định)
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: libro-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: libro
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d libro"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - libro-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: libro-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000" # MinIO S3 API
+      - "9001:9001" # MinIO Web Console UI
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - libro-network
+
+  # Service tự động khởi tạo bucket 'libro-storage' và cấp quyền download public
+  minio-init:
+    image: minio/mc:latest
+    container_name: libro-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      mc mb myminio/libro-storage --ignore-existing;
+      mc anonymous set download myminio/libro-storage;
+      exit 0;
+      "
+    networks:
+      - libro-network
+
+  # ============================================================================
+  # 2. OBSERVABILITY / MONITORING (Chạy khi dùng profile: --profile monitoring)
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: libro-prometheus
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090" # Prometheus Web UI & API
+    networks:
+      - libro-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: libro-grafana
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000" # Grafana Dashboard UI (admin / admin)
+    depends_on:
+      - prometheus
+    networks:
+      - libro-network
+
+volumes:
+  postgres_data:
+    name: libro_postgres_data
+  minio_data:
+    name: libro_minio_data
+  prometheus_data:
+    name: libro_prometheus_data
+  grafana_data:
+    name: libro_grafana_data
+
+networks:
+  libro-network:
+    driver: bridge
