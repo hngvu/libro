@@ -4,6 +4,14 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Environment & Uploads ###
+.env
+.env.*
+*.env
+uploads/
+logs/
+*.log
+
 ### STS ###
 .apt_generated
 .classpath

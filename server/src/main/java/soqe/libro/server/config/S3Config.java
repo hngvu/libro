@@ -24,7 +24,6 @@ public class S3Config {
     private final AwsS3Properties properties;
 
     @Bean
-    @ConditionalOnProperty(name = "aws.s3.enabled", havingValue = "true")
     public S3Client s3Client() {
         log.info("Initializing S3Client for region: {}, bucket: {}", properties.getRegion(), properties.getBucketName());
 
@@ -50,7 +49,6 @@ public class S3Config {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "aws.s3.enabled", havingValue = "true")
     public S3Presigner s3Presigner() {
         S3Presigner.Builder builder = S3Presigner.builder()
                 .region(Region.of(properties.getRegion()));

@@ -17,6 +17,7 @@ import soqe.libro.server.repository.PublisherRepository;
 import soqe.libro.server.specification.BookSpecification;
 import soqe.libro.server.exception.BusinessValidationException;
 import soqe.libro.server.exception.ResourceNotFoundException;
+import soqe.libro.server.entity.AuditLog;
 import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
@@ -32,6 +33,7 @@ public class BookService {
     private final AuthorRepository authorRepository;
     private final PublisherRepository publisherRepository;
     private final GenreRepository genreRepository;
+    private final AuditLogService auditLogService;
 
     // ==========================================
     // BACKOFFICE / ADMIN APIs
@@ -96,6 +98,10 @@ public class BookService {
         }
 
         book = repository.save(book);
+
+        auditLogService.record(AuditLog.EntityType.BOOK, "BOOK_CREATED", book.getId(),
+                String.format("Created book '%s' [ISBN: %s]", book.getTitle(), book.getIsbn() != null ? book.getIsbn() : "N/A"));
+
         return mapToAdminResponse(book);
     }
 
@@ -144,6 +150,10 @@ public class BookService {
         }
 
         book = repository.save(book);
+
+        auditLogService.record(AuditLog.EntityType.BOOK, "BOOK_UPDATED", book.getId(),
+                String.format("Updated book '%s' [ISBN: %s]", book.getTitle(), book.getIsbn() != null ? book.getIsbn() : "N/A"));
+
         return mapToAdminResponse(book);
     }
 
@@ -153,6 +163,9 @@ public class BookService {
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
         book.setStatus(Book.Status.ARCHIVED);
         repository.save(book);
+
+        auditLogService.record(AuditLog.EntityType.BOOK, "BOOK_ARCHIVED", book.getId(),
+                String.format("Archived book '%s' (ID: %d)", book.getTitle(), id));
     }
 
     // ==========================================

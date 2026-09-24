@@ -69,8 +69,8 @@ export function MemberHomePage({
         api.getMyLoans({ size: 20 }).catch(() => ({ content: [] })),
         api.getBooks({ page: 1, size: 30 }).catch(() => ({ content: [] })),
         api.getGenres().catch(() => ({ content: [] })),
-        api.getPersonalizedRecommendations(10).catch(() => []),
-        api.getTrendingBooks(10).catch(() => []),
+        api.getPersonalizedRecommendations(6).catch(() => []),
+        api.getTrendingBooks(6).catch(() => []),
       ])
 
       const allLoans: LoanPublicResponse[] = loansRes.content || []

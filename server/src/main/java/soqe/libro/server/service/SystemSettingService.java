@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import soqe.libro.server.dto.SystemSettingResponse;
+import soqe.libro.server.entity.AuditLog;
 import soqe.libro.server.entity.SystemSetting;
 import soqe.libro.server.exception.ResourceNotFoundException;
 import soqe.libro.server.repository.SystemSettingRepository;
@@ -20,6 +21,7 @@ import java.util.Optional;
 public class SystemSettingService {
 
     private final SystemSettingRepository repository;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public List<SystemSettingResponse> getAllSettings() {
@@ -83,6 +85,10 @@ public class SystemSettingService {
         setting.setSettingValue(value != null ? value.trim() : "");
         setting = repository.save(setting);
         log.info("Updated system setting {} to {}", key, value);
+
+        auditLogService.record(AuditLog.EntityType.SETTINGS, "POLICIES_UPDATED", setting.getId(),
+                String.format("Updated setting '%s' to '%s'", key, setting.getSettingValue()));
+
         return toResponse(setting);
     }
 
@@ -99,6 +105,9 @@ public class SystemSettingService {
                 log.info("Bulk updated setting {} = {}", entry.getKey(), entry.getValue());
             });
         }
+
+        auditLogService.record(AuditLog.EntityType.SETTINGS, "POLICIES_UPDATED", null,
+                String.format("Bulk updated %d system settings (%s)", keyValues.size(), String.join(", ", keyValues.keySet())));
 
         return getAllSettings();
     }

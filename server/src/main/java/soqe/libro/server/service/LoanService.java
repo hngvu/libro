@@ -12,6 +12,7 @@ import soqe.libro.server.entity.BookCopy;
 import soqe.libro.server.entity.Loan;
 import soqe.libro.server.entity.Reservation;
 import soqe.libro.server.entity.User;
+import soqe.libro.server.entity.AuditLog;
 import soqe.libro.server.exception.BusinessValidationException;
 import soqe.libro.server.exception.ResourceNotFoundException;
 import soqe.libro.server.repository.BookCopyRepository;
@@ -55,6 +56,7 @@ public class LoanService {
     private final ReservationService reservationService;
     private final ReservationRepository reservationRepository;
     private final MetricsService metricsService;
+    private final AuditLogService auditLogService;
 
     // ==========================================
     // ADMIN METHODS
@@ -299,6 +301,10 @@ public class LoanService {
         }
 
         metricsService.incrementLoansCreated();
+
+        auditLogService.record(AuditLog.EntityType.LOAN, "CHECKOUT_ISSUED", loan.getId(),
+                String.format("Issued loan %s to patron %s (%s)", loan.getLoanCode(), user != null ? user.getEmail() : "unknown", book != null ? book.getTitle() : "Book"));
+
         return toAdminResponse(loan);
     }
 
@@ -338,6 +344,9 @@ public class LoanService {
         // Assess overdue fine if returned after due date
         fineService.assessOverdueFineIfAny(loan, loan.getReturnDate());
 
+        auditLogService.record(AuditLog.EntityType.LOAN, "BOOK_RETURNED", loan.getId(),
+                String.format("Processed return for loan %s (%s)", loan.getLoanCode(), copy != null && copy.getBook() != null ? copy.getBook().getTitle() : "Book"));
+
         return toAdminResponse(loan);
     }
 
@@ -368,6 +377,9 @@ public class LoanService {
         loan = repository.save(loan);
         fineService.createLostBookFine(loan, customAmount);
 
+        auditLogService.record(AuditLog.EntityType.LOAN, "BOOK_REPORTED_LOST", loan.getId(),
+                String.format("Reported book lost for loan %s", loan.getLoanCode()));
+
         return toAdminResponse(loan);
     }
 
@@ -391,6 +403,9 @@ public class LoanService {
 
         loan = repository.save(loan);
         fineService.createDamagedBookFine(loan, customAmount, note);
+
+        auditLogService.record(AuditLog.EntityType.LOAN, "BOOK_REPORTED_DAMAGED", loan.getId(),
+                String.format("Reported book damaged for loan %s: %s", loan.getLoanCode(), note));
 
         return toAdminResponse(loan);
     }
@@ -446,6 +461,9 @@ public class LoanService {
         loan.setRenewalCount(currentRenewals + 1);
         loan = repository.save(loan);
 
+        auditLogService.record(AuditLog.EntityType.LOAN, "LOAN_RENEWED", loan.getId(),
+                String.format("Renewed loan %s until %s (renewal count: %d)", loan.getLoanCode(), loan.getDueDate(), loan.getRenewalCount()));
+
         return LoanResponse.builder()
                 .id(loan.getId())
                 .loanCode(loan.getLoanCode())
@@ -496,6 +514,9 @@ public class LoanService {
 
         loan.setStatus(Loan.LoanStatus.CANCELLED);
         repository.save(loan);
+
+        auditLogService.record(AuditLog.EntityType.LOAN, "LOAN_CANCELLED", loan.getId(),
+                String.format("Cancelled loan %s", loan.getLoanCode()));
     }
 
     // ==========================================
@@ -567,6 +588,10 @@ public class LoanService {
         loan.setDueDate(loan.getDueDate().plusDays(STANDARD_RENEWAL_DAYS));
         loan.setRenewalCount(currentRenewals + 1);
         loan = repository.save(loan);
+
+        auditLogService.record(loan.getUser() != null ? loan.getUser().getEmail() : email,
+                "PATRON_RENEWAL", AuditLog.EntityType.LOAN, loan.getId(),
+                String.format("Patron %s renewed loan %s until %s", email, loan.getLoanCode(), loan.getDueDate()), null);
 
         return toPublicResponse(loan);
     }
@@ -666,6 +691,10 @@ public class LoanService {
                 .build();
 
         loan = repository.save(loan);
+
+        auditLogService.record(email, "PATRON_BORROWED", AuditLog.EntityType.LOAN, loan.getId(),
+                String.format("Patron %s borrowed book %s (%s)", email, book.getTitle(), loan.getLoanCode()), null);
+
         return toPublicResponse(loan);
     }
 

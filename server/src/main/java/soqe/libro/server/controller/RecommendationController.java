@@ -19,7 +19,7 @@ public class RecommendationController {
     @GetMapping("/for-you")
     public ResponseEntity<List<BookPublicResponse>> getPersonalizedRecommendations(
             Principal principal,
-            @RequestParam(defaultValue = "10") int limit) {
+            @RequestParam(defaultValue = "6") int limit) {
         String email = principal != null ? principal.getName() : null;
         return ResponseEntity.ok(recommendationService.getPersonalizedRecommendations(email, limit));
     }
@@ -33,7 +33,7 @@ public class RecommendationController {
 
     @GetMapping("/trending")
     public ResponseEntity<List<BookPublicResponse>> getTrendingBooks(
-            @RequestParam(defaultValue = "10") int limit) {
+            @RequestParam(defaultValue = "6") int limit) {
         return ResponseEntity.ok(recommendationService.getTrendingBooks(limit));
     }
 }

@@ -29,9 +29,7 @@ import {
   IconClock,
   IconBookmark,
   IconCheck,
-  IconNews,
   IconCrown,
-  IconQuote,
   IconActivity,
   IconSparkles,
 } from '@tabler/icons-react'
@@ -107,6 +105,7 @@ function MemberCatalogContent({
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
+  const [recRefreshKey, setRecRefreshKey] = useState(0)
 
   // Automatically switch to 'catalog' view if user performs search or selects genre filter
   useEffect(() => {
@@ -152,9 +151,26 @@ function MemberCatalogContent({
     }
   }, [user])
 
+  const isRecommendations =
+    selectedShelf === 'catalog' && !keyword.trim() && !selectedGenre && !selectedFormat
+
   const fetchBooks = useCallback(async () => {
     setLoading(true)
     try {
+      if (isRecommendations) {
+        try {
+          const recs = await api.getPersonalizedRecommendations(6)
+          if (recs && recs.length > 0) {
+            setBooks(recs.slice(0, 6))
+            setTotalPages(1)
+            setTotalElements(Math.min(6, recs.length))
+            return
+          }
+        } catch (recErr) {
+          console.warn('Failed to load personalized recommendations, falling back to books catalog:', recErr)
+        }
+      }
+
       const res = await api.getBooks({
         keyword: keyword.trim() || undefined,
         format: selectedFormat || undefined,
@@ -171,7 +187,7 @@ function MemberCatalogContent({
     } finally {
       setLoading(false)
     }
-  }, [keyword, selectedFormat, selectedGenre, page])
+  }, [isRecommendations, keyword, selectedFormat, selectedGenre, page, recRefreshKey])
 
   useEffect(() => {
     fetchBooks()
@@ -183,6 +199,7 @@ function MemberCatalogContent({
     onGenreChange('')
     setPage(1)
     setSelectedShelf('catalog')
+    setRecRefreshKey((k) => k + 1)
   }
 
   // Convert Loan to Book for BookCard display
@@ -236,8 +253,9 @@ function MemberCatalogContent({
 
   useDocumentTitle(catalogTitle)
 
-  const maxLoans = subscription?.maxActiveLoans || 3
-  const quotaPercentage = Math.min(100, Math.round((ongoingLoans.length / maxLoans) * 100))
+  const maxLoans = subscription?.maxActiveLoans ?? 1
+  const activeQuotaUsed = ongoingLoans.length + reservations.length
+  const quotaPercentage = Math.min(100, Math.round((activeQuotaUsed / maxLoans) * 100))
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-4">
@@ -256,7 +274,7 @@ function MemberCatalogContent({
         </div>
       )}
 
-      {/* 3-Column Modern Library Layout */}
+      {/* 2-Column Library Layout */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         
         {/* === COLUMN 1: LEFT SIDEBAR (Shelf Controller & Plan Quota) === */}
@@ -272,16 +290,16 @@ function MemberCatalogContent({
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-[11.5px]">
-                  <span className="text-[#555] dark:text-[#c8d0b7]">Loan Quota</span>
+                  <span className="text-[#555] dark:text-[#c8d0b7]">Quota</span>
                   <span className="font-semibold text-[#1e2320] dark:text-[#f5f3e6]">
-                    {ongoingLoans.length} / {maxLoans}
+                    {activeQuotaUsed} / {maxLoans}
                   </span>
                 </div>
                 {/* Progress bar */}
                 <div className="w-full h-1.5 bg-[#e5e3db] dark:bg-[#333d36] rounded-full overflow-hidden">
                   <div
                     className={`h-full transition-all duration-300 ${
-                      ongoingLoans.length >= maxLoans
+                      activeQuotaUsed >= maxLoans
                         ? 'bg-amber-500'
                         : 'bg-[#256345] dark:bg-[#52a677]'
                     }`}
@@ -312,9 +330,12 @@ function MemberCatalogContent({
                   setSelectedShelf('catalog')
                   onKeywordChange('')
                   onGenreChange('')
+                  setSelectedFormat('')
+                  setPage(1)
+                  setRecRefreshKey((k) => k + 1)
                 }}
                 className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer ${
-                  selectedShelf === 'catalog'
+                  isRecommendations
                     ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
                     : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
                 }`}
@@ -410,10 +431,13 @@ function MemberCatalogContent({
         </aside>
 
         {/* === COLUMN 2: CENTER MAIN CONTENT (Dynamic Bookshelf) === */}
-        <main className="flex-1 min-w-0 space-y-4">
+        <main className="flex-1 min-w-0 lg:max-w-[620px] space-y-4">
           {/* Dynamic Header based on Selected Shelf */}
           <div className="pb-1.5 border-b border-zinc-200 dark:border-zinc-800">
-            <h1 className="text-sm sm:text-base font-semibold text-zinc-900 dark:text-zinc-100">
+            <h1 className="text-sm sm:text-base font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+              {isRecommendations && (
+                <IconSparkles size={16} className="text-[#6f7f64] dark:text-[#a0b096]" />
+              )}
               {selectedShelf === 'catalog'
                 ? selectedGenreObj ? selectedGenreObj.name : 'Recommendations'
                 : selectedShelf === 'loans'
@@ -431,9 +455,11 @@ function MemberCatalogContent({
               <>
                 {loading ? (
                   <div className="flex flex-wrap gap-2.5 sm:gap-3">
-                    {[...Array(10)].map((_, i) => (
-                      <div key={i} className="animate-pulse w-[86px] sm:w-[92px] shrink-0">
+                    {[...Array(isRecommendations ? 6 : 12)].map((_, i) => (
+                      <div key={i} className="animate-pulse w-[86px] sm:w-[92px] shrink-0 space-y-1.5">
                         <div className="aspect-[2/3] w-full rounded-[3px] bg-zinc-200 dark:bg-zinc-800" />
+                        <div className="h-2.5 bg-zinc-200 dark:bg-zinc-800 rounded w-5/6" />
+                        <div className="h-2 bg-zinc-200 dark:bg-zinc-800 rounded w-1/2" />
                       </div>
                     ))}
                   </div>
@@ -702,80 +728,6 @@ function MemberCatalogContent({
             )}
           </div>
         </main>
-
-        {/* === COLUMN 3: RIGHT SIDEBAR (News & Announcements) === */}
-        <aside className="w-full lg:w-64 shrink-0 lg:border-l lg:border-zinc-200 dark:lg:border-zinc-800 lg:pl-6 space-y-6">
-          {/* News & Announcements Section */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pb-1.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-1.5">
-              <IconNews size={14} className="text-emerald-700 dark:text-emerald-400" />
-              <span>News & Announcements</span>
-            </h3>
-
-            <div className="space-y-3 pt-0.5">
-              {/* Article 1 */}
-              <article className="space-y-1">
-                <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 font-medium">
-                  <span className="font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Library News</span>
-                  <span>•</span>
-                  <span>Sep 16, 2026</span>
-                </div>
-                <h4 className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200 leading-snug hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer">
-                  Autumn Reading Season: Over 200 New Academic & Literary Titles Added
-                </h4>
-                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed line-clamp-2">
-                  Explore fresh additions in computer architecture, clean design patterns, and award-winning fiction.
-                </p>
-              </article>
-
-              {/* Article 2 */}
-              <article className="space-y-1 border-t border-zinc-100 dark:border-zinc-800/80 pt-2.5">
-                <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 font-medium">
-                  <span className="font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Events</span>
-                  <span>•</span>
-                  <span>Sep 20, 2026</span>
-                </div>
-                <h4 className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200 leading-snug hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer">
-                  Weekend Book Club: Crafting Resilient Software Architecture
-                </h4>
-                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed line-clamp-2">
-                  Join our online discussion panel with senior engineers and book authors this Saturday at 2:00 PM.
-                </p>
-              </article>
-
-              {/* Article 3 */}
-              <article className="space-y-1 border-t border-zinc-100 dark:border-zinc-800/80 pt-2.5">
-                <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 font-medium">
-                  <span className="font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Policy Update</span>
-                  <span>•</span>
-                  <span>Sep 12, 2026</span>
-                </div>
-                <h4 className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200 leading-snug hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer">
-                  Online Loan Renewals Now Available Directly from Member Portal
-                </h4>
-                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-relaxed line-clamp-2">
-                  Eligible readers can now extend active loans online with a single click before the due date.
-                </p>
-              </article>
-            </div>
-          </div>
-
-          {/* Reader Quote */}
-          <div className="p-3 bg-zinc-50 dark:bg-zinc-900/40 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-1.5">
-            <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
-              <IconQuote size={14} />
-              <span className="font-semibold text-[11px] uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-                Thought of the Day
-              </span>
-            </div>
-            <p className="text-[12px] italic text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              "A reader lives a thousand lives before he dies. The man who never reads lives only one."
-            </p>
-            <p className="text-[11px] text-zinc-400 text-right font-medium">
-              — George R.R. Martin
-            </p>
-          </div>
-        </aside>
 
       </div>
     </div>

@@ -5,14 +5,13 @@ import { api } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import {
   IconBook,
-  IconCheck,
-  IconClock,
   IconChevronDown,
   IconChevronUp,
   IconBookmark,
-  IconSparkles,
+  IconAlertCircle,
 } from '@tabler/icons-react'
 
 interface BookDetailProps {
@@ -52,9 +51,10 @@ export function BookDetail({
   const [bookmarkLoading, setBookmarkLoading] = useState(false)
   const [similarBooks, setSimilarBooks] = useState<BookPublicResponse[]>([])
   const [loadingSimilar, setLoadingSimilar] = useState(false)
-  const [reserveDropdownOpen, setReserveDropdownOpen] = useState(false)
 
   const [reserving, setReserving] = useState(false)
+  const [cancellingReservation, setCancellingReservation] = useState(false)
+  const [reservationDropdownOpen, setReservationDropdownOpen] = useState(false)
   const [reserveError, setReserveError] = useState<string | null>(null)
 
   const [existingReservation, setExistingReservation] = useState<ReservationResponse | null>(null)
@@ -176,6 +176,24 @@ export function BookDetail({
     }
   }
 
+  const handleCancelReservation = async () => {
+    if (!existingReservation || cancellingReservation) return
+    setCancellingReservation(true)
+    try {
+      await api.cancelMyReservation(existingReservation.id, 'Cancelled by user')
+      setExistingReservation(null)
+      setReservationDropdownOpen(false)
+      if (handle) {
+        api.getBookByHandle(handle).then((res) => res && setBook(res)).catch(() => {})
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to cancel reservation'
+      setReserveError(msg)
+    } finally {
+      setCancellingReservation(false)
+    }
+  }
+
   useEffect(() => {
     if (handle) {
       setLoadingBook(true)
@@ -268,152 +286,88 @@ export function BookDetail({
           <div className="w-full flex flex-col gap-2.5">
             {/* Primary Action: Existing Loan / Existing Reservation / Reserve / Join Waitlist */}
             {existingLoan ? (
-              <div className="w-full flex flex-col gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => navigate('/activity')}
-                  className="w-full h-[42px] rounded-md bg-[#2e5d4b] hover:bg-[#254b3d] text-white font-sans text-[13.5px] font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
-                >
-                  <IconBook size={16} />
-                  <span>On Loan</span>
-                </button>
+              <div className="w-full h-[42px] rounded-md bg-[#eaf3ec] border border-[#a2c2a9] text-[#13381e] font-sans text-[14px] font-semibold flex items-center justify-center gap-2 select-none shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                <span className="w-2 h-2 rounded-full bg-[#18793b]" />
+                <span>On Loan</span>
               </div>
             ) : existingReservation ? (
-              <div className="w-full flex flex-col gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => navigate('/activity?tab=reservations')}
-                  className="w-full h-[42px] rounded-md bg-[#2e7d56] hover:bg-[#256646] text-white font-sans text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
-                >
-                  <IconCheck size={17} />
-                  <span>
-                    {existingReservation.status === 'READY_FOR_PICKUP'
-                      ? 'Ready to Pick Up'
-                      : `Est. ${(existingReservation.queuePosition || 1) === 1 ? '1 week' : `${existingReservation.queuePosition || 1} weeks`}`}
-                  </span>
-                </button>
-                <p className="text-[11px] text-center text-[#6f7f64]">
-                  {existingReservation.status === 'READY_FOR_PICKUP'
-                    ? `Hold code: ${existingReservation.reservationCode} • Pick up at counter`
-                    : `Position #${existingReservation.queuePosition || 1} in waitlist • You will be notified when ready`}
-                </p>
+              <div className="relative w-full">
+                <div className="flex h-[42px] rounded-md bg-[#1c5d3e] hover:bg-[#164e33] text-white shadow-xs transition-colors overflow-hidden font-sans">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/activity?tab=reservations')}
+                    className="flex-1 px-4 text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer select-none"
+                  >
+                    <span>
+                      {existingReservation.status === 'READY_FOR_PICKUP'
+                        ? 'Ready to Pick Up'
+                        : `Est. ${(existingReservation.queuePosition || 1) === 1 ? '1 week' : `${existingReservation.queuePosition || 1} weeks`}`}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReservationDropdownOpen(!reservationDropdownOpen)}
+                    className="px-3 border-l border-white/20 hover:bg-black/15 flex items-center justify-center cursor-pointer transition-colors"
+                    title="Reservation options"
+                  >
+                    <IconChevronDown
+                      size={14}
+                      className={`transition-transform duration-200 ${reservationDropdownOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                </div>
+
+                {reservationDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setReservationDropdownOpen(false)} />
+                    <div className="absolute left-0 right-0 mt-1 rounded-md border border-[#d6d2c4] dark:border-[#384239] bg-white dark:bg-[#202622] shadow-lg py-1 z-50 text-[13px] animate-in fade-in zoom-in-95 duration-100">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReservationDropdownOpen(false)
+                          navigate('/activity?tab=reservations')
+                        }}
+                        className="w-full text-left px-3.5 py-2 text-[#2c392d] dark:text-[#d8e2cf] hover:bg-[#f0f4f1] dark:hover:bg-[#2a352b] transition-colors cursor-pointer"
+                      >
+                        View in Activity
+                      </button>
+                      <button
+                        type="button"
+                        disabled={cancellingReservation}
+                        onClick={handleCancelReservation}
+                        className="w-full text-left px-3.5 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer border-t border-[#f0ede6] dark:border-[#2d3a2e] disabled:opacity-50"
+                      >
+                        {cancellingReservation ? 'Cancelling...' : 'Cancel Reservation'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : book.availableCopies === 0 ? (
-              <div className="w-full flex flex-col gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleReserve}
-                  disabled={reserving}
-                  className="w-full h-[42px] rounded-md bg-amber-600 hover:bg-amber-700 text-white font-sans text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
-                >
-                  <IconClock size={16} /> {reserving ? 'Joining Waitlist...' : 'Join Waitlist'}
-                </button>
-                {reserveError && (
-                  <div className="p-2.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-xs flex flex-col gap-1.5 animate-in fade-in">
-                    <div>{reserveError}</div>
-                    {(reserveError.toLowerCase().includes('limit') ||
-                      reserveError.toLowerCase().includes('membership') ||
-                      reserveError.toLowerCase().includes('plan')) && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => navigate('/membership')}
-                        className="text-xs h-6 px-2 w-fit text-rose-800 border-rose-300 hover:bg-rose-100 cursor-pointer"
-                      >
-                        Upgrade Membership Plan →
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={handleReserve}
+                disabled={reserving}
+                className="w-full h-[42px] rounded-md bg-[#1c5d3e] hover:bg-[#164e33] text-white font-sans text-[14px] font-semibold flex items-center justify-center cursor-pointer shadow-xs transition-colors disabled:opacity-50"
+              >
+                {reserving ? 'Joining Waitlist...' : 'Join Waitlist'}
+              </button>
             ) : (
-              <div className="w-full flex flex-col gap-1.5">
-                <div className="relative w-full">
-                  <div className="flex h-[42px] rounded-md bg-[#3d4b3e] hover:bg-[#2e3a2f] text-white shadow-xs transition-colors overflow-hidden font-sans">
-                    <button
-                      type="button"
-                      disabled={reserving}
-                      onClick={handleReserve}
-                      className="flex-1 px-4 text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer select-none disabled:opacity-60"
-                    >
-                      {reserving ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          <span>Borrowing...</span>
-                        </>
-                      ) : (
-                        <span>Borrow</span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setReserveDropdownOpen(!reserveDropdownOpen)}
-                      className="px-3 border-l border-white/20 hover:bg-black/15 flex items-center justify-center cursor-pointer transition-colors"
-                    >
-                      <IconChevronDown size={14} />
-                    </button>
-                  </div>
-                  {reserveDropdownOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setReserveDropdownOpen(false)} />
-                      <div className="absolute left-0 right-0 mt-1 rounded-md border border-[#c8d0b7] bg-white shadow-lg py-1 z-50 text-[13px]">
-                        <button
-                          onClick={() => {
-                            setReserveDropdownOpen(false)
-                            if (!user || user.role !== 'MEMBER') {
-                              onOpenAuth('login')
-                              return
-                            }
-                            navigate('/activity?tab=reservations')
-                          }}
-                          className="w-full text-left px-3.5 py-2 hover:bg-[#f0f4f1] text-[#3d4b3e] font-medium"
-                        >
-                          My Reservations
-                        </button>
-                        <button
-                          onClick={() => {
-                            setReserveDropdownOpen(false)
-                            if (!user || user.role !== 'MEMBER') {
-                              onOpenAuth('login')
-                              return
-                            }
-                            navigate('/activity')
-                          }}
-                          className="w-full text-left px-3.5 py-2 hover:bg-[#f0f4f1] text-[#3d4b3e] font-medium"
-                        >
-                          My Loans
-                        </button>
-                        <button
-                          onClick={() => {
-                            setReserveDropdownOpen(false)
-                            window.open(`https://www.amazon.com/s?k=${encodeURIComponent(book.title)}`, '_blank')
-                          }}
-                          className="w-full text-left px-3.5 py-2 hover:bg-[#fafafa] text-[#666]"
-                        >
-                          Search on Amazon
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-                {reserveError && (
-                  <div className="p-2.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-xs flex flex-col gap-1.5 animate-in fade-in">
-                    <div>{reserveError}</div>
-                    {(reserveError.toLowerCase().includes('limit') ||
-                      reserveError.toLowerCase().includes('membership') ||
-                      reserveError.toLowerCase().includes('plan')) && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => navigate('/membership')}
-                        className="text-xs h-6 px-2 w-fit text-rose-800 border-rose-300 hover:bg-rose-100 cursor-pointer"
-                      >
-                        Upgrade Membership Plan →
-                      </Button>
-                    )}
-                  </div>
+              <button
+                type="button"
+                disabled={reserving}
+                onClick={handleReserve}
+                className="w-full h-[42px] rounded-md bg-[#1c5d3e] hover:bg-[#164e33] text-white font-sans text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors disabled:opacity-50 select-none"
+              >
+                {reserving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    <span>Borrowing...</span>
+                  </>
+                ) : (
+                  <span>Borrow</span>
                 )}
-              </div>
+              </button>
             )}
 
             {/* Live Bookmark button */}
@@ -568,19 +522,10 @@ export function BookDetail({
       {/* ===== READERS ALSO ENJOYED / BOOKS YOU MIGHT LIKE ===== */}
       {(similarBooks.length > 0 || loadingSimilar) && (
         <section className="mt-14 pt-8 border-t border-[#d6d2c4]/70 dark:border-[#3d4b3e]">
-          <div className="flex items-end justify-between mb-6">
-            <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#2e7d56] dark:text-[#66bb6a] mb-1">
-                <IconSparkles size={14} />
-                <span>Readers Also Enjoyed</span>
-              </div>
-              <h2 className="font-serif font-bold text-2xl sm:text-3xl text-[#181818] dark:text-[#f5f3e6] tracking-tight">
-                Books You Might Like
-              </h2>
-              <p className="text-xs text-[#6f7f64] dark:text-[#a0b096] mt-0.5">
-                Curated recommendations based on this edition's genre, themes, and authors
-              </p>
-            </div>
+          <div className="mb-5 sm:mb-6">
+            <h2 className="font-serif font-bold text-lg sm:text-xl text-[#181818] dark:text-[#f5f3e6] tracking-tight">
+              Books You Might Like
+            </h2>
           </div>
 
           {loadingSimilar ? (
@@ -633,9 +578,6 @@ export function BookDetail({
                       <p className="text-[11px] text-[#6f7f64] dark:text-[#a0b096] truncate mt-0.5">
                         {authorsText}
                       </p>
-                      <span className="inline-block mt-1 text-[10px] font-semibold text-[#2e7d56] dark:text-[#66bb6a]">
-                        {simBook.availableCopies > 0 ? 'Available now' : 'Waitlist open'}
-                      </span>
                     </div>
                   </div>
                 )
@@ -644,6 +586,63 @@ export function BookDetail({
           )}
         </section>
       )}
+
+      {/* Borrow / Reservation Error Dialog Popup */}
+      <Dialog open={!!reserveError} onOpenChange={(open) => !open && setReserveError(null)}>
+        <DialogContent
+          onClose={() => setReserveError(null)}
+          className="max-w-[390px] p-6 bg-white dark:bg-[#1f2320] border border-[#d6d2c4] dark:border-[#3d4b3e] rounded-xl shadow-2xl"
+        >
+          {(() => {
+            const isLimitError =
+              reserveError?.toLowerCase().includes('limit') ||
+              reserveError?.toLowerCase().includes('membership') ||
+              reserveError?.toLowerCase().includes('plan')
+
+            return (
+              <div className="flex flex-col gap-3.5">
+                <div className="flex items-center gap-2.5 pr-6">
+                  <span className="w-8 h-8 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                    <IconAlertCircle size={18} />
+                  </span>
+                  <h3 className="font-serif font-bold text-base sm:text-[17px] text-[#181818] dark:text-[#f5f3e6] leading-none">
+                    {isLimitError ? 'Membership Limit Reached' : 'Action Unavailable'}
+                  </h3>
+                </div>
+
+                <p className="text-xs sm:text-sm text-[#555] dark:text-[#aaa] leading-relaxed">
+                  {isLimitError
+                    ? "You've reached your plan's active book limit. Upgrade your membership to borrow more."
+                    : reserveError}
+                </p>
+
+                <div className="pt-1.5">
+                  {isLimitError ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReserveError(null)
+                        navigate('/membership')
+                      }}
+                      className="w-full h-[40px] rounded-md bg-[#1c5d3e] hover:bg-[#164e33] text-white font-sans text-[13.5px] font-semibold transition-colors cursor-pointer shadow-xs flex items-center justify-center"
+                    >
+                      Upgrade Membership Plan
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setReserveError(null)}
+                      className="w-full h-[40px] rounded-md bg-[#1c5d3e] hover:bg-[#164e33] text-white font-sans text-[13.5px] font-semibold transition-colors cursor-pointer shadow-xs flex items-center justify-center"
+                    >
+                      OK
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

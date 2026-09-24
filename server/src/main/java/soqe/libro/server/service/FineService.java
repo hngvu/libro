@@ -22,6 +22,7 @@ import soqe.libro.server.entity.Loan;
 import soqe.libro.server.entity.User;
 import soqe.libro.server.exception.BusinessValidationException;
 import soqe.libro.server.exception.ResourceNotFoundException;
+import soqe.libro.server.entity.AuditLog;
 import soqe.libro.server.repository.FineRepository;
 import soqe.libro.server.specification.FineSpecification;
 
@@ -42,6 +43,7 @@ public class FineService {
     private final FineRepository repository;
     private final soqe.libro.server.repository.UserRepository userRepository;
     private final SystemSettingService systemSettingService;
+    private final AuditLogService auditLogService;
 
     @Value("${stripe.currency:usd}")
     private String stripeCurrency;
@@ -143,6 +145,9 @@ public class FineService {
         fine.setPaidAt(LocalDateTime.now());
         fine = repository.save(fine);
 
+        auditLogService.record(AuditLog.EntityType.FINE, "FINE_COLLECTED", fine.getId(),
+                String.format("Collected $%s cash for fine ticket %s (patron %s)", fine.getAmount(), fine.getFineCode(), fine.getUser() != null ? fine.getUser().getEmail() : "unknown"));
+
         return toAdminResponse(fine);
     }
 
@@ -161,6 +166,9 @@ public class FineService {
         fine.setWaivedAt(LocalDateTime.now());
         fine.setWaivedReason(reason);
         fine = repository.save(fine);
+
+        auditLogService.record(AuditLog.EntityType.FINE, "FINE_WAIVED", fine.getId(),
+                String.format("Waived fine ticket %s ($%s). Reason: %s", fine.getFineCode(), fine.getAmount(), reason != null ? reason : "None"));
 
         return toAdminResponse(fine);
     }
@@ -291,6 +299,10 @@ public class FineService {
                                 fine.setPaidAt(LocalDateTime.now());
                                 repository.save(fine);
                                 log.info("Fine {} marked as PAID via Stripe Checkout", fine.getFineCode());
+
+                                auditLogService.record(fine.getUser() != null ? fine.getUser().getEmail() : "system",
+                                        "FINE_PAID_ONLINE", AuditLog.EntityType.FINE, fine.getId(),
+                                        String.format("Stripe payment received for fine ticket %s ($%s)", fine.getFineCode(), fine.getAmount()), "StripeWebhook");
                             }
                         });
                     } catch (NumberFormatException e) {

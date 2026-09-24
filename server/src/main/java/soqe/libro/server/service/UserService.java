@@ -18,6 +18,7 @@ import soqe.libro.server.exception.BusinessValidationException;
 import java.util.HashMap;
 import java.util.Map;
 
+import soqe.libro.server.entity.AuditLog;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
 
@@ -26,6 +27,7 @@ import org.springframework.util.StringUtils;
 public class UserService {
     private final UserRepository repository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditLogService auditLogService;
 
     // ==========================================
     // BACKOFFICE / ADMIN APIs
@@ -80,6 +82,10 @@ public class UserService {
                 .build();
 
         user = repository.save(user);
+
+        auditLogService.record(AuditLog.EntityType.USER, "USER_CREATED", user.getId(),
+                String.format("Created user %s (%s, role: %s)", user.getEmail(), user.getFullName(), user.getRole()));
+
         return UserResponse.builder()
                 .email(user.getEmail())
                 .fullName(user.getFullName())
@@ -110,6 +116,10 @@ public class UserService {
         if (request.status() != null) user.setStatus(request.status());
 
         user = repository.save(user);
+
+        auditLogService.record(AuditLog.EntityType.USER, "USER_UPDATED", user.getId(),
+                String.format("Updated user %s (role: %s, status: %s)", user.getEmail(), user.getRole(), user.getStatus()));
+
         return UserResponse.builder()
                 .email(user.getEmail())
                 .fullName(user.getFullName())
@@ -125,6 +135,9 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
         user.setStatus(User.Status.INACTIVE);
         repository.save(user);
+
+        auditLogService.record(AuditLog.EntityType.USER, "USER_DEACTIVATED", user.getId(),
+                String.format("Deactivated user %s (ID: %d)", user.getEmail(), id));
     }
 
     // ==========================================

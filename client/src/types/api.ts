@@ -561,3 +561,16 @@ export interface PresignedUploadResponse {
   expiresInSeconds: number
 }
 
+export interface ActivityLogItem {
+  id: number
+  timestamp: string
+  createdAt?: string
+  operator: string
+  action: string
+  entityType: 'LOAN' | 'BOOK' | 'USER' | 'SETTINGS' | 'FINE' | 'RESERVATION' | string
+  entityId?: number | null
+  detail: string
+  ipAddress: string
+}
+
+

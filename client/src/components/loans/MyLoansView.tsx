@@ -45,7 +45,6 @@ import {
   IconX,
   IconPlus,
   IconBookmark,
-  IconTrash,
 } from '@tabler/icons-react'
 
 function formatDate(dateStr?: string | null): string {
@@ -1520,9 +1519,8 @@ export function MyLoansView({ onOpenAuth }: MyLoansViewProps) {
                           variant="outline"
                           disabled={cancellingResId === res.id}
                           onClick={() => handleCancelReservation(res.id)}
-                          className="text-[11px] h-6 px-2.5 gap-1 rounded-[4px] border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors shadow-2xs font-semibold cursor-pointer"
+                          className="text-[11px] h-6 px-2.5 rounded-[4px] border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors shadow-2xs font-semibold cursor-pointer"
                         >
-                          <IconTrash size={11} />
                           {cancellingResId === res.id ? 'Cancelling...' : 'Cancel'}
                         </Button>
                       ) : (

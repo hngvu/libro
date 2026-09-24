@@ -80,6 +80,18 @@ export function BookCard({ book, onSelect }: BookCardProps) {
         <div className="pointer-events-none absolute inset-y-0 left-0 w-[2.5px] bg-gradient-to-r from-black/25 to-transparent" />
         <div className="pointer-events-none absolute inset-y-0 left-[2px] w-[0.5px] bg-white/20" />
       </div>
+
+      {/* Book Title & Author */}
+      <div className="mt-2 text-left">
+        <h4 className="font-serif font-bold text-[11px] sm:text-xs leading-snug text-[#181818] dark:text-[#f5f3e6] line-clamp-2 group-hover:text-[#1c5d3e] dark:group-hover:text-[#52a677] transition-colors">
+          {book.title}
+        </h4>
+        {book.authors && book.authors.length > 0 && (
+          <p className="text-[10px] sm:text-[10.5px] text-[#6f7f64] dark:text-[#a0b096] truncate mt-0.5">
+            {book.authors.map((a) => a.name).join(', ')}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

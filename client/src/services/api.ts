@@ -52,6 +52,7 @@ import type {
   BookmarkResponse,
   FileUploadResponse,
   PresignedUploadResponse,
+  ActivityLogItem,
 } from '@/types/api'
 
 const TOKEN_KEY = 'libro_jwt_token'
@@ -961,6 +962,22 @@ export const api = {
         method: 'DELETE',
       }
     )
+  },
+
+  // Admin: Audit Logs
+  async adminGetAuditLogs(params: {
+    keyword?: string
+    entityType?: string
+    page?: number
+    size?: number
+  } = {}): Promise<Page<ActivityLogItem>> {
+    const search = new URLSearchParams()
+    if (params.keyword) search.set('keyword', params.keyword)
+    if (params.entityType) search.set('entityType', params.entityType)
+    if (params.page !== undefined) search.set('page', String(params.page))
+    if (params.size !== undefined) search.set('size', String(params.size))
+    const q = search.toString()
+    return request<Page<ActivityLogItem>>(`/admin/audit-logs${q ? `?${q}` : ''}`)
   },
 }
 

@@ -33,6 +33,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final LoanRepository loanRepository;
     private final FineRepository fineRepository;
     private final SystemSettingRepository systemSettingRepository;
+    private final AuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -40,6 +41,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     public void run(String... args) {
         seedSystemSettings();
         seedMembershipPlans();
+        seedAuditLogs();
 
         if (userRepository.count() > 0) {
             log.info("Database users already seeded. Checking loan data population...");
@@ -1184,6 +1186,66 @@ public class DatabaseSeeder implements CommandLineRunner {
 
             membershipPlanRepository.save(vipPlan);
             log.info("Seeded membership plan: VIP");
+        }
+    }
+
+    private void seedAuditLogs() {
+        if (auditLogRepository.count() == 0) {
+            auditLogRepository.save(AuditLog.builder()
+                    .operatorEmail("admin@libro.com")
+                    .action("CHECKOUT_ISSUED")
+                    .entityType(AuditLog.EntityType.LOAN)
+                    .detail("Issued loan LN-88129 to patron @bin (Barcode: BC-391821)")
+                    .ipAddress("127.0.0.1")
+                    .createdAt(LocalDateTime.now().minusHours(4))
+                    .build());
+
+            auditLogRepository.save(AuditLog.builder()
+                    .operatorEmail("lucia@libro.com")
+                    .action("BOOK_RETURNED")
+                    .entityType(AuditLog.EntityType.LOAN)
+                    .detail("Processed return for LN-88104 (Clean Code)")
+                    .ipAddress("192.168.1.15")
+                    .createdAt(LocalDateTime.now().minusHours(8))
+                    .build());
+
+            auditLogRepository.save(AuditLog.builder()
+                    .operatorEmail("admin@libro.com")
+                    .action("BOOK_CREATED")
+                    .entityType(AuditLog.EntityType.BOOK)
+                    .detail("Created new title: Refactoring (2nd Edition) [BK992812]")
+                    .ipAddress("127.0.0.1")
+                    .createdAt(LocalDateTime.now().minusDays(1))
+                    .build());
+
+            auditLogRepository.save(AuditLog.builder()
+                    .operatorEmail("lucia@libro.com")
+                    .action("FINE_COLLECTED")
+                    .entityType(AuditLog.EntityType.FINE)
+                    .detail("Collected $2.00 overdue fee for ticket FINE-2026-001")
+                    .ipAddress("192.168.1.15")
+                    .createdAt(LocalDateTime.now().minusDays(2))
+                    .build());
+
+            auditLogRepository.save(AuditLog.builder()
+                    .operatorEmail("admin@libro.com")
+                    .action("POLICIES_UPDATED")
+                    .entityType(AuditLog.EntityType.SETTINGS)
+                    .detail("Updated default loan period from 10 to 14 days")
+                    .ipAddress("127.0.0.1")
+                    .createdAt(LocalDateTime.now().minusDays(3))
+                    .build());
+
+            auditLogRepository.save(AuditLog.builder()
+                    .operatorEmail("admin@libro.com")
+                    .action("USER_CREATED")
+                    .entityType(AuditLog.EntityType.USER)
+                    .detail("Registered patron account @alice (Alice Smith)")
+                    .ipAddress("127.0.0.1")
+                    .createdAt(LocalDateTime.now().minusDays(4))
+                    .build());
+
+            log.info("Seeded initial audit logs");
         }
     }
 }
