@@ -34,6 +34,8 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final FineRepository fineRepository;
     private final SystemSettingRepository systemSettingRepository;
     private final AuditLogRepository auditLogRepository;
+    private final CollectionRepository collectionRepository;
+    private final CollectionBookRepository collectionBookRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -42,6 +44,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         seedSystemSettings();
         seedMembershipPlans();
         seedAuditLogs();
+        seedCuratedCollections();
 
         if (userRepository.count() > 0) {
             log.info("Database users already seeded. Checking loan data population...");
@@ -1246,6 +1249,69 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .build());
 
             log.info("Seeded initial audit logs");
+        }
+    }
+
+    private void seedCuratedCollections() {
+        if (collectionRepository.findByTypeOrderByDisplayOrderAscCreatedAtDesc(Collection.CollectionType.CURATED).isEmpty()) {
+            List<Book> allBooks = bookRepository.findAll();
+            if (allBooks.isEmpty()) return;
+
+            // 1. Staff Picks (Pinned)
+            Collection staffPicks = Collection.builder()
+                    .name("Staff Picks")
+                    .slug("staff-picks")
+                    .description("Curated hand-picked favorites and timeless recommendations from our head librarians.")
+                    .type(Collection.CollectionType.CURATED)
+                    .isDefault(false)
+                    .pinned(true)
+                    .displayOrder(1)
+                    .bookCount(0)
+                    .build();
+            staffPicks = collectionRepository.save(staffPicks);
+
+            int addedStaff = 0;
+            for (int i = 0; i < Math.min(6, allBooks.size()); i++) {
+                collectionBookRepository.save(CollectionBook.builder()
+                        .collection(staffPicks)
+                        .book(allBooks.get(i))
+                        .addedAt(LocalDateTime.now().minusDays(i))
+                        .sortOrder(i + 1)
+                        .build());
+                addedStaff++;
+            }
+            staffPicks.setBookCount(addedStaff);
+            collectionRepository.save(staffPicks);
+
+            // 2. World Classics & Nobel Laureates (Pinned)
+            if (allBooks.size() > 6) {
+                Collection classics = Collection.builder()
+                        .name("World Literature & Classics")
+                        .slug("world-classics")
+                        .description("Essential masterpieces that shaped literary history, philosophical thought, and culture.")
+                        .type(Collection.CollectionType.CURATED)
+                        .isDefault(false)
+                        .pinned(true)
+                        .displayOrder(2)
+                        .bookCount(0)
+                        .build();
+                classics = collectionRepository.save(classics);
+
+                int addedClassics = 0;
+                for (int i = 6; i < Math.min(12, allBooks.size()); i++) {
+                    collectionBookRepository.save(CollectionBook.builder()
+                            .collection(classics)
+                            .book(allBooks.get(i))
+                            .addedAt(LocalDateTime.now().minusDays(i))
+                            .sortOrder(addedClassics + 1)
+                            .build());
+                    addedClassics++;
+                }
+                classics.setBookCount(addedClassics);
+                collectionRepository.save(classics);
+            }
+
+            log.info("Seeded initial curated collections: Staff Picks & World Classics");
         }
     }
 }

@@ -6,12 +6,14 @@ import { useAuth } from '@/context/AuthContext'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { AddToCollectionDialog } from '@/components/collection/AddToCollectionDialog'
 import {
   IconBook,
   IconChevronDown,
   IconChevronUp,
   IconBookmark,
   IconAlertCircle,
+  IconFolders,
 } from '@tabler/icons-react'
 
 interface BookDetailProps {
@@ -49,6 +51,7 @@ export function BookDetail({
 
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [bookmarkLoading, setBookmarkLoading] = useState(false)
+  const [addToCollectionOpen, setAddToCollectionOpen] = useState(false)
   const [similarBooks, setSimilarBooks] = useState<BookPublicResponse[]>([])
   const [loadingSimilar, setLoadingSimilar] = useState(false)
 
@@ -370,27 +373,46 @@ export function BookDetail({
               </button>
             )}
 
-            {/* Live Bookmark button */}
-            <button
-              type="button"
-              onClick={handleToggleBookmark}
-              disabled={bookmarkLoading}
-              className={`w-full h-[40px] rounded-md border font-sans text-[13.5px] font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all duration-200 shadow-2xs ${
-                isBookmarked
-                  ? 'border-[#2e7d56] bg-[#2e7d56]/12 dark:bg-[#2e7d56]/25 text-[#2e7d56] dark:text-[#66bb6a] hover:bg-[#2e7d56]/20'
-                  : 'border-[#3d4b3e]/60 dark:border-[#3d4b3e] bg-white dark:bg-[#252c28] hover:bg-[#f0f4f1] dark:hover:bg-[#333d36] text-[#3d4b3e] dark:text-[#c8d0b7]'
-              } disabled:opacity-50`}
-            >
-              {bookmarkLoading ? (
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <IconBookmark
-                  size={17}
-                  className={isBookmarked ? 'fill-current text-[#2e7d56] dark:text-[#66bb6a]' : ''}
-                />
-              )}
-              <span>{isBookmarked ? 'Bookmarked 🔖' : 'Bookmark'}</span>
-            </button>
+            {/* Bookmark & Collection actions */}
+            <div className="flex gap-2 w-full">
+              <button
+                type="button"
+                onClick={handleToggleBookmark}
+                disabled={bookmarkLoading}
+                className={`flex-1 h-[40px] rounded-md border font-sans text-[13.5px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all duration-200 shadow-2xs ${
+                  isBookmarked
+                    ? 'border-[#2e7d56] bg-[#2e7d56]/12 dark:bg-[#2e7d56]/25 text-[#2e7d56] dark:text-[#66bb6a] hover:bg-[#2e7d56]/20'
+                    : 'border-[#3d4b3e]/60 dark:border-[#3d4b3e] bg-white dark:bg-[#252c28] hover:bg-[#f0f4f1] dark:hover:bg-[#333d36] text-[#3d4b3e] dark:text-[#c8d0b7]'
+                } disabled:opacity-50`}
+                title={isBookmarked ? 'Remove from Saved Books' : 'Save to default shelf'}
+              >
+                {bookmarkLoading ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <IconBookmark
+                    size={16}
+                    className={isBookmarked ? 'fill-current text-[#2e7d56] dark:text-[#66bb6a]' : ''}
+                  />
+                )}
+                <span>{isBookmarked ? 'Saved 🔖' : 'Save'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!user || user.role !== 'MEMBER') {
+                    onOpenAuth('login')
+                    return
+                  }
+                  setAddToCollectionOpen(true)
+                }}
+                className="px-3 h-[40px] rounded-md border border-[#3d4b3e]/60 dark:border-[#3d4b3e] bg-white dark:bg-[#252c28] hover:bg-[#f0f4f1] dark:hover:bg-[#333d36] text-[#3d4b3e] dark:text-[#c8d0b7] font-sans text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                title="Add to custom collection"
+              >
+                <IconFolders size={16} />
+                <span className="hidden sm:inline">Add to shelf</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -643,6 +665,16 @@ export function BookDetail({
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Add To Collection Dialog */}
+      {book?.id && (
+        <AddToCollectionDialog
+          open={addToCollectionOpen}
+          onClose={() => setAddToCollectionOpen(false)}
+          bookId={book.id}
+          bookTitle={book.title}
+        />
+      )}
     </div>
   )
 }

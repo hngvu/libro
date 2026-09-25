@@ -434,10 +434,7 @@ function MemberCatalogContent({
         <main className="flex-1 min-w-0 lg:max-w-[620px] space-y-4">
           {/* Dynamic Header based on Selected Shelf */}
           <div className="pb-1.5 border-b border-zinc-200 dark:border-zinc-800">
-            <h1 className="text-sm sm:text-base font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-              {isRecommendations && (
-                <IconSparkles size={16} className="text-[#6f7f64] dark:text-[#a0b096]" />
-              )}
+            <h1 className="text-sm sm:text-base font-semibold text-zinc-900 dark:text-zinc-100">
               {selectedShelf === 'catalog'
                 ? selectedGenreObj ? selectedGenreObj.name : 'Recommendations'
                 : selectedShelf === 'loans'

@@ -30,10 +30,4 @@ public class RecommendationController {
             @RequestParam(defaultValue = "6") int limit) {
         return ResponseEntity.ok(recommendationService.getSimilarBooks(bookId, limit));
     }
-
-    @GetMapping("/trending")
-    public ResponseEntity<List<BookPublicResponse>> getTrendingBooks(
-            @RequestParam(defaultValue = "6") int limit) {
-        return ResponseEntity.ok(recommendationService.getTrendingBooks(limit));
-    }
 }

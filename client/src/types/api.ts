@@ -573,4 +573,35 @@ export interface ActivityLogItem {
   ipAddress: string
 }
 
+export interface CollectionResponse {
+  id: number
+  name: string
+  slug: string
+  description?: string | null
+  coverImage?: string | null
+  type: 'CURATED' | 'PERSONAL'
+  isDefault: boolean
+  bookCount: number
+  pinned: boolean
+  displayOrder: number
+  previewBooks?: BookPublicResponse[]
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface CollectionCreateRequest {
+  name: string
+  description?: string
+  coverImage?: string
+}
+
+export interface CollectionUpdateRequest {
+  name?: string
+  description?: string
+  coverImage?: string
+  pinned?: boolean
+  displayOrder?: number
+}
+
+
 

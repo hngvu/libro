@@ -248,6 +248,13 @@ public class BookService {
                 .build();
     }
 
+    public BookPublicResponse mapToPublicResponseById(Long bookId) {
+        if (bookId == null) return null;
+        return repository.findById(bookId)
+                .map(this::mapToPublicResponse)
+                .orElse(null);
+    }
+
     private BookResponse mapToAdminResponse(Book book) {
         return BookResponse.builder()
                 .id(book.getId())

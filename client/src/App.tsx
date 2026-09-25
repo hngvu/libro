@@ -23,6 +23,7 @@ import { AdminAuthorsPage } from '@/pages/admin/AdminAuthorsPage'
 import { AdminAuthorDetailPage } from '@/pages/admin/AdminAuthorDetailPage'
 import { AdminGenresPage } from '@/pages/admin/AdminGenresPage'
 import { AdminGenreDetailPage } from '@/pages/admin/AdminGenreDetailPage'
+import { AdminCollectionsPage } from '@/pages/admin/AdminCollectionsPage'
 import { AuthorDetailPage } from '@/pages/catalog/AuthorDetailPage'
 import { GenreDetailPage } from '@/pages/catalog/GenreDetailPage'
 import { CirculationDeskPage } from '@/pages/admin/CirculationDeskPage'
@@ -217,6 +218,7 @@ function AppContent() {
             <Route path="authors/:id" element={<AdminAuthorDetailPage />} />
             <Route path="genres" element={<AdminGenresPage />} />
             <Route path="genres/:id" element={<AdminGenreDetailPage />} />
+            <Route path="collections" element={<AdminCollectionsPage />} />
             {/* Circulation Group */}
             <Route path="circulation" element={<CirculationDeskPage />} />
             <Route path="circulation/desk" element={<CirculationDeskPage />} />

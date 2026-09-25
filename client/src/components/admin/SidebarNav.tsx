@@ -19,7 +19,8 @@ const getGroupByPath = (pathname: string): string | null => {
     pathname.startsWith('/admin/books') ||
     pathname.startsWith('/admin/copies') ||
     pathname.startsWith('/admin/authors') ||
-    pathname.startsWith('/admin/genres')
+    pathname.startsWith('/admin/genres') ||
+    pathname.startsWith('/admin/collections')
   ) {
     return 'books'
   }
@@ -114,6 +115,12 @@ export function SidebarNav() {
         <SidebarNavItem
           to="/admin/genres"
           label="Genres"
+          isSubItem={true}
+          disableActive={openGroup !== 'books'}
+        />
+        <SidebarNavItem
+          to="/admin/collections"
+          label="Collections"
           isSubItem={true}
           disableActive={openGroup !== 'books'}
         />

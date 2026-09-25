@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/services/api'
-import type { BookmarkResponse } from '@/types/api'
+import type { BookmarkResponse, CollectionResponse, BookPublicResponse } from '@/types/api'
 import {
   IconBookmark,
   IconX,
   IconTrash,
   IconBook,
-  IconClock,
-  IconCheck,
   IconArrowRight,
   IconCompass,
+  IconFolders,
+  IconPlus,
+  IconArrowLeft,
+  IconChevronRight,
 } from '@tabler/icons-react'
 
 interface BookmarkDrawerProps {
@@ -32,22 +34,22 @@ function convertIsbn13To10(isbn13: string): string | null {
   return body + checkDigit
 }
 
-function BookmarkItemCover({ bookmark }: { bookmark: BookmarkResponse }) {
+function BookItemCover({ cover, isbn, title }: { cover?: string | null; isbn?: string; title: string }) {
   const [imgStage, setImgStage] = useState(0)
 
   const getCoverUrl = (): string | null => {
-    if (imgStage === 0 && bookmark.bookCover) {
-      return bookmark.bookCover
+    if (imgStage === 0 && cover) {
+      return cover
     }
-    if (imgStage <= 1 && bookmark.isbn) {
-      const cleanIsbn = bookmark.isbn.replace(/[^0-9X]/gi, '')
+    if (imgStage <= 1 && isbn) {
+      const cleanIsbn = isbn.replace(/[^0-9X]/gi, '')
       const isbn10 = cleanIsbn.length === 13 ? convertIsbn13To10(cleanIsbn) : cleanIsbn
       if (isbn10 && isbn10.length === 10) {
         return `https://images-na.ssl-images-amazon.com/images/P/${isbn10}.01._SCLZZZZZZZ_SX500_.jpg`
       }
     }
-    if (imgStage <= 2 && bookmark.isbn) {
-      return `https://covers.openlibrary.org/b/isbn/${bookmark.isbn}-L.jpg`
+    if (imgStage <= 2 && isbn) {
+      return `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`
     }
     return null
   }
@@ -59,17 +61,16 @@ function BookmarkItemCover({ bookmark }: { bookmark: BookmarkResponse }) {
       {coverUrl ? (
         <img
           src={coverUrl}
-          alt={bookmark.bookTitle}
+          alt={title}
           className="h-full w-full object-fill select-none"
           onError={() => setImgStage((prev) => prev + 1)}
         />
       ) : (
         <div className="p-1 text-center text-[#888]">
           <IconBook size={20} className="mx-auto text-[#aaa] mb-1" />
-          <span className="text-[9px] font-serif leading-none line-clamp-2">{bookmark.bookTitle}</span>
+          <span className="text-[9px] font-serif leading-none line-clamp-2">{title}</span>
         </div>
       )}
-      {/* 3D spine lighting */}
       <div className="pointer-events-none absolute inset-y-0 left-0 w-[2.5px] bg-gradient-to-r from-black/25 to-transparent" />
       <div className="pointer-events-none absolute inset-y-0 left-[2px] w-[0.5px] bg-white/20" />
     </div>
@@ -78,14 +79,30 @@ function BookmarkItemCover({ bookmark }: { bookmark: BookmarkResponse }) {
 
 export function BookmarkDrawer({ open, onClose, onSelectBook }: BookmarkDrawerProps) {
   const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState<'saved' | 'collections'>('saved')
+
+  // Saved Books State
   const [bookmarks, setBookmarks] = useState<BookmarkResponse[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loadingBookmarks, setLoadingBookmarks] = useState(false)
   const [removingId, setRemovingId] = useState<number | null>(null)
   const [reservingId, setReservingId] = useState<number | null>(null)
   const [actionNotice, setActionNotice] = useState<string | null>(null)
 
+  // Collections State
+  const [collections, setCollections] = useState<CollectionResponse[]>([])
+  const [loadingCollections, setLoadingCollections] = useState(false)
+  const [selectedCollection, setSelectedCollection] = useState<CollectionResponse | null>(null)
+  const [collectionBooks, setCollectionBooks] = useState<BookPublicResponse[]>([])
+  const [loadingCollectionBooks, setLoadingCollectionBooks] = useState(false)
+
+  // Create Collection Form Modal/State
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [newCollName, setNewCollName] = useState('')
+  const [newCollDesc, setNewCollDesc] = useState('')
+  const [creatingColl, setCreatingColl] = useState(false)
+
   const fetchBookmarks = useCallback(async () => {
-    setLoading(true)
+    setLoadingBookmarks(true)
     try {
       const data = await api.getBookmarks()
       setBookmarks(data || [])
@@ -93,47 +110,155 @@ export function BookmarkDrawer({ open, onClose, onSelectBook }: BookmarkDrawerPr
       console.error('Failed to load bookmarks:', err)
       setBookmarks([])
     } finally {
-      setLoading(false)
+      setLoadingBookmarks(false)
+    }
+  }, [])
+
+  const fetchCollections = useCallback(async () => {
+    setLoadingCollections(true)
+    try {
+      const data = await api.getMyCollections()
+      setCollections(data || [])
+    } catch (err) {
+      console.error('Failed to load collections:', err)
+      setCollections([])
+    } finally {
+      setLoadingCollections(false)
     }
   }, [])
 
   useEffect(() => {
     if (open) {
       fetchBookmarks()
-      // Lock body scroll
+      fetchCollections()
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
+      setSelectedCollection(null)
+      setShowCreateModal(false)
     }
 
     return () => {
       document.body.style.overflow = ''
     }
-  }, [open, fetchBookmarks])
+  }, [open, fetchBookmarks, fetchCollections])
 
-  // Listen for sync events
+  // Sync event listener
   useEffect(() => {
     const handleSync = () => {
       if (open) {
         fetchBookmarks()
+        fetchCollections()
+        if (selectedCollection) {
+          loadBooksInCollection(selectedCollection.id)
+        }
       }
     }
     window.addEventListener('libro:bookmarks-changed', handleSync)
-    return () => window.removeEventListener('libro:bookmarks-changed', handleSync)
-  }, [open, fetchBookmarks])
+    window.addEventListener('libro:collections-changed', handleSync)
+    return () => {
+      window.removeEventListener('libro:bookmarks-changed', handleSync)
+      window.removeEventListener('libro:collections-changed', handleSync)
+    }
+  }, [open, fetchBookmarks, fetchCollections, selectedCollection])
 
   // Escape key handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && open) {
-        onClose()
+        if (selectedCollection) {
+          setSelectedCollection(null)
+        } else {
+          onClose()
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [open, onClose])
+  }, [open, onClose, selectedCollection])
 
-  const handleRemove = async (bookmark: BookmarkResponse) => {
+  const loadBooksInCollection = async (collectionId: number) => {
+    setLoadingCollectionBooks(true)
+    try {
+      const res = await api.getCollectionBooks(collectionId, 1, 50)
+      setCollectionBooks(res.content || [])
+    } catch (err) {
+      console.error('Failed to load collection books:', err)
+      setCollectionBooks([])
+    } finally {
+      setLoadingCollectionBooks(false)
+    }
+  }
+
+  const handleSelectCollection = (c: CollectionResponse) => {
+    setSelectedCollection(c)
+    loadBooksInCollection(c.id)
+  }
+
+  const handleCreateCollection = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCollName.trim() || creatingColl) return
+    setCreatingColl(true)
+    try {
+      const res = await api.createCollection({
+        name: newCollName.trim(),
+        description: newCollDesc.trim() || undefined,
+      })
+      setCollections((prev) => [...prev, res])
+      setNewCollName('')
+      setNewCollDesc('')
+      setShowCreateModal(false)
+      setActionNotice(`Created collection "${res.name}"`)
+      setTimeout(() => setActionNotice(null), 3000)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create collection'
+      setActionNotice(`Error: ${msg}`)
+      setTimeout(() => setActionNotice(null), 3500)
+    } finally {
+      setCreatingColl(false)
+    }
+  }
+
+  const handleDeleteCollection = async (collectionId: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!confirm('Are you sure you want to delete this collection?')) return
+    try {
+      await api.deleteCollection(collectionId)
+      setCollections((prev) => prev.filter((c) => c.id !== collectionId))
+      if (selectedCollection?.id === collectionId) {
+        setSelectedCollection(null)
+      }
+      setActionNotice('Collection deleted')
+      setTimeout(() => setActionNotice(null), 2500)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete'
+      setActionNotice(`Error: ${msg}`)
+      setTimeout(() => setActionNotice(null), 3000)
+    }
+  }
+
+  const handleRemoveFromCollection = async (bookId: number) => {
+    if (!selectedCollection) return
+    try {
+      await api.removeBookFromCollection(selectedCollection.id, bookId)
+      setCollectionBooks((prev) => prev.filter((b) => b.id !== bookId))
+      setSelectedCollection((prev) =>
+        prev ? { ...prev, bookCount: Math.max(0, prev.bookCount - 1) } : null
+      )
+      setCollections((prev) =>
+        prev.map((c) =>
+          c.id === selectedCollection.id
+            ? { ...c, bookCount: Math.max(0, c.bookCount - 1) }
+            : c
+        )
+      )
+      window.dispatchEvent(new CustomEvent('libro:collections-changed'))
+    } catch (err) {
+      console.error('Failed to remove from collection:', err)
+    }
+  }
+
+  const handleRemoveSavedBook = async (bookmark: BookmarkResponse) => {
     setRemovingId(bookmark.bookId)
     try {
       await api.removeBookmark(bookmark.bookId)
@@ -144,18 +269,18 @@ export function BookmarkDrawer({ open, onClose, onSelectBook }: BookmarkDrawerPr
         })
       )
     } catch (err) {
-      console.error('Failed to remove bookmark:', err)
+      console.error('Failed to remove saved book:', err)
     } finally {
       setRemovingId(null)
     }
   }
 
-  const handleViewDetails = (bookmark: BookmarkResponse) => {
+  const handleViewDetails = (book: { handle: string; slug?: string }) => {
     onClose()
     if (onSelectBook) {
-      onSelectBook({ handle: bookmark.bookHandle, slug: bookmark.bookSlug })
+      onSelectBook(book)
     } else {
-      navigate(`/book/${bookmark.bookHandle}/${bookmark.bookSlug || bookmark.bookHandle}`)
+      navigate(`/book/${book.handle}/${book.slug || book.handle}`)
     }
   }
 
@@ -198,231 +323,441 @@ export function BookmarkDrawer({ open, onClose, onSelectBook }: BookmarkDrawerPr
         role="dialog"
         aria-modal="true"
         aria-labelledby="bookmark-drawer-title"
-        className="relative w-full sm:w-[440px] md:w-[480px] h-full bg-[#faf9f4] dark:bg-[#1c221e] border-l border-[#c8d0b7] dark:border-[#3d4b3e] shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-300 ease-out font-sans text-[#181818] dark:text-[#f5f3e6]"
+        className="relative w-full max-w-md bg-[#faf9f5] dark:bg-[#1c221e] text-[#1e2320] dark:text-[#f5f3e6] shadow-2xl flex flex-col h-full border-l border-[#d6d2c4] dark:border-[#384239] z-10 animate-in slide-in-from-right duration-300 ease-out"
       >
-        {/* Drawer Header */}
-        <div className="p-4 sm:p-5 border-b border-[#c8d0b7]/60 dark:border-[#3d4b3e] bg-[#f4f1ea]/80 dark:bg-[#232924]/80 backdrop-blur-md flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-[#3d4b3e]/10 dark:bg-[#c8d0b7]/15 flex items-center justify-center text-[#2e7d56] dark:text-[#66bb6a]">
-              <IconBookmark size={18} className="fill-current" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
+        {/* Header with Title & Tabs */}
+        <div className="p-4 sm:p-5 border-b border-[#e2ded2] dark:border-[#303831] bg-white/70 dark:bg-[#202722]/80 backdrop-blur-xs flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              {selectedCollection ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedCollection(null)}
+                  className="p-1 rounded-md hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-600 dark:text-stone-300 cursor-pointer"
+                  title="Back to Collections"
+                >
+                  <IconArrowLeft size={18} />
+                </button>
+              ) : (
+                <span className="w-8 h-8 rounded-lg bg-[#2e7d56]/12 dark:bg-[#2e7d56]/25 text-[#2e7d56] dark:text-[#66bb6a] flex items-center justify-center shrink-0">
+                  <IconFolders size={18} />
+                </span>
+              )}
+              <div>
                 <h2
                   id="bookmark-drawer-title"
-                  className="font-serif font-bold text-lg leading-tight text-[#181818] dark:text-[#f5f3e6]"
+                  className="font-serif font-bold text-lg text-[#181818] dark:text-[#f5f3e6] tracking-tight leading-none"
                 >
-                  Saved Books
+                  {selectedCollection ? selectedCollection.name : 'Your Library Shelf'}
                 </h2>
-                {bookmarks.length > 0 && (
-                  <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-[#3d4b3e] text-white dark:bg-[#2e7d56]">
-                    {bookmarks.length}
-                  </span>
-                )}
-              </div>
-              <p className="text-[12px] text-[#6f7f64] dark:text-[#a0b096] mt-0.5">
-                Personal reading catalog & collection
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-md text-[#666666] dark:text-[#a0b096] hover:text-[#181818] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-            title="Close drawer"
-          >
-            <IconX size={20} />
-          </button>
-        </div>
-
-        {/* Action Notice Banner */}
-        {actionNotice && (
-          <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-200 dark:border-emerald-800 text-xs font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2 animate-in fade-in">
-            <IconCheck size={14} className="shrink-0" />
-            <span className="truncate">{actionNotice}</span>
-          </div>
-        )}
-
-        {/* Drawer Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-          {loading ? (
-            <div className="py-20 text-center space-y-3">
-              <div className="w-8 h-8 border-2 border-[#2e7d56] border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs font-serif text-[#6f7f64] dark:text-[#a0b096]">
-                Opening your reading collection...
-              </p>
-            </div>
-          ) : bookmarks.length === 0 ? (
-            /* Empty State with Literary Aesthetic */
-            <div className="py-16 px-4 text-center flex flex-col items-center justify-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-[#f0ede6] dark:bg-[#252c28] border border-[#c8d0b7]/60 dark:border-[#3d4b3e] flex items-center justify-center text-[#888888] dark:text-[#a0b096] shadow-inner">
-                <IconBookmark size={30} stroke={1.5} />
-              </div>
-
-              <div className="space-y-1.5 max-w-xs">
-                <h3 className="font-serif font-bold text-base text-[#181818] dark:text-[#f5f3e6]">
-                  Your reading shelf is quiet
-                </h3>
-                <p className="text-xs text-[#6f7f64] dark:text-[#a0b096] leading-relaxed">
-                  Bookmark titles while exploring the library to easily reserve or revisit them later.
+                <p className="text-[11.5px] text-[#666666] dark:text-[#a0a89f] mt-0.5">
+                  {selectedCollection
+                    ? `${selectedCollection.bookCount} books in collection`
+                    : 'Personal collections & saved titles'}
                 </p>
               </div>
+            </div>
 
-              <div className="p-3.5 rounded-lg bg-[#f0ede6]/60 dark:bg-[#252c28]/70 border border-[#d6d2c4]/50 dark:border-[#3d4b3e]/60 text-center max-w-xs">
-                <p className="font-serif italic text-xs text-[#555555] dark:text-[#c8d0b7]">
-                  "There is no friend as loyal as a book."
-                </p>
-                <span className="text-[10px] text-[#777777] dark:text-[#888888] block mt-1">
-                  — Ernest Hemingway
-                </span>
-              </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 text-[#777] hover:text-[#181818] dark:hover:text-[#f5f3e6] rounded-md hover:bg-stone-200/60 dark:hover:bg-[#2c352d] transition-colors cursor-pointer"
+              title="Close shelf (Esc)"
+            >
+              <IconX size={18} />
+            </button>
+          </div>
+
+          {/* Segmented Control Tabs (Only if not drilling into a collection) */}
+          {!selectedCollection && (
+            <div className="flex items-center p-1 rounded-lg bg-[#eeebd9] dark:bg-[#28312a] text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setActiveTab('saved')}
+                className={`flex-1 py-1.5 rounded-md flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === 'saved'
+                    ? 'bg-white dark:bg-[#1a1f1b] text-[#181818] dark:text-[#f5f3e6] shadow-xs'
+                    : 'text-[#666] dark:text-[#aaa] hover:text-[#181818] dark:hover:text-[#fff]'
+                }`}
+              >
+                <IconBookmark size={14} />
+                <span>Saved Books ({bookmarks.length})</span>
+              </button>
 
               <button
                 type="button"
-                onClick={() => {
-                  onClose()
-                  navigate('/')
-                }}
-                className="mt-2 px-4 py-2 rounded-md bg-[#3d4b3e] hover:bg-[#2e3a2f] dark:bg-[#2e7d56] dark:hover:bg-[#256345] text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                onClick={() => setActiveTab('collections')}
+                className={`flex-1 py-1.5 rounded-md flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === 'collections'
+                    ? 'bg-white dark:bg-[#1a1f1b] text-[#181818] dark:text-[#f5f3e6] shadow-xs'
+                    : 'text-[#666] dark:text-[#aaa] hover:text-[#181818] dark:hover:text-[#fff]'
+                }`}
               >
-                <IconCompass size={14} />
-                <span>Explore Catalog</span>
+                <IconFolders size={14} />
+                <span>My Collections ({collections.length})</span>
               </button>
-            </div>
-          ) : (
-            /* Bookmarks List */
-            <div className="space-y-3.5">
-              {bookmarks.map((b) => {
-                const isAvailable = (b.availableCopies ?? 0) > 0
-                const authorsText =
-                  b.authors && b.authors.length > 0 ? b.authors.join(', ') : 'Unknown Author'
-
-                return (
-                  <div
-                    key={b.id || b.bookId}
-                    className="p-3.5 rounded-lg border border-[#c8d0b7]/70 dark:border-[#3d4b3e] bg-white dark:bg-[#232924] hover:shadow-md transition-all duration-200 flex gap-3.5 group"
-                  >
-                    {/* Cover thumbnail */}
-                    <div
-                      onClick={() => handleViewDetails(b)}
-                      className="cursor-pointer group-hover:opacity-90 transition-opacity shrink-0"
-                    >
-                      <BookmarkItemCover bookmark={b} />
-                    </div>
-
-                    {/* Metadata & Actions */}
-                    <div className="flex-1 min-w-0 flex flex-col justify-between">
-                      <div>
-                        {/* Title & Remove Button */}
-                        <div className="flex items-start justify-between gap-2">
-                          <h4
-                            onClick={() => handleViewDetails(b)}
-                            className="font-serif font-bold text-sm text-[#181818] dark:text-[#f5f3e6] line-clamp-2 leading-snug cursor-pointer hover:text-[#2e7d56] dark:hover:text-[#66bb6a] transition-colors"
-                          >
-                            {b.bookTitle}
-                          </h4>
-
-                          <button
-                            type="button"
-                            onClick={() => handleRemove(b)}
-                            disabled={removingId === b.bookId}
-                            className="text-[#888888] hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors shrink-0 cursor-pointer disabled:opacity-50"
-                            title="Remove bookmark"
-                          >
-                            {removingId === b.bookId ? (
-                              <div className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <IconTrash size={15} />
-                            )}
-                          </button>
-                        </div>
-
-                        {/* Author */}
-                        <p className="text-xs text-[#55634d] dark:text-[#c8d0b7] truncate mt-0.5">
-                          by {authorsText}
-                        </p>
-
-                        {/* Status Badge */}
-                        <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                          {isAvailable ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                              Available ({b.availableCopies} {b.availableCopies === 1 ? 'copy' : 'copies'})
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-                              Out of stock · Waitlist open
-                            </span>
-                          )}
-
-                          {b.publicationYear && (
-                            <span className="text-[11px] text-[#767676] dark:text-[#999]">
-                              {b.publicationYear}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Quick Actions */}
-                      <div className="mt-3 pt-2.5 border-t border-[#f0ede6] dark:border-[#333d36] flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleViewDetails(b)}
-                          className="flex-1 h-7 rounded-md border border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#faf9f4] dark:bg-[#1e2320] hover:bg-[#f0ede6] dark:hover:bg-[#2b332c] text-[11.5px] font-medium text-[#181818] dark:text-[#f5f3e6] flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                        >
-                          <span>View Details</span>
-                          <IconArrowRight size={12} />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleReserve(b)}
-                          disabled={reservingId === b.bookId}
-                          className={`h-7 px-3 rounded-md text-[11.5px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer shadow-2xs ${
-                            isAvailable
-                              ? 'bg-[#3d4b3e] hover:bg-[#2e3a2f] text-white dark:bg-[#2e7d56] dark:hover:bg-[#256345]'
-                              : 'bg-amber-600 hover:bg-amber-700 text-white'
-                          }`}
-                        >
-                          {reservingId === b.bookId ? (
-                            <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-                          ) : isAvailable ? (
-                            <span>Borrow</span>
-                          ) : (
-                            <>
-                              <IconClock size={12} />
-                              <span>Reserve</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
             </div>
           )}
         </div>
 
-        {/* Drawer Footer */}
-        {bookmarks.length > 0 && (
-          <div className="p-3.5 px-5 border-t border-[#c8d0b7]/60 dark:border-[#3d4b3e] bg-[#f4f1ea]/80 dark:bg-[#232924]/80 flex items-center justify-between text-xs text-[#6f7f64] dark:text-[#a0b096]">
-            <span>{bookmarks.length} {bookmarks.length === 1 ? 'saved book' : 'saved books'}</span>
+        {/* Global Action / Error Banner */}
+        {actionNotice && (
+          <div className="px-4 py-2 bg-[#2e7d56]/15 dark:bg-[#2e7d56]/30 border-b border-[#2e7d56]/30 text-[#1e583b] dark:text-[#81c784] text-xs font-medium flex items-center justify-between animate-in fade-in">
+            <span>{actionNotice}</span>
             <button
               type="button"
-              onClick={() => {
-                onClose()
-                navigate('/')
-              }}
-              className="font-medium text-[#2e7d56] dark:text-[#66bb6a] hover:underline cursor-pointer"
+              onClick={() => setActionNotice(null)}
+              className="text-[#1e583b] dark:text-[#81c784] hover:opacity-75 cursor-pointer"
             >
-              Browse more books →
+              <IconX size={14} />
             </button>
           </div>
         )}
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 divide-y divide-[#ece7db] dark:divide-[#2e372f]">
+          {selectedCollection ? (
+            /* Collection Detail View inside Drawer */
+            <div className="space-y-4">
+              {loadingCollectionBooks ? (
+                <div className="py-16 text-center space-y-3">
+                  <div className="w-8 h-8 border-2 border-[#2e7d56] border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-xs text-[#888]">Loading books in collection...</p>
+                </div>
+              ) : collectionBooks.length === 0 ? (
+                <div className="py-16 text-center space-y-3">
+                  <IconBook size={40} className="mx-auto text-stone-300 dark:text-zinc-700" />
+                  <h4 className="font-serif font-bold text-sm text-stone-700 dark:text-stone-300">
+                    No books in this collection
+                  </h4>
+                  <p className="text-xs text-stone-500 max-w-[240px] mx-auto">
+                    Browse the catalog and click "Add to Collection" on any book.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {collectionBooks.map((b) => (
+                    <div
+                      key={b.id || b.handle}
+                      className="flex gap-3 p-3 rounded-xl border border-[#e2ded2] dark:border-[#333d36] bg-white dark:bg-[#202722] hover:border-[#2e7d56]/50 transition-colors group"
+                    >
+                      <BookItemCover cover={b.cover} isbn={b.isbn} title={b.title} />
+
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div>
+                          <h4
+                            onClick={() => handleViewDetails(b)}
+                            className="font-serif font-bold text-xs sm:text-sm text-[#181818] dark:text-[#f5f3e6] line-clamp-2 leading-snug cursor-pointer hover:text-[#2e7d56] transition-colors"
+                          >
+                            {b.title}
+                          </h4>
+                          <p className="text-[11px] text-[#666] dark:text-[#a0a89f] truncate mt-0.5">
+                            {b.authors && b.authors.length > 0
+                              ? b.authors.map((a) => a.name).join(', ')
+                              : 'Unknown Author'}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-[#f0ede4] dark:border-[#29322a] mt-2">
+                          <button
+                            type="button"
+                            onClick={() => handleViewDetails(b)}
+                            className="text-[11px] font-semibold text-[#2e7d56] hover:underline cursor-pointer"
+                          >
+                            View details
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => b.id && handleRemoveFromCollection(b.id)}
+                            className="text-[#999] hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer"
+                            title="Remove from collection"
+                          >
+                            <IconTrash size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : activeTab === 'saved' ? (
+            /* Saved Books Tab */
+            loadingBookmarks ? (
+              <div className="py-20 text-center space-y-3">
+                <div className="w-8 h-8 border-2 border-[#2e7d56] border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs text-[#888]">Loading saved titles...</p>
+              </div>
+            ) : bookmarks.length === 0 ? (
+              <div className="py-20 text-center space-y-4 max-w-xs mx-auto">
+                <div className="w-14 h-14 rounded-2xl bg-[#eeebd9] dark:bg-[#28312a] flex items-center justify-center mx-auto text-[#2e7d56]">
+                  <IconBookmark size={28} />
+                </div>
+                <h3 className="font-serif font-bold text-base text-[#181818] dark:text-[#f5f3e6]">
+                  Your Shelf is Empty
+                </h3>
+                <p className="text-xs text-[#666] dark:text-[#a0a89f] leading-relaxed">
+                  Bookmark titles you'd like to read later, or create custom collections to organize your study.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose()
+                    navigate('/')
+                  }}
+                  className="px-4 py-2 rounded-lg bg-[#2e7d56] hover:bg-[#256646] text-white text-xs font-semibold transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <IconCompass size={15} />
+                  <span>Explore Catalog</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3 pt-1">
+                {bookmarks.map((bm) => (
+                  <div
+                    key={bm.id}
+                    className="flex gap-3 p-3 rounded-xl border border-[#e2ded2] dark:border-[#333d36] bg-white dark:bg-[#202722] hover:border-[#2e7d56]/50 transition-colors group"
+                  >
+                    <BookItemCover cover={bm.bookCover} isbn={bm.isbn} title={bm.bookTitle} />
+
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div>
+                        <h4
+                          onClick={() => handleViewDetails({ handle: bm.bookHandle, slug: bm.bookSlug })}
+                          className="font-serif font-bold text-xs sm:text-sm text-[#181818] dark:text-[#f5f3e6] line-clamp-2 leading-snug cursor-pointer hover:text-[#2e7d56] transition-colors"
+                        >
+                          {bm.bookTitle}
+                        </h4>
+                        <p className="text-[11px] text-[#666] dark:text-[#a0a89f] truncate mt-0.5">
+                          {bm.authors && bm.authors.length > 0 ? bm.authors.join(', ') : 'Unknown Author'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-[#f0ede4] dark:border-[#29322a] mt-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleViewDetails({ handle: bm.bookHandle, slug: bm.bookSlug })}
+                            className="text-[11px] font-semibold text-[#2e7d56] hover:underline cursor-pointer"
+                          >
+                            View
+                          </button>
+                          <span className="text-[#ccc] text-xs">·</span>
+                          <button
+                            type="button"
+                            disabled={reservingId === bm.bookId}
+                            onClick={() => handleReserve(bm)}
+                            className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer disabled:opacity-50"
+                          >
+                            {reservingId === bm.bookId ? 'Holding...' : 'Reserve'}
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={removingId === bm.bookId}
+                          onClick={() => handleRemoveSavedBook(bm)}
+                          className="text-[#999] hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                          title="Remove from saved books"
+                        >
+                          <IconTrash size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : (
+            /* My Collections Tab */
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center justify-between pb-2">
+                <span className="text-xs text-[#888] font-medium">Custom book shelves</span>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-2.5 py-1 rounded-md bg-[#2e7d56] hover:bg-[#256646] text-white text-xs font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <IconPlus size={14} />
+                  <span>New Collection</span>
+                </button>
+              </div>
+
+              {loadingCollections ? (
+                <div className="py-20 text-center space-y-3">
+                  <div className="w-8 h-8 border-2 border-[#2e7d56] border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-xs text-[#888]">Loading collections...</p>
+                </div>
+              ) : collections.length === 0 ? (
+                <div className="py-16 text-center space-y-3">
+                  <IconFolders size={36} className="mx-auto text-stone-300 dark:text-zinc-700" />
+                  <h4 className="font-serif font-bold text-sm text-stone-700 dark:text-stone-300">
+                    No custom collections yet
+                  </h4>
+                  <p className="text-xs text-stone-500 max-w-[220px] mx-auto">
+                    Group books by theme, project, or season.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {collections.map((c) => (
+                    <div
+                      key={c.id}
+                      onClick={() => handleSelectCollection(c)}
+                      className="p-3.5 rounded-xl border border-[#e2ded2] dark:border-[#333d36] bg-white dark:bg-[#202722] hover:border-[#2e7d56]/60 transition-all cursor-pointer group flex items-center justify-between"
+                    >
+                      <div className="min-w-0 pr-3">
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="font-serif font-bold text-sm text-stone-900 dark:text-stone-100 group-hover:text-[#2e7d56] transition-colors truncate">
+                            {c.name}
+                          </h4>
+                          {c.isDefault && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-[#2e7d56]/15 text-[#2e7d56]">
+                              Default
+                            </span>
+                          )}
+                        </div>
+
+                        {c.description && (
+                          <p className="text-xs text-stone-500 dark:text-stone-400 line-clamp-1 mt-0.5">
+                            {c.description}
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-[11px] font-medium text-stone-500">
+                            {c.bookCount} {c.bookCount === 1 ? 'book' : 'books'}
+                          </span>
+
+                          {/* Preview mini covers stack */}
+                          {c.previewBooks && c.previewBooks.length > 0 && (
+                            <div className="flex -space-x-1.5 overflow-hidden">
+                              {c.previewBooks.slice(0, 3).map((pb, idx) => (
+                                <div
+                                  key={pb.id || idx}
+                                  className="w-5 h-7 rounded-[1px] bg-stone-200 border border-white dark:border-zinc-800 overflow-hidden shrink-0"
+                                >
+                                  {pb.cover && (
+                                    <img
+                                      src={pb.cover}
+                                      alt={pb.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {!c.isDefault && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteCollection(c.id, e)}
+                            className="p-1.5 text-stone-400 hover:text-rose-600 rounded-md transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                            title="Delete collection"
+                          >
+                            <IconTrash size={15} />
+                          </button>
+                        )}
+                        <IconChevronRight
+                          size={16}
+                          className="text-stone-400 group-hover:text-stone-700 dark:group-hover:text-stone-200 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-[#e2ded2] dark:border-[#303831] bg-white/50 dark:bg-[#202722]/50 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              onClose()
+              navigate('/')
+            }}
+            className="text-xs font-semibold text-[#2e7d56] hover:underline inline-flex items-center gap-1 cursor-pointer"
+          >
+            <span>Browse Library Catalog</span>
+            <IconArrowRight size={13} />
+          </button>
+        </div>
       </div>
+
+      {/* New Collection Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-[#1f2320] border border-[#d6d2c4] dark:border-[#3d4b3e] p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-stone-100 dark:border-zinc-800">
+              <h3 className="font-serif font-bold text-base text-stone-900 dark:text-stone-100">
+                New Collection
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="p-1 rounded-md text-stone-400 hover:text-stone-600"
+              >
+                <IconX size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCollection} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Collection Name *
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  required
+                  placeholder="e.g. Summer Reading, Thesis Prep"
+                  value={newCollName}
+                  onChange={(e) => setNewCollName(e.target.value)}
+                  className="w-full h-9 px-3 text-xs rounded-lg border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:border-[#2e7d56]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Description (optional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="What is this collection about?"
+                  value={newCollDesc}
+                  onChange={(e) => setNewCollDesc(e.target.value)}
+                  className="w-full p-2.5 text-xs rounded-lg border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:border-[#2e7d56]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-800 text-xs font-medium text-stone-600 dark:text-stone-400 hover:bg-stone-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newCollName.trim() || creatingColl}
+                  className="px-4 py-1.5 rounded-lg bg-[#2e7d56] hover:bg-[#256646] text-white text-xs font-semibold disabled:opacity-50"
+                >
+                  {creatingColl ? 'Creating...' : 'Create Collection'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -8,6 +8,9 @@ import org.springframework.web.bind.annotation.*;
 import soqe.libro.server.dto.BookPublicResponse;
 import soqe.libro.server.entity.Book;
 import soqe.libro.server.service.BookService;
+import soqe.libro.server.service.TrendingService;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/books")
@@ -15,6 +18,13 @@ import soqe.libro.server.service.BookService;
 public class BookController {
 
     private final BookService bookService;
+    private final TrendingService trendingService;
+
+    @GetMapping("/trending")
+    public ResponseEntity<List<BookPublicResponse>> getTrending(
+            @RequestParam(defaultValue = "6") int limit) {
+        return ResponseEntity.ok(trendingService.getTrending(limit));
+    }
 
     @GetMapping
     public ResponseEntity<Page<BookPublicResponse>> searchBooks(

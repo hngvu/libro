@@ -7,6 +7,7 @@ import type {
   LoanPublicResponse,
   BookPublicResponse,
   GenrePublicResponse,
+  CollectionResponse,
 } from '@/types/api'
 import {
   IconBook,
@@ -19,6 +20,7 @@ import {
   IconStar,
   IconQuote,
   IconArrowUpRight,
+  IconFolders,
 } from '@tabler/icons-react'
 
 const LITERARY_QUOTES = [
@@ -60,17 +62,19 @@ export function MemberHomePage({
   const [genres, setGenres] = useState<GenrePublicResponse[]>([])
   const [recommendedForYou, setRecommendedForYou] = useState<BookPublicResponse[]>([])
   const [trendingBooks, setTrendingBooks] = useState<BookPublicResponse[]>([])
+  const [curatedCollections, setCuratedCollections] = useState<CollectionResponse[]>([])
 
   const loadData = useCallback(async () => {
     if (!user || user.role !== 'MEMBER') return
     setLoading(true)
     try {
-      const [loansRes, booksRes, genresRes, recsRes, trendingRes] = await Promise.all([
+      const [loansRes, booksRes, genresRes, recsRes, trendingRes, collectionsRes] = await Promise.all([
         api.getMyLoans({ size: 20 }).catch(() => ({ content: [] })),
         api.getBooks({ page: 1, size: 30 }).catch(() => ({ content: [] })),
         api.getGenres().catch(() => ({ content: [] })),
         api.getPersonalizedRecommendations(6).catch(() => []),
         api.getTrendingBooks(6).catch(() => []),
+        api.getCuratedCollections().catch(() => []),
       ])
 
       const allLoans: LoanPublicResponse[] = loansRes.content || []
@@ -80,6 +84,7 @@ export function MemberHomePage({
       const catalogBooks: BookPublicResponse[] = booksRes.content || []
       setBooks(catalogBooks)
       setGenres(genresRes.content || [])
+      setCuratedCollections(collectionsRes || [])
 
       // Use personalized recommendations with fallback to sliced books if empty
       const recs = recsRes && recsRes.length > 0 ? recsRes : catalogBooks.slice(6, 12)
@@ -277,6 +282,80 @@ export function MemberHomePage({
                 <div className="pointer-events-none absolute inset-y-0 left-[4px] w-[1px] bg-white/30" />
               </div>
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ================= 2.5 CURATED BY OUR LIBRARIANS ================= */}
+      {curatedCollections.length > 0 && (
+        <section className="space-y-6">
+          <div className="flex items-end justify-between pb-3 border-b border-stone-200/70 dark:border-zinc-800">
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                <IconFolders size={16} />
+                <span>Editorial Showcase</span>
+              </div>
+              <h2 className="font-serif font-bold text-2xl sm:text-3xl text-stone-900 dark:text-stone-100 tracking-tight mt-0.5">
+                Curated by Our Librarians
+              </h2>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {curatedCollections.map((col) => (
+              <div
+                key={col.id}
+                className="p-6 rounded-3xl border border-stone-200/80 dark:border-zinc-800 bg-white dark:bg-[#18181b] hover:border-emerald-500/40 hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
+                      Curated Collection
+                    </span>
+                    <span className="text-xs text-stone-400 font-medium">
+                      {col.bookCount} {col.bookCount === 1 ? 'book' : 'books'}
+                    </span>
+                  </div>
+
+                  <h3 className="font-serif font-bold text-xl text-stone-900 dark:text-stone-100 mb-1.5">
+                    {col.name}
+                  </h3>
+
+                  {col.description && (
+                    <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 leading-relaxed line-clamp-2 mb-5">
+                      {col.description}
+                    </p>
+                  )}
+
+                  {/* Overlapping book covers row */}
+                  {col.previewBooks && col.previewBooks.length > 0 && (
+                    <div className="grid grid-cols-4 gap-2.5 sm:gap-3 mb-2">
+                      {col.previewBooks.slice(0, 4).map((book) => (
+                        <div
+                          key={book.id || book.handle}
+                          onClick={() => onSelectBook(book)}
+                          className="group/book relative aspect-[2/3] rounded-md bg-stone-100 dark:bg-zinc-800 overflow-hidden shadow-xs hover:scale-105 hover:shadow-md transition-all cursor-pointer"
+                          title={book.title}
+                        >
+                          {book.cover ? (
+                            <img
+                              src={book.cover}
+                              alt={book.title}
+                              className="w-full h-full object-fill select-none"
+                            />
+                          ) : (
+                            <div className="p-2 text-center text-stone-400 text-[10px] flex items-center justify-center h-full">
+                              <span className="line-clamp-2">{book.title}</span>
+                            </div>
+                          )}
+                          <div className="pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-gradient-to-r from-black/30 to-transparent" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}

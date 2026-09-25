@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import soqe.libro.server.dto.BookPublicResponse;
 import soqe.libro.server.entity.*;
 import soqe.libro.server.repository.BookRepository;
-import soqe.libro.server.repository.BookmarkRepository;
+import soqe.libro.server.repository.CollectionBookRepository;
 import soqe.libro.server.repository.LoanRepository;
 import soqe.libro.server.repository.UserRepository;
 
@@ -23,8 +23,9 @@ public class RecommendationService {
     private final BookRepository bookRepository;
     private final UserRepository userRepository;
     private final LoanRepository loanRepository;
-    private final BookmarkRepository bookmarkRepository;
+    private final CollectionBookRepository collectionBookRepository;
     private final BookService bookService;
+    private final TrendingService trendingService;
 
     /**
      * Pool multiplier: score top (limit × POOL_MULTIPLIER) candidates,
@@ -41,28 +42,29 @@ public class RecommendationService {
         int safeLimit = Math.max(1, Math.min(limit, 20));
 
         if (email == null) {
-            return getTrendingBooks(safeLimit);
+            return trendingService.getTrending(safeLimit);
         }
 
         var userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
-            return getTrendingBooks(safeLimit);
+            return trendingService.getTrending(safeLimit);
         }
         User user = userOpt.get();
 
-        // 1. Gather user interests from bookmarks & loan history
+        // 1. Gather user interests from saved books/collections & loan history
         Set<Long> interestedGenreIds = new HashSet<>();
         Set<Long> interestedAuthorIds = new HashSet<>();
         Set<Long> interactedBookIds = new HashSet<>();
 
-        var bookmarks = bookmarkRepository.findByUserOrderByCreatedAtDesc(user);
-        for (BookBookmark bm : bookmarks) {
-            if (bm.getBook() != null) {
-                interactedBookIds.add(bm.getBook().getId());
-                if (bm.getBook().getGenres() != null)
-                    bm.getBook().getGenres().forEach(g -> interestedGenreIds.add(g.getId()));
-                if (bm.getBook().getAuthors() != null)
-                    bm.getBook().getAuthors().forEach(a -> interestedAuthorIds.add(a.getId()));
+        var savedBooks = collectionBookRepository.findAllByOwnerOrderByAddedAtDesc(user);
+        for (CollectionBook cb : savedBooks) {
+            if (cb.getBook() != null) {
+                Book b = cb.getBook();
+                interactedBookIds.add(b.getId());
+                if (b.getGenres() != null)
+                    b.getGenres().forEach(g -> interestedGenreIds.add(g.getId()));
+                if (b.getAuthors() != null)
+                    b.getAuthors().forEach(a -> interestedAuthorIds.add(a.getId()));
             }
         }
 
@@ -79,7 +81,7 @@ public class RecommendationService {
         }
 
         if (interestedGenreIds.isEmpty() && interestedAuthorIds.isEmpty()) {
-            return getTrendingBooks(safeLimit);
+            return trendingService.getTrending(safeLimit);
         }
 
         // 2. Fetch candidates, exclude already-interacted
@@ -98,7 +100,7 @@ public class RecommendationService {
                 .collect(Collectors.toCollection(ArrayList::new));
 
         if (pool.isEmpty()) {
-            return getTrendingBooks(safeLimit);
+            return trendingService.getTrending(safeLimit);
         }
 
         // 4. Apply jitter within pool → fresh results each call
@@ -144,45 +146,6 @@ public class RecommendationService {
 
         return pickWithJitter(pool, genreIds, authorIds, safeLimit)
                 .stream()
-                .map(bookService::mapToPublicResponse)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<BookPublicResponse> getTrendingBooks(int limit) {
-        int safeLimit = Math.max(1, Math.min(limit, 20));
-        int poolSize = safeLimit * POOL_MULTIPLIER;
-
-        // Top borrowed books as seed
-        List<Object[]> topBookIdCounts = loanRepository.findTopBorrowedBookIds(PageRequest.of(0, poolSize));
-        List<Long> topIds = topBookIdCounts.stream()
-                .map(row -> (Long) row[0])
-                .filter(Objects::nonNull)
-                .toList();
-
-        List<Book> pool = new ArrayList<>();
-        if (!topIds.isEmpty()) {
-            pool.addAll(bookRepository.findAllById(topIds));
-        }
-
-        // Fill remaining pool slots with newest active books
-        if (pool.size() < poolSize) {
-            Set<Long> existingIds = pool.stream().map(Book::getId).collect(Collectors.toSet());
-            bookRepository.findByStatus(Book.Status.ACTIVE, PageRequest.of(0, poolSize * 2))
-                    .getContent()
-                    .stream()
-                    .filter(b -> !existingIds.contains(b.getId()))
-                    .limit(poolSize - pool.size())
-                    .forEach(pool::add);
-        }
-
-        // Shuffle the pool slightly so trending order varies each call
-        int shuffleBound = Math.min(pool.size(), poolSize);
-        List<Book> mutablePool = new ArrayList<>(pool.subList(0, shuffleBound));
-        Collections.shuffle(mutablePool, RANDOM);
-
-        return mutablePool.stream()
-                .limit(safeLimit)
                 .map(bookService::mapToPublicResponse)
                 .toList();
     }

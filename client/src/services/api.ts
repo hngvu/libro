@@ -53,6 +53,9 @@ import type {
   FileUploadResponse,
   PresignedUploadResponse,
   ActivityLogItem,
+  CollectionResponse,
+  CollectionCreateRequest,
+  CollectionUpdateRequest,
 } from '@/types/api'
 
 const TOKEN_KEY = 'libro_jwt_token'
@@ -920,6 +923,100 @@ export const api = {
     return request<{ count: number }>('/bookmarks/count')
   },
 
+  // Collections (Curated & Personal)
+  async getCuratedCollections(): Promise<CollectionResponse[]> {
+    return request<CollectionResponse[]>('/collections/curated')
+  },
+
+  async getPinnedCuratedCollections(): Promise<CollectionResponse[]> {
+    return request<CollectionResponse[]>('/collections/curated/pinned')
+  },
+
+  async getCollectionBySlug(slug: string): Promise<CollectionResponse> {
+    return request<CollectionResponse>(`/collections/${encodeURIComponent(slug)}`)
+  },
+
+  async getCollectionBooks(id: number, page = 1, size = 20): Promise<Page<BookPublicResponse>> {
+    return request<Page<BookPublicResponse>>(`/collections/${id}/books?page=${page}&size=${size}`)
+  },
+
+  async getMyCollections(): Promise<CollectionResponse[]> {
+    return request<CollectionResponse[]>('/collections/my')
+  },
+
+  async createCollection(req: CollectionCreateRequest): Promise<CollectionResponse> {
+    return request<CollectionResponse>('/collections', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    })
+  },
+
+  async updateCollection(id: number, req: CollectionUpdateRequest): Promise<CollectionResponse> {
+    return request<CollectionResponse>(`/collections/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(req),
+    })
+  },
+
+  async deleteCollection(id: number): Promise<void> {
+    return request<void>(`/collections/${id}`, {
+      method: 'DELETE',
+    })
+  },
+
+  async addBookToCollection(collectionId: number, bookId: number): Promise<void> {
+    return request<void>(`/collections/${collectionId}/books/${bookId}`, {
+      method: 'POST',
+    })
+  },
+
+  async removeBookFromCollection(collectionId: number, bookId: number): Promise<void> {
+    return request<void>(`/collections/${collectionId}/books/${bookId}`, {
+      method: 'DELETE',
+    })
+  },
+
+  async getMyCollectionsContainingBook(bookId: number): Promise<number[]> {
+    return request<number[]>(`/collections/my/containing-book/${bookId}`)
+  },
+
+  // Admin Curated Collections
+  async adminGetCuratedCollections(): Promise<CollectionResponse[]> {
+    return request<CollectionResponse[]>('/admin/collections')
+  },
+
+  async adminCreateCuratedCollection(req: CollectionCreateRequest): Promise<CollectionResponse> {
+    return request<CollectionResponse>('/admin/collections', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    })
+  },
+
+  async adminUpdateCuratedCollection(id: number, req: CollectionUpdateRequest): Promise<CollectionResponse> {
+    return request<CollectionResponse>(`/admin/collections/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(req),
+    })
+  },
+
+  async adminDeleteCuratedCollection(id: number): Promise<void> {
+    return request<void>(`/admin/collections/${id}`, {
+      method: 'DELETE',
+    })
+  },
+
+  async adminAddBookToCurated(collectionId: number, bookId: number): Promise<void> {
+    return request<void>(`/admin/collections/${collectionId}/books/${bookId}`, {
+      method: 'POST',
+    })
+  },
+
+  async adminRemoveBookFromCurated(collectionId: number, bookId: number): Promise<void> {
+    return request<void>(`/admin/collections/${collectionId}/books/${bookId}`, {
+      method: 'DELETE',
+    })
+  },
+
   // Recommendations
   async getPersonalizedRecommendations(limit: number = 10): Promise<BookPublicResponse[]> {
     return request<BookPublicResponse[]>(`/recommendations/for-you?limit=${limit}`)
@@ -929,8 +1026,9 @@ export const api = {
     return request<BookPublicResponse[]>(`/recommendations/similar/${bookId}?limit=${limit}`)
   },
 
-  async getTrendingBooks(limit: number = 10): Promise<BookPublicResponse[]> {
-    return request<BookPublicResponse[]>(`/recommendations/trending?limit=${limit}`)
+  // Trending Books (Global Statistics & In-Memory Cache)
+  async getTrendingBooks(limit: number = 6): Promise<BookPublicResponse[]> {
+    return request<BookPublicResponse[]>(`/books/trending?limit=${limit}`)
   },
 
   // Storage & S3 Upload
