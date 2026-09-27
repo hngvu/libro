@@ -48,6 +48,7 @@ import { AuthModal } from '@/components/auth/AuthModal'
 import { UserProfileModal } from '@/components/profile/UserProfileModal'
 import { MembershipPlansModal } from '@/components/profile/MembershipPlansModal'
 import { MembershipPage } from '@/pages/membership/MembershipPage'
+import { SearchResultsPage } from '@/pages/catalog/SearchResultsPage'
 import type { BookPublicResponse } from '@/types/api'
 
 function CatalogRouteWrapper({
@@ -58,15 +59,7 @@ function CatalogRouteWrapper({
   onOpenAuth: (mode?: 'login' | 'register') => void
 }) {
   const [searchParams, setSearchParams] = useSearchParams()
-  const keyword = searchParams.get('keyword') || ''
   const selectedGenre = searchParams.get('genre') || ''
-
-  const handleKeywordChange = (kw: string) => {
-    const params = new URLSearchParams(searchParams)
-    if (kw) params.set('keyword', kw)
-    else params.delete('keyword')
-    setSearchParams(params)
-  }
 
   const handleGenreChange = (genre: string) => {
     const params = new URLSearchParams(searchParams)
@@ -77,8 +70,6 @@ function CatalogRouteWrapper({
 
   return (
     <BookCatalog
-      keyword={keyword}
-      onKeywordChange={handleKeywordChange}
       selectedGenre={selectedGenre}
       onGenreChange={handleGenreChange}
       onSelectBook={onSelectBook}
@@ -121,11 +112,11 @@ function AppContent() {
     else if (view === 'admin') navigate('/admin')
   }
 
-  const handleSearch = (kw: string) => {
-    if (kw) {
-      navigate(`/?keyword=${encodeURIComponent(kw)}`)
+  const handleSearch = (qText: string) => {
+    if (qText) {
+      navigate(`/search?q=${encodeURIComponent(qText)}`)
     } else {
-      navigate('/')
+      navigate('/search')
     }
   }
 
@@ -165,7 +156,7 @@ function AppContent() {
           onSearch={handleSearch}
           onSelectBook={handleSelectBook}
           onSelectGenre={handleSelectGenre}
-          searchKeyword={searchParams.get('keyword') || ''}
+          searchKeyword={searchParams.get('q') || searchParams.get('keyword') || ''}
         />
       )}
 
@@ -176,6 +167,15 @@ function AppContent() {
             path="/"
             element={
               <CatalogRouteWrapper
+                onSelectBook={handleSelectBook}
+                onOpenAuth={handleOpenAuth}
+              />
+            }
+          />
+          <Route
+            path="/search"
+            element={
+              <SearchResultsPage
                 onSelectBook={handleSelectBook}
                 onOpenAuth={handleOpenAuth}
               />

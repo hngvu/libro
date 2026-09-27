@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { api } from '@/services/api'
 import type { BookPublicResponse } from '@/types/api'
@@ -6,23 +6,22 @@ import {
   IconSearch,
   IconUser,
   IconLogout,
-  IconX,
-  IconBook,
   IconActivity,
   IconBell,
   IconCrown,
   IconBookmark,
 } from '@tabler/icons-react'
 import { BookmarkDrawer } from '@/components/bookmark/BookmarkDrawer'
+import { BrowseSearchModal } from '@/components/catalog/BrowseSearchModal'
 
 interface NavbarProps {
   currentView: 'catalog' | 'loans' | 'membership' | 'admin' | 'book-detail'
   onViewChange: (view: 'catalog' | 'loans' | 'membership' | 'admin' | 'book-detail') => void
   onOpenAuth?: (mode?: 'login' | 'register') => void
   onOpenProfile: () => void
-  onSearch: (keyword: string) => void
+  onSearch?: (keyword: string) => void
   onSelectBook: (book: BookPublicResponse) => void
-  onSelectGenre: (genreHandle: string) => void
+  onSelectGenre?: (genreHandle: string) => void
   searchKeyword?: string
 }
 
@@ -33,13 +32,25 @@ export function Navbar({
   onSearch,
   onSelectBook,
   onSelectGenre,
-  searchKeyword = '',
 }: NavbarProps) {
   const { user, logout } = useAuth()
   const isMemberUser = user?.role === 'MEMBER'
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const [bookmarkDrawerOpen, setBookmarkDrawerOpen] = useState(false)
   const [bookmarkCount, setBookmarkCount] = useState(0)
+  const [browseModalOpen, setBrowseModalOpen] = useState(false)
+
+  // Keyboard shortcut Ctrl+K / Cmd+K to open browse modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setBrowseModalOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   useEffect(() => {
     if (!isMemberUser) {
@@ -62,77 +73,16 @@ export function Navbar({
     return () => window.removeEventListener('libro:bookmarks-changed', handleSync)
   }, [isMemberUser])
 
-  // Header Search Autocomplete State
-  const [searchTerm, setSearchTerm] = useState(searchKeyword)
-  const [suggestions, setSuggestions] = useState<BookPublicResponse[]>([])
-  const [searchLoading, setSearchLoading] = useState(false)
-  const [showDropdown, setShowDropdown] = useState(false)
-  const searchContainerRef = useRef<HTMLDivElement>(null)
-
-  // Sync external search keyword
-  useEffect(() => {
-    setSearchTerm(searchKeyword)
-  }, [searchKeyword])
-
-  // Close dropdowns on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        searchContainerRef.current &&
-        !searchContainerRef.current.contains(e.target as Node)
-      ) {
-        setShowDropdown(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  // Debounced real-time search for header autocomplete
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setSuggestions([])
-      return
-    }
-
-    const timer = setTimeout(async () => {
-      setSearchLoading(true)
-      try {
-        const res = await api.getBooks({ keyword: searchTerm.trim(), size: 4 })
-        setSuggestions((res.content || []).slice(0, 4))
-        setShowDropdown(true)
-      } catch {
-        setSuggestions([])
-      } finally {
-        setSearchLoading(false)
-      }
-    }, 250)
-
-    return () => clearTimeout(timer)
-  }, [searchTerm])
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setShowDropdown(false)
-    onSearch(searchTerm.trim())
-    onViewChange('catalog')
-  }
-
-  const handleSelectSuggestion = (book: BookPublicResponse) => {
-    setShowDropdown(false)
-    onSelectBook(book)
-  }
-
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-[#c8d0b7] dark:border-[#3d4b3e] bg-[#fafafa] dark:bg-[#1e2320] shadow-xs transition-colors">
-      <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-4 sm:gap-6">
-        {/* Left: Logo (Aligned with Banner) */}
-        <div className="flex items-center shrink-0">
+      <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-4">
+        {/* Left: Logo */}
+        <div className="flex items-center justify-start shrink-0">
           <div
             onClick={() => {
-              onSearch('')
-              onSelectGenre('')
+              onSearch?.('')
+              onSelectGenre?.('')
               onViewChange('catalog')
             }}
             className="flex items-center gap-2.5 cursor-pointer select-none group"
@@ -149,95 +99,17 @@ export function Navbar({
           </div>
         </div>
 
-        {/* Right: Search Bar & Optional User Dropdown (No Join Button) */}
-        <div className="flex items-center gap-2.5 sm:gap-4 justify-end flex-1">
-          {/* Search Bar on the Right */}
-          <div ref={searchContainerRef} className="w-full max-w-xs sm:max-w-sm md:max-w-md relative">
-            <form onSubmit={handleSearchSubmit} className="relative flex items-center">
-              <input
-                type="text"
-                placeholder="Search books"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value)
-                  setShowDropdown(true)
-                }}
-                onFocus={() => {
-                  if (suggestions.length > 0) setShowDropdown(true)
-                }}
-                className={`w-full h-9 sm:h-10 pl-3 sm:pl-3.5 ${
-                  searchTerm ? 'pr-14 sm:pr-16' : 'pr-8 sm:pr-10'
-                } text-xs sm:text-sm bg-white dark:bg-[#252c28] border border-[#d8d8d8] dark:border-[#3d4b3e] focus:outline-none focus:border-[#999999] text-[#181818] dark:text-[#f5f3e6] placeholder:text-[#767676] transition-colors font-sans ${
-                  showDropdown && suggestions.length > 0 ? 'rounded-t-[6px] rounded-b-none border-b-transparent' : 'rounded-[6px] shadow-xs'
-                }`}
-              />
-              {searchTerm ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchTerm('')
-                    onSearch('')
-                    setShowDropdown(false)
-                  }}
-                  className="absolute right-8 sm:right-10 p-1 text-[#767676] hover:text-[#181818] cursor-pointer"
-                >
-                  <IconX size={14} className="sm:w-[15px] sm:h-[15px]" />
-                </button>
-              ) : null}
-              <button
-                type="submit"
-                className="absolute right-0 top-0 bottom-0 px-2 sm:px-3 text-[#333333] dark:text-[#c8d0b7] hover:text-black dark:hover:text-white flex items-center justify-center cursor-pointer transition-colors"
-                title="Search"
-              >
-                {searchLoading ? (
-                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 border-2 border-[#00635d] border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <IconSearch size={18} className="sm:w-[19px] sm:h-[19px]" stroke={1.75} />
-                )}
-              </button>
-            </form>
+        {/* Right: User Menu & Controls */}
+        <div className="flex items-center justify-end shrink-0 gap-1 sm:gap-2">
+          <button
+            type="button"
+            onClick={() => setBrowseModalOpen(true)}
+            className="p-1.5 text-[#6f7f64] hover:text-[#1e2320] dark:hover:text-[#f5f3e6] rounded-[6px] hover:bg-[#c8d0b7]/30 transition-colors cursor-pointer"
+            title="Browse library catalog (Ctrl+K)"
+          >
+            <IconSearch size={18} />
+          </button>
 
-            {/* Real-time Autocomplete Dropdown */}
-            {showDropdown && suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-0 bg-white dark:bg-[#252c28] border border-[#d8d8d8] dark:border-[#3d4b3e] border-t-0 rounded-b-[6px] shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-99">
-                <div className="max-h-80 overflow-y-auto divide-y divide-[#e8e8e8] dark:divide-[#3d4b3e]">
-                  {suggestions.slice(0, 4).map((b) => (
-                    <div
-                      key={b.handle}
-                      onClick={() => handleSelectSuggestion(b)}
-                      className="px-2.5 sm:px-3.5 py-2 sm:py-2.5 flex items-center gap-2.5 sm:gap-3.5 hover:bg-[#f4f1ea]/60 dark:hover:bg-[#333d36] cursor-pointer transition-colors"
-                    >
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#f0ede6] dark:bg-[#1e2320] shrink-0 rounded-[4px] overflow-hidden flex items-center justify-center">
-                        {b.cover ? (
-                          <img src={b.cover} alt={b.title} className="h-full w-full object-cover object-top" />
-                        ) : (
-                          <IconBook size={18} className="sm:w-5 sm:h-5 text-[#888888]" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-xs sm:text-[14px] leading-snug text-[#181818] dark:text-[#f5f3e6] truncate">
-                          {b.title}
-                        </p>
-                        <p className="text-[11px] sm:text-[13px] text-[#55634d] dark:text-[#c8d0b7] mt-0.5 truncate">
-                          by {b.authors && b.authors.length > 0
-                            ? b.authors.map((a) => a.name).join(', ')
-                            : 'Unknown Author'}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div
-                  onClick={handleSearchSubmit}
-                  className="py-2 sm:py-2.5 px-2 bg-white dark:bg-[#252c28] border-t border-[#e8e8e8] dark:border-[#3d4b3e] text-center text-xs sm:text-[14px] font-medium text-[#00635d] dark:text-[#4db6ac] hover:underline cursor-pointer"
-                >
-                  Show all results for "{searchTerm}"
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* User Menu (Only if Logged In) */}
           {isMemberUser && (
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <button
@@ -377,6 +249,14 @@ export function Navbar({
         }}
       />
     )}
+
+    {/* Global Catalog Search Modal */}
+    <BrowseSearchModal
+      open={browseModalOpen}
+      onClose={() => setBrowseModalOpen(false)}
+      onSelectBook={onSelectBook}
+      onSearch={onSearch}
+    />
   </>
   )
 }

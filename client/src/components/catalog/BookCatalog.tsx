@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
 import type {
   BookPublicResponse,
   BookFormat,
@@ -7,6 +6,7 @@ import type {
   LoanPublicResponse,
   ReservationResponse,
   UserSubscriptionResponse,
+  CollectionResponse,
 } from '@/types/api'
 import { api } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
@@ -24,14 +24,15 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconBook2,
+  IconSearch,
   IconX,
   IconBook,
   IconClock,
   IconBookmark,
   IconCheck,
-  IconCrown,
-  IconActivity,
-  IconSparkles,
+  IconFolders,
+  IconPlus,
+  IconTrash,
 } from '@tabler/icons-react'
 
 function formatDate(dateStr?: string | null): string {
@@ -57,15 +58,15 @@ import { GuestHomePage } from '@/components/home/GuestHomePage'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 interface BookCatalogProps {
-  keyword: string
-  onKeywordChange: (kw: string) => void
-  selectedGenre: string
-  onGenreChange: (genre: string) => void
+  keyword?: string
+  onKeywordChange?: (kw: string) => void
+  selectedGenre?: string
+  onGenreChange?: (genre: string) => void
   onSelectBook: (book: BookPublicResponse) => void
   onOpenAuth?: (mode?: 'login' | 'register') => void
 }
 
-type ShelfType = 'catalog' | 'all' | 'loans' | 'reservations' | 'read'
+type ShelfType = 'catalog' | 'all' | 'loans' | 'reservations' | 'read' | string
 
 export function BookCatalog(props: BookCatalogProps) {
   const { user } = useAuth()
@@ -79,10 +80,10 @@ export function BookCatalog(props: BookCatalogProps) {
 }
 
 function MemberCatalogContent({
-  keyword,
-  onKeywordChange,
-  selectedGenre,
-  onGenreChange,
+  keyword = '',
+  onKeywordChange = () => {},
+  selectedGenre = '',
+  onGenreChange = () => {},
   onSelectBook,
   user,
 }: BookCatalogProps & { user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
@@ -100,6 +101,15 @@ function MemberCatalogContent({
   const [reservations, setReservations] = useState<ReservationResponse[]>([])
   const [subscription, setSubscription] = useState<UserSubscriptionResponse | null>(null)
 
+  // Personal Lists & Collections Data
+  const [myCollections, setMyCollections] = useState<CollectionResponse[]>([])
+  const [selectedCollection, setSelectedCollection] = useState<CollectionResponse | null>(null)
+  const [collectionBooks, setCollectionBooks] = useState<BookPublicResponse[]>([])
+  const [loadingCollectionBooks, setLoadingCollectionBooks] = useState(false)
+  const [showCreateCollInput, setShowCreateCollInput] = useState(false)
+  const [newCollName, setNewCollName] = useState('')
+  const [creatingColl, setCreatingColl] = useState(false)
+
   // Filters & Pagination for Catalog
   const [selectedFormat, setSelectedFormat] = useState<BookFormat | ''>('')
   const [page, setPage] = useState(1)
@@ -107,10 +117,56 @@ function MemberCatalogContent({
   const [totalElements, setTotalElements] = useState(0)
   const [recRefreshKey, setRecRefreshKey] = useState(0)
 
+  // Table In-Memory Search Filter
+  const [searchInput, setSearchInput] = useState('')
+
+  const filterQuery = searchInput.trim().toLowerCase()
+
+  const displayedBooks = filterQuery && selectedShelf === 'catalog'
+    ? books.filter(
+        (b) =>
+          (b.title || '').toLowerCase().includes(filterQuery) ||
+          (b.authors || []).some((a) => a.name.toLowerCase().includes(filterQuery))
+      )
+    : books
+
+  const displayedOngoingLoans = filterQuery && selectedShelf === 'loans'
+    ? ongoingLoans.filter(
+        (l) =>
+          (l.bookTitle || '').toLowerCase().includes(filterQuery) ||
+          (l.authors || []).some((a) => a.toLowerCase().includes(filterQuery))
+      )
+    : ongoingLoans
+
+  const displayedReadLoans = filterQuery && selectedShelf === 'read'
+    ? readLoans.filter(
+        (l) =>
+          (l.bookTitle || '').toLowerCase().includes(filterQuery) ||
+          (l.authors || []).some((a) => a.toLowerCase().includes(filterQuery))
+      )
+    : readLoans
+
+  const displayedReservations = filterQuery && selectedShelf === 'reservations'
+    ? reservations.filter(
+        (r) =>
+          (r.bookTitle || '').toLowerCase().includes(filterQuery) ||
+          (r.authors || []).some((a) => a.toLowerCase().includes(filterQuery))
+      )
+    : reservations
+
+  const displayedCollectionBooks = filterQuery && selectedCollection
+    ? collectionBooks.filter(
+        (b) =>
+          (b.title || '').toLowerCase().includes(filterQuery) ||
+          (b.authors || []).some((a) => a.name.toLowerCase().includes(filterQuery))
+      )
+    : collectionBooks
+
   // Automatically switch to 'catalog' view if user performs search or selects genre filter
   useEffect(() => {
     if (keyword || selectedGenre) {
       setSelectedShelf('catalog')
+      setSelectedCollection(null)
     }
   }, [keyword, selectedGenre])
 
@@ -121,14 +177,15 @@ function MemberCatalogContent({
       .catch(() => setGenres([]))
   }, [])
 
-  // Fetch Member Loans, Reservations & Subscription if logged in
+  // Fetch Member Loans, Reservations, Subscription & Collections if logged in
   useEffect(() => {
     if (user && user.role === 'MEMBER') {
       Promise.allSettled([
         api.getMyLoans({ size: 100 }),
         api.getMyReservations({ size: 50 }),
         api.getMySubscription(),
-      ]).then(([loansRes, resRes, subRes]) => {
+        api.getMyCollections(),
+      ]).then(([loansRes, resRes, subRes, collsRes]) => {
         if (loansRes.status === 'fulfilled') {
           const all = loansRes.value.content || []
           setOngoingLoans(all.filter((l) => l.status === 'ONGOING' || l.status === 'OVERDUE'))
@@ -141,15 +198,95 @@ function MemberCatalogContent({
         if (subRes.status === 'fulfilled') {
           setSubscription(subRes.value)
         }
+        if (collsRes.status === 'fulfilled') {
+          setMyCollections(collsRes.value || [])
+        }
       })
     } else {
       setOngoingLoans([])
       setReadLoans([])
       setReservations([])
       setSubscription(null)
+      setMyCollections([])
       setSelectedShelf('catalog')
+      setSelectedCollection(null)
     }
   }, [user])
+
+  // Real-time synchronization listeners for collections
+  useEffect(() => {
+    const handleCollectionsSync = () => {
+      api.getMyCollections()
+        .then((cols) => setMyCollections(cols || []))
+        .catch(() => {})
+      if (selectedCollection) {
+        api.getCollectionBooks(selectedCollection.id, 1, 50)
+          .then((res) => setCollectionBooks(res.content || []))
+          .catch(() => {})
+      }
+    }
+    window.addEventListener('libro:collections-changed', handleCollectionsSync)
+    return () => {
+      window.removeEventListener('libro:collections-changed', handleCollectionsSync)
+    }
+  }, [selectedCollection])
+
+  const handleSelectCollection = (col: CollectionResponse) => {
+    setSelectedShelf(`col-${col.id}`)
+    setSelectedCollection(col)
+    setSearchInput('')
+    onKeywordChange('')
+    setLoadingCollectionBooks(true)
+    api.getCollectionBooks(col.id, 1, 50)
+      .then((res) => setCollectionBooks(res.content || []))
+      .catch(() => setCollectionBooks([]))
+      .finally(() => setLoadingCollectionBooks(false))
+  }
+
+  const handleCreateCollection = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCollName.trim() || creatingColl) return
+    setCreatingColl(true)
+    try {
+      const res = await api.createCollection({ name: newCollName.trim() })
+      setMyCollections((prev) => [...prev, res])
+      setNewCollName('')
+      setShowCreateCollInput(false)
+      window.dispatchEvent(new CustomEvent('libro:collections-changed'))
+      handleSelectCollection(res)
+    } catch (err) {
+      console.error('Failed to create collection:', err)
+    } finally {
+      setCreatingColl(false)
+    }
+  }
+
+  const handleDeleteCollection = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this collection?')) return
+    try {
+      await api.deleteCollection(id)
+      setMyCollections((prev) => prev.filter((c) => c.id !== id))
+      if (selectedShelf === `col-${id}`) {
+        setSelectedShelf('catalog')
+        setSelectedCollection(null)
+      }
+      window.dispatchEvent(new CustomEvent('libro:collections-changed'))
+    } catch (err) {
+      console.error('Failed to delete collection:', err)
+    }
+  }
+
+  const handleRemoveFromCollection = async (e: React.MouseEvent, collectionId: number, bookId: number) => {
+    e.stopPropagation()
+    try {
+      await api.removeBookFromCollection(collectionId, bookId)
+      setCollectionBooks((prev) => prev.filter((b) => (b as any).id !== bookId && b.handle !== String(bookId)))
+      api.getMyCollections().then((cols) => setMyCollections(cols || [])).catch(() => {})
+      window.dispatchEvent(new CustomEvent('libro:collections-changed'))
+    } catch (err) {
+      console.error('Failed to remove book from collection:', err)
+    }
+  }
 
   const isRecommendations =
     selectedShelf === 'catalog' && !keyword.trim() && !selectedGenre && !selectedFormat
@@ -194,11 +331,13 @@ function MemberCatalogContent({
   }, [fetchBooks])
 
   const handleResetFilters = () => {
+    setSearchInput('')
     onKeywordChange('')
     setSelectedFormat('')
     onGenreChange('')
     setPage(1)
     setSelectedShelf('catalog')
+    setSelectedCollection(null)
     setRecRefreshKey((k) => k + 1)
   }
 
@@ -238,6 +377,7 @@ function MemberCatalogContent({
     authors: r.authors ? r.authors.map((name) => ({ name, handle: name, biography: null })) : [],
   })
 
+
   const selectedGenreObj = genres.find((g) => g.handle === selectedGenre)
   const catalogTitle = keyword
     ? `Search: "${keyword}"`
@@ -259,21 +399,6 @@ function MemberCatalogContent({
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-4">
-      {/* Search status tag if searching from navbar */}
-      {keyword && (
-        <div className="inline-flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 rounded-md text-xs">
-          <span className="text-zinc-500 dark:text-zinc-400">Searching:</span>
-          <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">"{keyword}"</strong>
-          <button
-            onClick={() => onKeywordChange('')}
-            className="text-zinc-400 hover:text-rose-600 transition-colors ml-0.5 cursor-pointer"
-            title="Clear search"
-          >
-            <IconX size={13} />
-          </button>
-        </div>
-      )}
-
       {/* 2-Column Library Layout */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         
@@ -321,128 +446,224 @@ function MemberCatalogContent({
 
           {/* Explore Section */}
           <div className="space-y-1">
-            <h3 className="text-xs font-semibold text-[#6f7f64] dark:text-[#a0b096] uppercase tracking-wider pb-1.5 border-b border-[#e5e3db] dark:border-[#384239]">
+            <h3 className="text-xs font-semibold text-[#6f7f64] dark:text-[#a0b096] px-2">
               Explore
             </h3>
-            <nav className="space-y-0.5 pt-1 text-[13px]">
+            <nav className="space-y-0.5 text-[13px]">
               <button
                 onClick={() => {
                   setSelectedShelf('catalog')
+                  setSelectedCollection(null)
+                  setSearchInput('')
                   onKeywordChange('')
                   onGenreChange('')
                   setSelectedFormat('')
                   setPage(1)
                   setRecRefreshKey((k) => k + 1)
                 }}
-                className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer ${
+                className={`w-full flex items-center py-1.5 px-2 rounded-md transition-colors cursor-pointer text-left ${
                   isRecommendations
                     ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
                     : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
                 }`}
               >
-                <IconSparkles size={15} className="shrink-0 text-[#6f7f64] dark:text-[#a0b096]" />
-                <span>Recommendations</span>
+                <span className="truncate block flex-1">Recommendations</span>
               </button>
             </nav>
           </div>
 
-          {/* Personal Reading Shelves */}
+          {/* Bookshelves (Core + Custom Shelves) */}
           {user ? (
             <div className="space-y-1">
-              <h3 className="text-xs font-semibold text-[#6f7f64] dark:text-[#a0b096] uppercase tracking-wider pb-1.5 border-b border-[#e5e3db] dark:border-[#384239]">
-                My Shelves
-              </h3>
-              <nav className="space-y-0.5 pt-1 text-[13px]">
-                {/* Shelf: Currently Reading */}
+              <div className="flex items-center justify-between px-2">
+                <h3 className="text-xs font-semibold text-[#6f7f64] dark:text-[#a0b096]">
+                  Bookshelves
+                </h3>
                 <button
-                  onClick={() => setSelectedShelf('loans')}
-                  className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer ${
+                  type="button"
+                  onClick={() => setShowCreateCollInput((v) => !v)}
+                  className="text-[#6f7f64] dark:text-[#a0b096] hover:text-[#1c5d3e] dark:hover:text-[#4ade80] transition-colors p-0.5 rounded cursor-pointer"
+                  title="Create new shelf"
+                >
+                  <IconPlus size={14} />
+                </button>
+              </div>
+
+              <nav className="space-y-0.5 text-[13px]">
+                {/* Core Shelf: Currently Reading */}
+                <button
+                  onClick={() => {
+                    setSelectedShelf('loans')
+                    setSelectedCollection(null)
+                    setSearchInput('')
+                    onKeywordChange('')
+                  }}
+                  className={`w-full flex items-center justify-between py-1.5 px-2 rounded-md transition-colors cursor-pointer text-left ${
                     selectedShelf === 'loans'
                       ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
                       : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
                   }`}
                 >
-                  <IconClock size={15} className="shrink-0 text-[#6f7f64] dark:text-[#a0b096]" />
-                  <span>Currently Reading</span>
-                  <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] -ml-0.5">
+                  <span className="truncate block flex-1">Currently Reading</span>
+                  <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] shrink-0 ml-1">
                     ({ongoingLoans.length})
                   </span>
                 </button>
 
-                {/* Shelf: Want to Read */}
+                {/* Core Shelf: Read */}
                 <button
-                  onClick={() => setSelectedShelf('reservations')}
-                  className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer ${
-                    selectedShelf === 'reservations'
-                      ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
-                      : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
-                  }`}
-                >
-                  <IconBookmark size={15} className="shrink-0 text-[#6f7f64] dark:text-[#a0b096]" />
-                  <span>Want to Read</span>
-                  <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] -ml-0.5">
-                    ({reservations.length})
-                  </span>
-                </button>
-
-                {/* Shelf: Read */}
-                <button
-                  onClick={() => setSelectedShelf('read')}
-                  className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer ${
+                  onClick={() => {
+                    setSelectedShelf('read')
+                    setSelectedCollection(null)
+                    setSearchInput('')
+                    onKeywordChange('')
+                  }}
+                  className={`w-full flex items-center justify-between py-1.5 px-2 rounded-md transition-colors cursor-pointer text-left ${
                     selectedShelf === 'read'
                       ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
                       : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
                   }`}
                 >
-                  <IconCheck size={15} className="shrink-0 text-[#6f7f64] dark:text-[#a0b096]" />
-                  <span>Read</span>
-                  <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] -ml-0.5">
+                  <span className="truncate block flex-1">Read</span>
+                  <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] shrink-0 ml-1">
                     ({readLoans.length})
                   </span>
                 </button>
+
+                {/* Divider between core reading shelves and custom shelves */}
+                <div className="my-1.5 border-t border-[#e5e3db] dark:border-[#384239]" />
+
+                {/* Custom Shelves (User Collections) */}
+                {myCollections.map((col) => {
+                  const isSelected = selectedShelf === `col-${col.id}`
+                  return (
+                    <button
+                      key={col.id}
+                      type="button"
+                      onClick={() => handleSelectCollection(col)}
+                      className={`w-full flex items-center justify-between py-1.5 px-2 rounded-md transition-colors cursor-pointer text-left ${
+                        isSelected
+                          ? 'font-semibold text-[#1e2320] dark:text-white bg-[#ece9e0] dark:bg-[#252c28]'
+                          : 'text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60'
+                      }`}
+                    >
+                      <span className="truncate block flex-1" title={col.name}>
+                        {col.name}
+                      </span>
+                      <span className="text-xs font-normal text-[#777] dark:text-[#a0b096] shrink-0 ml-1">
+                        ({col.bookCount || 0})
+                      </span>
+                    </button>
+                  )
+                })}
+
+                {/* Inline Create Input */}
+                {showCreateCollInput && (
+                  <form onSubmit={handleCreateCollection} className="flex items-center gap-1.5 pt-1.5">
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="New shelf..."
+                      value={newCollName}
+                      onChange={(e) => setNewCollName(e.target.value)}
+                      className="flex-1 h-7 px-2 text-xs rounded border border-[#ccc] dark:border-[#444] bg-white dark:bg-[#252c28] text-[#181818] dark:text-[#f5f3e6] focus:outline-none focus:border-[#1c5d3e]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newCollName.trim() || creatingColl}
+                      className="h-7 px-2.5 rounded bg-[#1c5d3e] hover:bg-[#164e33] text-white text-[11.5px] font-semibold disabled:opacity-50 cursor-pointer shrink-0"
+                    >
+                      {creatingColl ? '...' : 'Add'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCreateCollInput(false)
+                        setNewCollName('')
+                      }}
+                      className="h-7 px-1.5 rounded hover:bg-black/5 dark:hover:bg-white/5 text-[#888] cursor-pointer shrink-0"
+                    >
+                      <IconX size={13} />
+                    </button>
+                  </form>
+                )}
+
+                {/* If no custom collections & not creating */}
+                {!showCreateCollInput && myCollections.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateCollInput(true)}
+                    className="w-full text-left py-1 px-2 text-xs text-[#6f7f64] hover:text-[#1c5d3e] dark:text-[#a0b096] dark:hover:text-[#4ade80] transition-colors cursor-pointer"
+                  >
+                    <span>+ New shelf...</span>
+                  </button>
+                )}
               </nav>
             </div>
           ) : null}
-
-          {/* Library Services Section */}
-          <div className="space-y-1">
-            <h3 className="text-xs font-semibold text-[#6f7f64] dark:text-[#a0b096] uppercase tracking-wider pb-1.5 border-b border-[#e5e3db] dark:border-[#384239]">
-              Library Services
-            </h3>
-            <nav className="space-y-0.5 pt-1 text-[13px]">
-              {user && (
-                <Link
-                  to="/activity"
-                  className="w-full flex items-center gap-2 py-1.5 px-2 rounded-md text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60 transition-colors"
-                >
-                  <IconActivity size={15} className="shrink-0 text-emerald-700 dark:text-emerald-400" />
-                  <span>Circulation & Activity</span>
-                </Link>
-              )}
-              <Link
-                to="/membership"
-                className="w-full flex items-center gap-2 py-1.5 px-2 rounded-md text-[#444] dark:text-[#c8d0b7] hover:text-[#1e2320] dark:hover:text-white hover:bg-[#faf9f4] dark:hover:bg-[#252c28]/60 transition-colors"
-              >
-                <IconCrown size={15} className="shrink-0 text-amber-600/90 dark:text-amber-400" />
-                <span>Membership Plans</span>
-              </Link>
-            </nav>
-          </div>
         </aside>
 
         {/* === COLUMN 2: CENTER MAIN CONTENT (Dynamic Bookshelf) === */}
         <main className="flex-1 min-w-0 lg:max-w-[620px] space-y-4">
+          {/* Table Search & Filter Bar */}
+          <div className="relative flex items-center">
+            <IconSearch
+              size={15}
+              className="absolute left-3 text-[#6f7f64] dark:text-[#a0b096] pointer-events-none"
+            />
+            <input
+              type="text"
+              placeholder="Filter by title, author..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full h-8.5 pl-9 pr-8 text-xs sm:text-[13px] bg-white dark:bg-[#202622] border border-[#d5d2c7] dark:border-[#384239] rounded-md focus:outline-none focus:border-[#1c5d3e] text-[#1e2320] dark:text-[#f5f3e6] placeholder:text-[#888] dark:placeholder:text-[#777] transition-colors shadow-2xs"
+            />
+            {searchInput ? (
+              <button
+                type="button"
+                onClick={() => setSearchInput('')}
+                className="absolute right-2.5 p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+                title="Clear filter"
+              >
+                <IconX size={14} />
+              </button>
+            ) : null}
+          </div>
+
           {/* Dynamic Header based on Selected Shelf */}
-          <div className="pb-1.5 border-b border-zinc-200 dark:border-zinc-800">
-            <h1 className="text-sm sm:text-base font-semibold text-zinc-900 dark:text-zinc-100">
-              {selectedShelf === 'catalog'
-                ? selectedGenreObj ? selectedGenreObj.name : 'Recommendations'
-                : selectedShelf === 'loans'
-                ? `Currently Reading (${ongoingLoans.length})`
-                : selectedShelf === 'reservations'
-                ? `Want to Read (${reservations.length})`
-                : `Read (${readLoans.length})`}
-            </h1>
+          <div className="flex items-center justify-between pb-1.5 border-b border-zinc-200 dark:border-zinc-800">
+            <div>
+              <h1 className="text-sm sm:text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                {selectedShelf === 'catalog'
+                  ? selectedGenreObj ? selectedGenreObj.name : 'Recommendations'
+                  : selectedShelf === 'loans'
+                  ? `Currently Reading (${displayedOngoingLoans.length})`
+                  : selectedShelf === 'reservations'
+                  ? `Want to Read (${reservations.length})`
+                  : selectedShelf === 'read'
+                  ? `Read (${displayedReadLoans.length})`
+                  : selectedCollection
+                  ? `${selectedCollection.name} (${displayedCollectionBooks.length})`
+                  : 'Books'}
+              </h1>
+              {selectedCollection?.description && (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  {selectedCollection.description}
+                </p>
+              )}
+            </div>
+
+            {selectedCollection && (
+              <button
+                type="button"
+                onClick={() => handleDeleteCollection(selectedCollection.id)}
+                className="text-xs text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                title="Delete this collection"
+              >
+                <IconTrash size={13} />
+                <span>Delete</span>
+              </button>
+            )}
           </div>
 
           {/* Bookshelf Section */}
@@ -473,9 +694,26 @@ function MemberCatalogContent({
                       Reset filters
                     </Button>
                   </div>
+                ) : displayedBooks.length === 0 ? (
+                  <div className="p-8 text-center bg-zinc-50 dark:bg-zinc-900/40 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                    <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
+                      No books matched "{searchInput}"
+                    </h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                      No books in this view match your search filter.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSearchInput('')}
+                      className="mt-3 text-xs h-7 rounded-md cursor-pointer"
+                    >
+                      Clear filter
+                    </Button>
+                  </div>
                 ) : (
                   <div className="flex flex-wrap gap-2.5 sm:gap-3">
-                    {books.map((book) => (
+                    {displayedBooks.map((book) => (
                       <BookCard
                         key={book.handle}
                         book={book}
@@ -533,6 +771,23 @@ function MemberCatalogContent({
                       Explore Library Catalog
                     </Button>
                   </div>
+                ) : displayedOngoingLoans.length === 0 ? (
+                  <div className="p-8 text-center bg-zinc-50 dark:bg-zinc-900/40 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                    <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
+                      No books matched "{searchInput}"
+                    </h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                      No currently reading books match your search.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSearchInput('')}
+                      className="mt-3 text-xs h-7 rounded-md cursor-pointer"
+                    >
+                      Clear filter
+                    </Button>
+                  </div>
                 ) : (
                   <Table className="w-full table-fixed">
                     <TableHeader>
@@ -544,7 +799,7 @@ function MemberCatalogContent({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {ongoingLoans.map((loan) => (
+                      {displayedOngoingLoans.map((loan) => (
                         <TableRow key={loan.loanCode} className="border-b border-[#d5d2c7]/50 dark:border-[#384239]/50 hover:bg-[#faf9f4]/80 dark:hover:bg-[#252c28]/60 transition-colors">
                           <TableCell className="w-12 px-2 py-2 align-top">
                             <div
@@ -602,6 +857,23 @@ function MemberCatalogContent({
                       Explore Library Catalog
                     </Button>
                   </div>
+                ) : displayedReservations.length === 0 ? (
+                  <div className="p-8 text-center bg-zinc-50 dark:bg-zinc-900/40 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                    <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
+                      No books matched "{searchInput}"
+                    </h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                      No saved books match your search.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSearchInput('')}
+                      className="mt-3 text-xs h-7 rounded-md cursor-pointer"
+                    >
+                      Clear filter
+                    </Button>
+                  </div>
                 ) : (
                   <Table className="w-full table-fixed">
                     <TableHeader>
@@ -613,7 +885,7 @@ function MemberCatalogContent({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reservations.map((res) => (
+                      {displayedReservations.map((res) => (
                         <TableRow key={res.reservationCode} className="border-b border-[#d5d2c7]/50 dark:border-[#384239]/50 hover:bg-[#faf9f4]/80 dark:hover:bg-[#252c28]/60 transition-colors">
                           <TableCell className="w-12 px-2 py-2 align-top">
                             <div
@@ -671,6 +943,23 @@ function MemberCatalogContent({
                       Explore Library Catalog
                     </Button>
                   </div>
+                ) : displayedReadLoans.length === 0 ? (
+                  <div className="p-8 text-center bg-zinc-50 dark:bg-zinc-900/40 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                    <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
+                      No books matched "{searchInput}"
+                    </h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                      No books in your Read shelf match your search.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSearchInput('')}
+                      className="mt-3 text-xs h-7 rounded-md cursor-pointer"
+                    >
+                      Clear filter
+                    </Button>
+                  </div>
                 ) : (
                   <Table className="w-full table-fixed">
                     <TableHeader>
@@ -682,7 +971,7 @@ function MemberCatalogContent({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {readLoans.map((loan) => (
+                      {displayedReadLoans.map((loan) => (
                         <TableRow key={loan.loanCode} className="border-b border-[#d5d2c7]/50 dark:border-[#384239]/50 hover:bg-[#faf9f4]/80 dark:hover:bg-[#252c28]/60 transition-colors">
                           <TableCell className="w-12 px-2 py-2 align-top">
                             <div
@@ -715,6 +1004,105 @@ function MemberCatalogContent({
                           </TableCell>
                           <TableCell className="w-[26%] text-[12px] font-normal text-zinc-800 dark:text-zinc-200 px-2.5 py-2 align-top whitespace-nowrap">
                             {formatDate(loan.returnDate || loan.borrowDate)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            )}
+
+
+            {/* DYNAMIC SHELF 6: CUSTOM COLLECTION (GOODREADS TABLE) */}
+            {selectedShelf.startsWith('col-') && selectedCollection && (
+              <div>
+                {loadingCollectionBooks ? (
+                  <div className="p-8 text-center text-xs text-zinc-500">Loading collection books...</div>
+                ) : collectionBooks.length === 0 ? (
+                  <div className="p-8 text-center bg-zinc-50 dark:bg-zinc-900/40 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                    <IconFolders size={36} className="mx-auto text-zinc-400 mb-2 opacity-60" />
+                    <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
+                      No books in this collection yet
+                    </h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                      Add books to "{selectedCollection.name}" by clicking "Reading List ▾" &rarr; "Add to custom shelf..." on any book page.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => setSelectedShelf('catalog')} className="mt-3 text-xs h-7 rounded-md cursor-pointer">
+                      Explore Library Catalog
+                    </Button>
+                  </div>
+                ) : displayedCollectionBooks.length === 0 ? (
+                  <div className="p-8 text-center bg-zinc-50 dark:bg-zinc-900/40 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                    <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
+                      No books matched "{searchInput}"
+                    </h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                      No books in this shelf match your search.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSearchInput('')}
+                      className="mt-3 text-xs h-7 rounded-md cursor-pointer"
+                    >
+                      Clear filter
+                    </Button>
+                  </div>
+                ) : (
+                  <Table className="w-full table-fixed">
+                    <TableHeader>
+                      <TableRow className="bg-[#faf9f4] dark:bg-[#202622] border-b border-[#d5d2c7] dark:border-[#384239] hover:bg-[#faf9f4] dark:hover:bg-[#202622]">
+                        <TableHead className="text-[12px] font-normal text-zinc-500 dark:text-zinc-400 w-12 px-2 py-1.5 h-7">cover</TableHead>
+                        <TableHead className="text-[12px] font-normal text-zinc-500 dark:text-zinc-400 w-[42%] px-2.5 py-1.5 h-7">title</TableHead>
+                        <TableHead className="text-[12px] font-normal text-zinc-500 dark:text-zinc-400 w-[32%] px-2.5 py-1.5 h-7">author</TableHead>
+                        <TableHead className="text-[12px] font-normal text-zinc-500 dark:text-zinc-400 w-[26%] px-2.5 py-1.5 h-7 whitespace-nowrap">format</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {displayedCollectionBooks.map((book) => (
+                        <TableRow key={book.handle} className="group border-b border-[#d5d2c7]/50 dark:border-[#384239]/50 hover:bg-[#faf9f4]/80 dark:hover:bg-[#252c28]/60 transition-colors">
+                          <TableCell className="w-12 px-2 py-2 align-top">
+                            <div
+                              onClick={() => onSelectBook(book)}
+                              className="w-8 h-11.5 rounded-[2px] bg-[#d5d2c7]/20 dark:bg-[#384239]/30 border border-[#d5d2c7]/60 dark:border-[#384239] overflow-hidden shrink-0 flex items-center justify-center cursor-pointer shadow-2xs group"
+                            >
+                              {book.cover ? (
+                                <img
+                                  src={book.cover}
+                                  alt={book.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                />
+                              ) : (
+                                <IconBook size={14} className="text-[#6f7f64] dark:text-[#c8d0b7] opacity-60" />
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="w-[42%] px-2.5 py-2 align-top">
+                            <span
+                              onClick={() => onSelectBook(book)}
+                              className="font-normal text-[12px] text-zinc-800 dark:text-zinc-200 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer block leading-snug"
+                              title={book.title}
+                            >
+                              {book.title || 'Untitled Book'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="w-[32%] text-[12px] font-normal text-zinc-800 dark:text-zinc-200 px-2.5 py-2 align-top leading-snug">
+                            {book.authors && book.authors.length > 0 ? book.authors.map((a) => a.name).join(', ') : '—'}
+                          </TableCell>
+                          <TableCell className="w-[26%] text-[12px] font-normal text-zinc-800 dark:text-zinc-200 px-2.5 py-2 align-top whitespace-nowrap">
+                            <div className="flex items-center justify-between">
+                              <span>{book.format || (book.publicationYear ? `${book.publicationYear}` : '—')}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => (book as any).id && handleRemoveFromCollection(e, selectedCollection.id, (book as any).id)}
+                                className="opacity-0 group-hover:opacity-100 text-[#888] hover:text-rose-600 transition-opacity p-0.5 cursor-pointer"
+                                title="Remove from collection"
+                              >
+                                <IconX size={13} />
+                              </button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

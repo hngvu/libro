@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { api } from '@/services/api'
 import type { BookPublicResponse } from '@/types/api'
-import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import {
   IconSearch,
   IconBook,
@@ -456,14 +456,13 @@ interface GuestHomePageProps {
 
 export function GuestHomePage({
   keyword = '',
-  onKeywordChange,
+  onKeywordChange: _onKeywordChange,
   selectedGenre: _selectedGenre = '',
   onGenreChange: _onGenreChange,
   onSelectBook: _onSelectBook,
   onOpenAuth,
 }: GuestHomePageProps) {
-  useDocumentTitle(keyword ? `Search: "${keyword}"` : _selectedGenre ? `${_selectedGenre} Books` : undefined)
-
+  const navigate = useNavigate()
   const [, setBooks] = useState<BookPublicResponse[]>([])
   const [localSearch, setLocalSearch] = useState(keyword)
 
@@ -484,7 +483,12 @@ export function GuestHomePage({
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onKeywordChange?.(localSearch.trim())
+    const trimmed = localSearch.trim()
+    if (trimmed) {
+      navigate(`/search?q=${encodeURIComponent(trimmed)}`)
+    } else {
+      navigate('/search')
+    }
   }
 
   return (

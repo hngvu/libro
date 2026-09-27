@@ -14,6 +14,8 @@ import {
   IconBookmark,
   IconAlertCircle,
   IconFolders,
+  IconCheck,
+  IconX,
 } from '@tabler/icons-react'
 
 interface BookDetailProps {
@@ -52,6 +54,7 @@ export function BookDetail({
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [bookmarkLoading, setBookmarkLoading] = useState(false)
   const [addToCollectionOpen, setAddToCollectionOpen] = useState(false)
+  const [shelfDropdownOpen, setShelfDropdownOpen] = useState(false)
   const [similarBooks, setSimilarBooks] = useState<BookPublicResponse[]>([])
   const [loadingSimilar, setLoadingSimilar] = useState(false)
 
@@ -289,28 +292,41 @@ export function BookDetail({
           <div className="w-full flex flex-col gap-2.5">
             {/* Primary Action: Existing Loan / Existing Reservation / Reserve / Join Waitlist */}
             {existingLoan ? (
-              <div className="w-full h-[42px] rounded-md bg-[#eaf3ec] border border-[#a2c2a9] text-[#13381e] font-sans text-[14px] font-semibold flex items-center justify-center gap-2 select-none shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-                <span className="w-2 h-2 rounded-full bg-[#18793b]" />
+              <div className="w-full h-[42px] rounded-md bg-[#f0f7f2] dark:bg-[#1a281e] border-2 border-[#1c5d3e] dark:border-[#4ade80] text-[#1c5d3e] dark:text-[#4ade80] font-sans text-[14px] font-bold flex items-center justify-center gap-2 select-none shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-[#1c5d3e] dark:bg-[#4ade80]" />
                 <span>On Loan</span>
               </div>
             ) : existingReservation ? (
               <div className="relative w-full">
-                <div className="flex h-[42px] rounded-md bg-[#1c5d3e] hover:bg-[#164e33] text-white shadow-xs transition-colors overflow-hidden font-sans">
+                <div
+                  className={`flex h-[42px] rounded-md border-2 shadow-xs transition-colors overflow-hidden font-sans select-none ${
+                    existingReservation.status === 'READY_FOR_PICKUP'
+                      ? 'bg-[#f0f7f2] dark:bg-[#1a281e] border-[#1c5d3e] dark:border-[#4ade80] text-[#1c5d3e] dark:text-[#4ade80]'
+                      : 'bg-[#fffdf5] dark:bg-[#282012] border-[#c98a0c] dark:border-[#eab308] text-[#8f6402] dark:text-[#fde047]'
+                  }`}
+                >
                   <button
                     type="button"
                     onClick={() => navigate('/activity?tab=reservations')}
-                    className="flex-1 px-4 text-[14px] font-semibold flex items-center justify-center gap-2 cursor-pointer select-none"
+                    className="flex-1 px-4 text-[14px] font-bold flex items-center justify-center gap-2 cursor-pointer select-none"
                   >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        existingReservation.status === 'READY_FOR_PICKUP'
+                          ? 'bg-[#1c5d3e] dark:bg-[#4ade80] animate-pulse'
+                          : 'bg-[#c98a0c] dark:bg-[#eab308]'
+                      }`}
+                    />
                     <span>
                       {existingReservation.status === 'READY_FOR_PICKUP'
-                        ? 'Ready to Pick Up'
+                        ? 'Ready Pickup'
                         : `Est. ${(existingReservation.queuePosition || 1) === 1 ? '1 week' : `${existingReservation.queuePosition || 1} weeks`}`}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setReservationDropdownOpen(!reservationDropdownOpen)}
-                    className="px-3 border-l border-white/20 hover:bg-black/15 flex items-center justify-center cursor-pointer transition-colors"
+                    className="px-3 border-l-2 border-current/20 hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center cursor-pointer transition-colors"
                     title="Reservation options"
                   >
                     <IconChevronDown
@@ -365,53 +381,129 @@ export function BookDetail({
                 {reserving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    <span>Borrowing...</span>
+                    <span>Requesting...</span>
                   </>
                 ) : (
-                  <span>Borrow</span>
+                  <span>Request Pickup</span>
                 )}
               </button>
             )}
 
-            {/* Bookmark & Collection actions */}
-            <div className="flex gap-2 w-full">
-              <button
-                type="button"
-                onClick={handleToggleBookmark}
-                disabled={bookmarkLoading}
-                className={`flex-1 h-[40px] rounded-md border font-sans text-[13.5px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all duration-200 shadow-2xs ${
-                  isBookmarked
-                    ? 'border-[#2e7d56] bg-[#2e7d56]/12 dark:bg-[#2e7d56]/25 text-[#2e7d56] dark:text-[#66bb6a] hover:bg-[#2e7d56]/20'
-                    : 'border-[#3d4b3e]/60 dark:border-[#3d4b3e] bg-white dark:bg-[#252c28] hover:bg-[#f0f4f1] dark:hover:bg-[#333d36] text-[#3d4b3e] dark:text-[#c8d0b7]'
-                } disabled:opacity-50`}
-                title={isBookmarked ? 'Remove from Saved Books' : 'Save to default shelf'}
-              >
-                {bookmarkLoading ? (
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <IconBookmark
-                    size={16}
-                    className={isBookmarked ? 'fill-current text-[#2e7d56] dark:text-[#66bb6a]' : ''}
-                  />
-                )}
-                <span>{isBookmarked ? 'Saved 🔖' : 'Save'}</span>
-              </button>
+            {/* Goodreads-style Shelf / Reading List Split Button */}
+            <div className="relative w-full">
+              <div className="flex h-[40px] rounded-md border border-[#d6d2c4] dark:border-[#384239] bg-white dark:bg-[#202622] font-sans text-[13.5px] transition-all duration-150 shadow-2xs overflow-hidden hover:border-[#b8b3a2] dark:hover:border-[#4e5d50]">
+                {/* Main Action Button */}
+                <button
+                  type="button"
+                  onClick={handleToggleBookmark}
+                  disabled={bookmarkLoading}
+                  className="flex-1 px-3.5 flex items-center justify-center gap-2 font-semibold text-[#2c392d] dark:text-[#f0ede6] hover:bg-[#f6f5f0] dark:hover:bg-[#28322a] transition-colors cursor-pointer select-none disabled:opacity-50"
+                  title={isBookmarked ? 'Remove from Reading List' : 'Save to Reading List'}
+                >
+                  {bookmarkLoading ? (
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : isBookmarked ? (
+                    <>
+                      <IconCheck size={16} className="text-[#18793b] dark:text-[#4ade80] stroke-[2.5]" />
+                      <span>Reading List</span>
+                    </>
+                  ) : (
+                    <>
+                      <IconBookmark size={16} className="text-[#6f7f64] dark:text-[#a0b096]" />
+                      <span>Reading List</span>
+                    </>
+                  )}
+                </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (!user || user.role !== 'MEMBER') {
-                    onOpenAuth('login')
-                    return
-                  }
-                  setAddToCollectionOpen(true)
-                }}
-                className="px-3 h-[40px] rounded-md border border-[#3d4b3e]/60 dark:border-[#3d4b3e] bg-white dark:bg-[#252c28] hover:bg-[#f0f4f1] dark:hover:bg-[#333d36] text-[#3d4b3e] dark:text-[#c8d0b7] font-sans text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                title="Add to custom collection"
-              >
-                <IconFolders size={16} />
-                <span className="hidden sm:inline">Add to shelf</span>
-              </button>
+                {/* Dropdown Chevron Trigger */}
+                <button
+                  type="button"
+                  onClick={() => setShelfDropdownOpen(!shelfDropdownOpen)}
+                  className="w-10 flex items-center justify-center border-l border-[#e4e1d7] dark:border-[#2f3930] hover:bg-[#f6f5f0] dark:hover:bg-[#28322a] text-[#6f7f64] dark:text-[#a0b096] transition-colors cursor-pointer select-none"
+                  title="Shelf options"
+                >
+                  <IconChevronDown
+                    size={14}
+                    className={`transition-transform duration-200 ${shelfDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+              </div>
+
+              {/* Dropdown Menu */}
+              {shelfDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShelfDropdownOpen(false)}
+                  />
+                  <div className="absolute left-0 right-0 top-full mt-1.5 rounded-md border border-[#d6d2c4] dark:border-[#384239] bg-white dark:bg-[#202622] shadow-lg py-1 z-50 text-[13px] animate-in fade-in zoom-in-95 duration-100 font-sans">
+                    {/* Reading List toggle */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShelfDropdownOpen(false)
+                        if (!user || user.role !== 'MEMBER') {
+                          onOpenAuth('login')
+                          return
+                        }
+                        if (!isBookmarked) {
+                          handleToggleBookmark()
+                        }
+                      }}
+                      className="w-full text-left px-3.5 py-2 flex items-center justify-between text-[#2c392d] dark:text-[#d8e2cf] hover:bg-[#f0f4f1] dark:hover:bg-[#2a352b] transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <IconBookmark
+                          size={15}
+                          className={
+                            isBookmarked
+                              ? 'text-[#2e7d56] dark:text-[#66bb6a] fill-current'
+                              : 'text-[#6f7f64] dark:text-[#a0b096]'
+                          }
+                        />
+                        <span className={isBookmarked ? 'font-semibold text-[#2e7d56] dark:text-[#66bb6a]' : ''}>
+                          Reading List
+                        </span>
+                      </div>
+                      {isBookmarked && (
+                        <IconCheck size={14} className="text-[#2e7d56] dark:text-[#66bb6a] stroke-[2.5]" />
+                      )}
+                    </button>
+
+                    {/* Add to custom shelf */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShelfDropdownOpen(false)
+                        if (!user || user.role !== 'MEMBER') {
+                          onOpenAuth('login')
+                          return
+                        }
+                        setAddToCollectionOpen(true)
+                      }}
+                      className="w-full text-left px-3.5 py-2 flex items-center gap-2 text-[#2c392d] dark:text-[#d8e2cf] hover:bg-[#f0f4f1] dark:hover:bg-[#2a352b] transition-colors cursor-pointer"
+                    >
+                      <IconFolders size={15} className="text-[#6f7f64] dark:text-[#a0b096]" />
+                      <span>Add to custom shelf...</span>
+                    </button>
+
+                    {/* Remove from shelf (if bookmarked) */}
+                    {isBookmarked && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShelfDropdownOpen(false)
+                          handleToggleBookmark()
+                        }}
+                        className="w-full text-left px-3.5 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer border-t border-[#f0ede6] dark:border-[#2d3a2e] flex items-center gap-2"
+                      >
+                        <IconX size={15} />
+                        <span>Remove from shelf</span>
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
