@@ -63,7 +63,7 @@ export function SearchResultsPage({ onSelectBook, onOpenAuth }: SearchResultsPag
     }
     api.getBookmarks()
       .then((items) => {
-        setBookmarkedIds(new Set(items.map((b) => b.bookId)))
+        setBookmarkedIds(new Set(items.map((b) => b.id).filter((id): id is number => id != null)))
       })
       .catch((err) => console.error('Failed to fetch bookmarks:', err))
 

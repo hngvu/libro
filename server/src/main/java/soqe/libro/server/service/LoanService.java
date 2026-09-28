@@ -167,6 +167,7 @@ public class LoanService {
         }
 
         Reservation userReservationToFulfill = null;
+        boolean isAssignedToThisUser = false;
 
         if (copy != null) {
             Book book = copy.getBook();
@@ -206,7 +207,7 @@ public class LoanService {
             }
 
             // 4. Validate physical copy status (allow if it's the copy already assigned to user's reservation, or must be AVAILABLE)
-            boolean isAssignedToThisUser = userReservationToFulfill != null
+            isAssignedToThisUser = userReservationToFulfill != null
                     && userReservationToFulfill.getBookCopy() != null
                     && userReservationToFulfill.getBookCopy().getId().equals(copy.getId());
 
@@ -244,18 +245,26 @@ public class LoanService {
             }
         }
 
-        // Update book copy and book counters
+        // Update book copy and book counters atomically
+        BookCopy.Status expectedStatus = isAssignedToThisUser ? BookCopy.Status.RESERVED : BookCopy.Status.AVAILABLE;
+        int copyClaimed = bookCopyRepository.updateStatusAtomic(copy.getId(), BookCopy.Status.LOANED, expectedStatus);
+        if (copyClaimed == 0) {
+            var freshCopy = bookCopyRepository.findById(copy.getId()).orElse(null);
+            if (freshCopy == null || (freshCopy.getStatus() != BookCopy.Status.AVAILABLE && (!isAssignedToThisUser || freshCopy.getStatus() != BookCopy.Status.RESERVED))) {
+                throw new BusinessValidationException("Conflict", Map.of("bookCopy", "This book copy is no longer available. It may have been loaned or reserved concurrently."));
+            }
+        }
         copy.setStatus(BookCopy.Status.LOANED);
+
         Book book = copy.getBook();
         if (book != null) {
             boolean wasAlreadyDecremented = userReservationToFulfill != null
                     && userReservationToFulfill.getStatus() == Reservation.ReservationStatus.READY_FOR_PICKUP;
             if (!wasAlreadyDecremented) {
+                bookRepository.decrementAvailableCopiesAtomic(book.getId());
                 book.setAvailableCopies(Math.max(0, book.getAvailableCopies() - 1));
-                bookRepository.save(book);
             }
         }
-        bookCopyRepository.save(copy);
 
         LocalDate borrowDate = LocalDate.now();
         int loanDurationDays = DEFAULT_FREE_LOAN_DAYS;
@@ -328,13 +337,13 @@ public class LoanService {
             boolean assignedToReservation = reservationService.assignCopyFromReturn(copy);
             if (!assignedToReservation) {
                 if (copy.getStatus() == BookCopy.Status.LOANED) {
+                    bookCopyRepository.updateStatusAtomic(copy.getId(), BookCopy.Status.AVAILABLE, BookCopy.Status.LOANED);
                     copy.setStatus(BookCopy.Status.AVAILABLE);
-                    bookCopyRepository.save(copy);
                 }
                 Book book = copy.getBook();
                 if (book != null) {
+                    bookRepository.incrementAvailableCopiesAtomic(book.getId());
                     book.setAvailableCopies(book.getAvailableCopies() + 1);
-                    bookRepository.save(book);
                 }
             }
         }
@@ -501,13 +510,13 @@ public class LoanService {
             boolean assignedToReservation = reservationService.assignCopyFromReturn(copy);
             if (!assignedToReservation) {
                 if (copy.getStatus() == BookCopy.Status.LOANED) {
+                    bookCopyRepository.updateStatusAtomic(copy.getId(), BookCopy.Status.AVAILABLE, BookCopy.Status.LOANED);
                     copy.setStatus(BookCopy.Status.AVAILABLE);
-                    bookCopyRepository.save(copy);
                 }
                 Book book = copy.getBook();
                 if (book != null) {
+                    bookRepository.incrementAvailableCopiesAtomic(book.getId());
                     book.setAvailableCopies(book.getAvailableCopies() + 1);
-                    bookRepository.save(book);
                 }
             }
         }
@@ -659,18 +668,28 @@ public class LoanService {
             throw new BusinessValidationException("Borrowing denied", Map.of("duplicate", "You are already currently borrowing a copy of this book ('" + book.getTitle() + "'). Please return it before borrowing another copy."));
         }
 
-        // 5. Find an AVAILABLE BookCopy
+        // 5. Find an AVAILABLE BookCopy and claim atomically
         java.util.List<BookCopy> availableCopies = bookCopyRepository.findByBookAndStatus(book, BookCopy.Status.AVAILABLE);
         if (availableCopies.isEmpty()) {
             throw new BusinessValidationException("Out of stock", Map.of("copies", "There are currently no available physical copies of this book to borrow. You may place a reservation hold instead."));
         }
 
-        BookCopy copy = availableCopies.get(0);
-        copy.setStatus(BookCopy.Status.LOANED);
-        bookCopyRepository.save(copy);
+        BookCopy copy = null;
+        for (BookCopy candidate : availableCopies) {
+            int claimed = bookCopyRepository.updateStatusAtomic(candidate.getId(), BookCopy.Status.LOANED, BookCopy.Status.AVAILABLE);
+            if (claimed > 0) {
+                copy = candidate;
+                copy.setStatus(BookCopy.Status.LOANED);
+                break;
+            }
+        }
 
+        if (copy == null) {
+            throw new BusinessValidationException("Out of stock", Map.of("copies", "All available physical copies have just been checked out by other patrons. You may place a reservation hold instead."));
+        }
+
+        bookRepository.decrementAvailableCopiesAtomic(book.getId());
         book.setAvailableCopies(Math.max(0, book.getAvailableCopies() - 1));
-        bookRepository.save(book);
 
         LocalDate borrowDate = LocalDate.now();
         int loanDurationDays = DEFAULT_FREE_LOAN_DAYS;

@@ -530,22 +530,6 @@ export interface SystemSettingUpdateRequest {
   settingValue: string
 }
 
-export interface BookmarkResponse {
-  id: number
-  bookId: number
-  bookTitle: string
-  bookHandle: string
-  bookSlug?: string
-  bookCover?: string | null
-  isbn?: string
-  publicationYear?: number
-  totalCopies?: number
-  availableCopies?: number
-  authors?: string[]
-  genres?: string[]
-  createdAt: string
-}
-
 export interface FileUploadResponse {
   fileUrl: string
   key: string

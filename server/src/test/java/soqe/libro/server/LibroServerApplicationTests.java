@@ -128,4 +128,80 @@ class LibroServerApplicationTests {
         org.junit.jupiter.api.Assertions.assertNotNull(updatedHold.getFulfilledAt());
         org.junit.jupiter.api.Assertions.assertEquals(copy.getId(), updatedHold.getBookCopy().getId());
     }
+
+    @Test
+    void testConcurrentAtomicBorrowNoOverselling() throws InterruptedException {
+        // Create a book with only 1 physical copy available
+        long timestamp = System.currentTimeMillis();
+        soqe.libro.server.entity.Book book = soqe.libro.server.entity.Book.builder()
+                .title("Concurrent Race Book " + timestamp)
+                .handle(String.format("CR%06d", (int) (timestamp % 1000000)))
+                .slug("concurrent-race-book-" + timestamp)
+                .isbn("ISBN-RACE-" + timestamp)
+                .status(soqe.libro.server.entity.Book.Status.ACTIVE)
+                .totalCopies(1)
+                .availableCopies(1)
+                .build();
+        book = bookRepository.save(book);
+
+        soqe.libro.server.entity.BookCopy copy = soqe.libro.server.entity.BookCopy.builder()
+                .book(book)
+                .barcode("BC-RACE-" + timestamp)
+                .status(soqe.libro.server.entity.BookCopy.Status.AVAILABLE)
+                .build();
+        copy = bookCopyRepository.save(copy);
+
+        // Prepare 5 concurrent users trying to borrow the single copy simultaneously
+        int threadCount = 5;
+        java.util.List<soqe.libro.server.entity.User> patrons = new java.util.ArrayList<>();
+        for (int i = 0; i < threadCount; i++) {
+            soqe.libro.server.entity.User u = soqe.libro.server.entity.User.builder()
+                    .email("race-user-" + i + "-" + timestamp + "@test.com")
+                    .fullName("Race User " + i)
+                    .password("pwd")
+                    .role(soqe.libro.server.entity.User.Role.MEMBER)
+                    .status(soqe.libro.server.entity.User.Status.ACTIVE)
+                    .build();
+            patrons.add(userRepository.save(u));
+        }
+
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(threadCount);
+        java.util.concurrent.CountDownLatch readyLatch = new java.util.concurrent.CountDownLatch(threadCount);
+        java.util.concurrent.CountDownLatch startLatch = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicInteger successCount = new java.util.concurrent.atomic.AtomicInteger(0);
+        java.util.concurrent.atomic.AtomicInteger failureCount = new java.util.concurrent.atomic.AtomicInteger(0);
+
+        final Long targetBookId = book.getId();
+
+        for (soqe.libro.server.entity.User patron : patrons) {
+            executor.submit(() -> {
+                readyLatch.countDown();
+                try {
+                    startLatch.await();
+                    loanService.borrowBookByPatron(patron.getEmail(), targetBookId, null);
+                    successCount.incrementAndGet();
+                } catch (soqe.libro.server.exception.BusinessValidationException e) {
+                    failureCount.incrementAndGet();
+                } catch (Exception e) {
+                    failureCount.incrementAndGet();
+                }
+            });
+        }
+
+        readyLatch.await();
+        startLatch.countDown(); // Fire all 5 threads simultaneously
+        executor.shutdown();
+        executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
+
+        // Exactly 1 user must succeed; the other 4 must be rejected (No overselling!)
+        org.junit.jupiter.api.Assertions.assertEquals(1, successCount.get(), "Exactly one user should succeed in borrowing the single available copy");
+        org.junit.jupiter.api.Assertions.assertEquals(4, failureCount.get(), "Remaining users should fail due to atomic lock / out of stock");
+
+        // Verify DB integrity
+        var finalBook = bookRepository.findById(targetBookId).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(0, finalBook.getAvailableCopies());
+
+        var finalCopy = bookCopyRepository.findById(copy.getId()).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(soqe.libro.server.entity.BookCopy.Status.LOANED, finalCopy.getStatus());
+    }
 }

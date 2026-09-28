@@ -121,6 +121,47 @@ public class CollectionController {
         return ResponseEntity.ok(collectionService.getCollectionIdsContainingBook(principal.getName(), bookId));
     }
 
+    // ==========================================
+    // SAVED BOOKS (DEFAULT COLLECTION SHORTCUTS)
+    // ==========================================
+
+    @GetMapping("/saved")
+    public ResponseEntity<List<BookPublicResponse>> getMySavedBooks(Principal principal) {
+        requireAuth(principal);
+        return ResponseEntity.ok(collectionService.getMySavedBooks(principal.getName()));
+    }
+
+    @PostMapping("/saved/toggle/{bookId}")
+    public ResponseEntity<java.util.Map<String, Object>> toggleSavedBook(Principal principal, @PathVariable Long bookId) {
+        requireAuth(principal);
+        return ResponseEntity.ok(collectionService.toggleBookInDefaultCollection(principal.getName(), bookId));
+    }
+
+    @DeleteMapping("/saved/{bookId}")
+    public ResponseEntity<Void> removeSavedBook(Principal principal, @PathVariable Long bookId) {
+        requireAuth(principal);
+        collectionService.removeBookFromDefaultCollection(principal.getName(), bookId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/saved/check/{bookId}")
+    public ResponseEntity<java.util.Map<String, Boolean>> checkSavedBook(Principal principal, @PathVariable Long bookId) {
+        if (principal == null) {
+            return ResponseEntity.ok(java.util.Map.of("bookmarked", false));
+        }
+        boolean isSaved = collectionService.isBookInDefaultCollection(principal.getName(), bookId);
+        return ResponseEntity.ok(java.util.Map.of("bookmarked", isSaved));
+    }
+
+    @GetMapping("/saved/count")
+    public ResponseEntity<java.util.Map<String, Long>> getSavedBooksCount(Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.ok(java.util.Map.of("count", 0L));
+        }
+        long count = collectionService.countBooksInDefaultCollection(principal.getName());
+        return ResponseEntity.ok(java.util.Map.of("count", count));
+    }
+
     private void requireAuth(Principal principal) {
         if (principal == null) {
             throw new AuthenticationCredentialsNotFoundException("Not authenticated");

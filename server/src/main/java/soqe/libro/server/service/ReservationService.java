@@ -132,16 +132,13 @@ public class ReservationService {
         String code = generateUniqueReservationCode();
         Reservation reservation;
 
-        // Title-level Hold: Check if there are available copies on the open shelf
-        boolean hasAvailableCopies = book.getAvailableCopies() != null && book.getAvailableCopies() > 0;
-        if (!hasAvailableCopies) {
-            hasAvailableCopies = bookCopyRepository.countByBookAndStatus(book, BookCopy.Status.AVAILABLE) > 0;
-        }
+        // Title-level Hold: Attempt atomic decrement on available copies
+        int updatedCopies = bookRepository.decrementAvailableCopiesAtomic(book.getId());
+        boolean hasAvailableCopies = updatedCopies > 0;
 
         if (hasAvailableCopies) {
             if (book.getAvailableCopies() != null && book.getAvailableCopies() > 0) {
                 book.setAvailableCopies(book.getAvailableCopies() - 1);
-                bookRepository.save(book);
             }
 
             reservation = Reservation.builder()
@@ -288,13 +285,18 @@ public class ReservationService {
             copy = availableCopies.get(0);
         }
 
+        int copyClaimed = bookCopyRepository.updateStatusAtomic(copy.getId(), BookCopy.Status.RESERVED, BookCopy.Status.AVAILABLE);
+        if (copyClaimed == 0) {
+            throw new BusinessValidationException("Conflict", Map.of("copies", "This copy is no longer available. It may have been borrowed or reserved concurrently."));
+        }
         copy.setStatus(BookCopy.Status.RESERVED);
-        bookCopyRepository.save(copy);
 
         Book book = copy.getBook();
-        if (book != null && book.getAvailableCopies() != null && book.getAvailableCopies() > 0) {
-            book.setAvailableCopies(book.getAvailableCopies() - 1);
-            bookRepository.save(book);
+        if (book != null) {
+            bookRepository.decrementAvailableCopiesAtomic(book.getId());
+            if (book.getAvailableCopies() != null && book.getAvailableCopies() > 0) {
+                book.setAvailableCopies(book.getAvailableCopies() - 1);
+            }
         }
 
         reservation.setBookCopy(copy);
@@ -517,9 +519,9 @@ public class ReservationService {
                     bookCopyRepository.save(assignedCopy);
                 }
                 if (book != null) {
+                    bookRepository.incrementAvailableCopiesAtomic(book.getId());
                     int currentAvailable = book.getAvailableCopies() != null ? book.getAvailableCopies() : 0;
                     book.setAvailableCopies(currentAvailable + 1);
-                    bookRepository.save(book);
                 }
             }
         } else if (assignedCopy != null) {

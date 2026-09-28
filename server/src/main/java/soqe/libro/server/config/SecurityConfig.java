@@ -47,7 +47,7 @@ public class SecurityConfig {
                         .requestMatchers("/webhooks/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/books/**", "/genres/**", "/authors/**", "/publishers/**", "/membership-plans/**", "/recommendations/**", "/bookmarks/check/**", "/bookmarks/count", "/storage/files/**", "/collections/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/books/**", "/genres/**", "/authors/**", "/publishers/**", "/membership-plans/**", "/recommendations/**", "/storage/files/**", "/collections/**").permitAll()
                         .requestMatchers("/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .anyRequest().authenticated()
         );

@@ -21,4 +21,12 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
 
     @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(b.availableCopies), 0) FROM Book b")
     long sumAvailableCopies();
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("UPDATE Book b SET b.availableCopies = b.availableCopies - 1 WHERE b.id = :bookId AND b.availableCopies > 0")
+    int decrementAvailableCopiesAtomic(@org.springframework.data.repository.query.Param("bookId") Long bookId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("UPDATE Book b SET b.availableCopies = b.availableCopies + 1 WHERE b.id = :bookId AND b.availableCopies < b.totalCopies")
+    int incrementAvailableCopiesAtomic(@org.springframework.data.repository.query.Param("bookId") Long bookId);
 }

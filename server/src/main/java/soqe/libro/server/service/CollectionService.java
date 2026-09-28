@@ -274,6 +274,13 @@ public class CollectionService {
         );
     }
 
+    @Transactional
+    public void removeBookFromDefaultCollection(String email, Long bookId) {
+        User user = findUserByEmail(email);
+        Collection defaultColl = getOrCreateDefaultCollection(user);
+        removeBookFromCollection(email, defaultColl.getId(), bookId);
+    }
+
     @Transactional(readOnly = true)
     public boolean isBookInDefaultCollection(String email, Long bookId) {
         if (email == null) return false;

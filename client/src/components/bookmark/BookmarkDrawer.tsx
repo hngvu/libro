@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/services/api'
-import type { BookmarkResponse, CollectionResponse, BookPublicResponse } from '@/types/api'
+import type { CollectionResponse, BookPublicResponse } from '@/types/api'
 import {
   IconBookmark,
   IconX,
@@ -82,7 +82,7 @@ export function BookmarkDrawer({ open, onClose, onSelectBook }: BookmarkDrawerPr
   const [activeTab, setActiveTab] = useState<'saved' | 'collections'>('saved')
 
   // Saved Books State
-  const [bookmarks, setBookmarks] = useState<BookmarkResponse[]>([])
+  const [bookmarks, setBookmarks] = useState<BookPublicResponse[]>([])
   const [loadingBookmarks, setLoadingBookmarks] = useState(false)
   const [removingId, setRemovingId] = useState<number | null>(null)
   const [reservingId, setReservingId] = useState<number | null>(null)
@@ -258,14 +258,15 @@ export function BookmarkDrawer({ open, onClose, onSelectBook }: BookmarkDrawerPr
     }
   }
 
-  const handleRemoveSavedBook = async (bookmark: BookmarkResponse) => {
-    setRemovingId(bookmark.bookId)
+  const handleRemoveSavedBook = async (book: BookPublicResponse) => {
+    if (!book.id) return
+    setRemovingId(book.id)
     try {
-      await api.removeBookmark(bookmark.bookId)
-      setBookmarks((prev) => prev.filter((b) => b.bookId !== bookmark.bookId))
+      await api.removeBookmark(book.id)
+      setBookmarks((prev) => prev.filter((b) => b.id !== book.id))
       window.dispatchEvent(
         new CustomEvent('libro:bookmarks-changed', {
-          detail: { bookId: bookmark.bookId, bookmarked: false },
+          detail: { bookId: book.id, bookmarked: false },
         })
       )
     } catch (err) {
@@ -284,15 +285,16 @@ export function BookmarkDrawer({ open, onClose, onSelectBook }: BookmarkDrawerPr
     }
   }
 
-  const handleReserve = async (bookmark: BookmarkResponse) => {
-    setReservingId(bookmark.bookId)
+  const handleReserve = async (book: BookPublicResponse) => {
+    if (!book.id) return
+    setReservingId(book.id)
     setActionNotice(null)
     try {
       const res = await api.placeReservation({
-        bookId: bookmark.bookId,
-        bookHandle: bookmark.bookHandle,
+        bookId: book.id,
+        bookHandle: book.handle,
       })
-      const isAvailable = (bookmark.availableCopies ?? 0) > 0
+      const isAvailable = (book.availableCopies ?? 0) > 0
       setActionNotice(
         isAvailable
           ? `Reserved! Code: ${res.reservationCode} (Pick up at desk)`
@@ -514,59 +516,66 @@ export function BookmarkDrawer({ open, onClose, onSelectBook }: BookmarkDrawerPr
               </div>
             ) : (
               <div className="space-y-3 pt-1">
-                {bookmarks.map((bm) => (
-                  <div
-                    key={bm.id}
-                    className="flex gap-3 p-3 rounded-xl border border-[#e2ded2] dark:border-[#333d36] bg-white dark:bg-[#202722] hover:border-[#2e7d56]/50 transition-colors group"
-                  >
-                    <BookItemCover cover={bm.bookCover} isbn={bm.isbn} title={bm.bookTitle} />
+                {bookmarks.map((bm) => {
+                  const authorsText =
+                    bm.authors && bm.authors.length > 0
+                      ? bm.authors.map((a) => a.name).join(', ')
+                      : 'Unknown Author'
 
-                    <div className="flex-1 min-w-0 flex flex-col justify-between">
-                      <div>
-                        <h4
-                          onClick={() => handleViewDetails({ handle: bm.bookHandle, slug: bm.bookSlug })}
-                          className="font-serif font-bold text-xs sm:text-sm text-[#181818] dark:text-[#f5f3e6] line-clamp-2 leading-snug cursor-pointer hover:text-[#2e7d56] transition-colors"
-                        >
-                          {bm.bookTitle}
-                        </h4>
-                        <p className="text-[11px] text-[#666] dark:text-[#a0a89f] truncate mt-0.5">
-                          {bm.authors && bm.authors.length > 0 ? bm.authors.join(', ') : 'Unknown Author'}
-                        </p>
-                      </div>
+                  return (
+                    <div
+                      key={bm.id || bm.handle}
+                      className="flex gap-3 p-3 rounded-xl border border-[#e2ded2] dark:border-[#333d36] bg-white dark:bg-[#202722] hover:border-[#2e7d56]/50 transition-colors group"
+                    >
+                      <BookItemCover cover={bm.cover} isbn={bm.isbn} title={bm.title} />
 
-                      <div className="flex items-center justify-between pt-2 border-t border-[#f0ede4] dark:border-[#29322a] mt-2">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleViewDetails({ handle: bm.bookHandle, slug: bm.bookSlug })}
-                            className="text-[11px] font-semibold text-[#2e7d56] hover:underline cursor-pointer"
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div>
+                          <h4
+                            onClick={() => handleViewDetails(bm)}
+                            className="font-serif font-bold text-xs sm:text-sm text-[#181818] dark:text-[#f5f3e6] line-clamp-2 leading-snug cursor-pointer hover:text-[#2e7d56] transition-colors"
                           >
-                            View
-                          </button>
-                          <span className="text-[#ccc] text-xs">·</span>
-                          <button
-                            type="button"
-                            disabled={reservingId === bm.bookId}
-                            onClick={() => handleReserve(bm)}
-                            className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer disabled:opacity-50"
-                          >
-                            {reservingId === bm.bookId ? 'Holding...' : 'Reserve'}
-                          </button>
+                            {bm.title}
+                          </h4>
+                          <p className="text-[11px] text-[#666] dark:text-[#a0a89f] truncate mt-0.5">
+                            {authorsText}
+                          </p>
                         </div>
 
-                        <button
-                          type="button"
-                          disabled={removingId === bm.bookId}
-                          onClick={() => handleRemoveSavedBook(bm)}
-                          className="text-[#999] hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer disabled:opacity-50"
-                          title="Remove from saved books"
-                        >
-                          <IconTrash size={14} />
-                        </button>
+                        <div className="flex items-center justify-between pt-2 border-t border-[#f0ede4] dark:border-[#29322a] mt-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleViewDetails(bm)}
+                              className="text-[11px] font-semibold text-[#2e7d56] hover:underline cursor-pointer"
+                            >
+                              View
+                            </button>
+                            <span className="text-[#ccc] text-xs">·</span>
+                            <button
+                              type="button"
+                              disabled={reservingId === bm.id}
+                              onClick={() => handleReserve(bm)}
+                              className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer disabled:opacity-50"
+                            >
+                              {reservingId === bm.id ? 'Holding...' : 'Reserve'}
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled={removingId === bm.id}
+                            onClick={() => handleRemoveSavedBook(bm)}
+                            className="text-[#999] hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                            title="Remove from saved books"
+                          >
+                            <IconTrash size={14} />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )
           ) : (

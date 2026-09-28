@@ -49,7 +49,6 @@ import type {
   ReservationCreateRequest,
   SystemSettingResponse,
   SystemSettingUpdateRequest,
-  BookmarkResponse,
   FileUploadResponse,
   PresignedUploadResponse,
   ActivityLogItem,
@@ -898,29 +897,29 @@ export const api = {
     })
   },
 
-  // Bookmarks (Saved Books)
-  async getBookmarks(): Promise<BookmarkResponse[]> {
-    return request<BookmarkResponse[]>('/bookmarks')
+  // Saved Books (Default Collection Shortcuts)
+  async getBookmarks(): Promise<BookPublicResponse[]> {
+    return request<BookPublicResponse[]>('/collections/saved')
   },
 
   async toggleBookmark(bookId: number): Promise<{ bookmarked: boolean; count: number; bookId: number }> {
-    return request<{ bookmarked: boolean; count: number; bookId: number }>(`/bookmarks/${bookId}/toggle`, {
+    return request<{ bookmarked: boolean; count: number; bookId: number }>(`/collections/saved/toggle/${bookId}`, {
       method: 'POST',
     })
   },
 
   async removeBookmark(bookId: number): Promise<void> {
-    return request<void>(`/bookmarks/${bookId}`, {
+    return request<void>(`/collections/saved/${bookId}`, {
       method: 'DELETE',
     })
   },
 
   async checkBookmarked(bookId: number): Promise<{ bookmarked: boolean }> {
-    return request<{ bookmarked: boolean }>(`/bookmarks/check/${bookId}`)
+    return request<{ bookmarked: boolean }>(`/collections/saved/check/${bookId}`)
   },
 
   async getBookmarkCount(): Promise<{ count: number }> {
-    return request<{ count: number }>('/bookmarks/count')
+    return request<{ count: number }>('/collections/saved/count')
   },
 
   // Collections (Curated & Personal)
