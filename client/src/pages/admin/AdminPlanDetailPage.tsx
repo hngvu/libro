@@ -189,6 +189,7 @@ export function AdminPlanDetailPage() {
     maxActiveLoans: number
     loanDurationDays: number
     maxRenewals: number
+    maxActiveReservations: number
     status: 'ACTIVE' | 'ARCHIVED' | 'INACTIVE'
     prices: MembershipPlanPriceResponse[]
   }>({
@@ -199,6 +200,7 @@ export function AdminPlanDetailPage() {
     maxActiveLoans: 3,
     loanDurationDays: 14,
     maxRenewals: 1,
+    maxActiveReservations: 2,
     status: 'ACTIVE',
     prices: [{ billingCycle: 'MONTHLY', price: 0, stripePriceId: '' }],
   })
@@ -225,6 +227,7 @@ export function AdminPlanDetailPage() {
       form.maxActiveLoans !== plan.maxActiveLoans ||
       form.loanDurationDays !== plan.loanDurationDays ||
       form.maxRenewals !== plan.maxRenewals ||
+      form.maxActiveReservations !== (plan.maxActiveReservations ?? 2) ||
       form.status !== (plan.status || 'ACTIVE') ||
       JSON.stringify(form.prices) !== JSON.stringify(plan.prices || [])
     )
@@ -244,6 +247,7 @@ export function AdminPlanDetailPage() {
         maxActiveLoans: planData.maxActiveLoans ?? 3,
         loanDurationDays: planData.loanDurationDays ?? 14,
         maxRenewals: planData.maxRenewals ?? 1,
+        maxActiveReservations: planData.maxActiveReservations ?? 2,
         status: (planData.status as 'ACTIVE' | 'ARCHIVED' | 'INACTIVE') || 'ACTIVE',
         prices:
           planData.prices && planData.prices.length > 0
@@ -313,6 +317,7 @@ export function AdminPlanDetailPage() {
         maxActiveLoans: Number(form.maxActiveLoans) || 1,
         loanDurationDays: Number(form.loanDurationDays) || 1,
         maxRenewals: Number(form.maxRenewals) || 0,
+        maxActiveReservations: Number(form.maxActiveReservations) || 1,
         prices: newPrices.map((p) => ({
           id: p.id,
           billingCycle: p.billingCycle,
@@ -331,6 +336,7 @@ export function AdminPlanDetailPage() {
         maxActiveLoans: updated.maxActiveLoans,
         loanDurationDays: updated.loanDurationDays,
         maxRenewals: updated.maxRenewals,
+        maxActiveReservations: updated.maxActiveReservations ?? 2,
         status: updated.status as any,
         prices: updated.prices && updated.prices.length > 0 ? updated.prices : newPrices,
       })
@@ -401,6 +407,7 @@ export function AdminPlanDetailPage() {
         maxActiveLoans: Number(form.maxActiveLoans) || 1,
         loanDurationDays: Number(form.loanDurationDays) || 1,
         maxRenewals: Number(form.maxRenewals) || 0,
+        maxActiveReservations: Number(form.maxActiveReservations) || 1,
         prices: form.prices.map((p) => ({
           id: p.id,
           billingCycle: p.billingCycle,
@@ -447,6 +454,7 @@ export function AdminPlanDetailPage() {
       maxActiveLoans: plan.maxActiveLoans ?? 3,
       loanDurationDays: plan.loanDurationDays ?? 14,
       maxRenewals: plan.maxRenewals ?? 1,
+      maxActiveReservations: plan.maxActiveReservations ?? 2,
       status: (plan.status as 'ACTIVE' | 'ARCHIVED' | 'INACTIVE') || 'ACTIVE',
       prices:
         plan.prices && plan.prices.length > 0
@@ -573,18 +581,32 @@ export function AdminPlanDetailPage() {
             />
           </div>
 
-          {/* Row 4: Max Renewals */}
-          <UnitNumberInput
-            label="Max Renewals"
-            value={form.maxRenewals}
-            onChange={(val) => setForm({ ...form, maxRenewals: val })}
-            min={0}
-            max={10}
-            unitSingular="renewal"
-            unitPlural="renewals"
-            inputBg={t.inputBg}
-            subTextColor={t.subTextColor}
-          />
+          {/* Row 4: Max Renewals & Max Active Reservations */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+            <UnitNumberInput
+              label="Max Renewals"
+              value={form.maxRenewals}
+              onChange={(val) => setForm({ ...form, maxRenewals: val })}
+              min={0}
+              max={10}
+              unitSingular="renewal"
+              unitPlural="renewals"
+              inputBg={t.inputBg}
+              subTextColor={t.subTextColor}
+            />
+
+            <UnitNumberInput
+              label="Hold Limit"
+              value={form.maxActiveReservations}
+              onChange={(val) => setForm({ ...form, maxActiveReservations: val })}
+              min={0}
+              max={50}
+              unitSingular="hold"
+              unitPlural="holds"
+              inputBg={t.inputBg}
+              subTextColor={t.subTextColor}
+            />
+          </div>
 
           {/* Row 6: Pricing (Unified View Mode + Modal) */}
           <div className="space-y-1 pt-3 w-full">

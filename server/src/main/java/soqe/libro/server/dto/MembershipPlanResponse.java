@@ -14,6 +14,7 @@ public record MembershipPlanResponse(
         Integer maxActiveLoans,
         Integer loanDurationDays,
         Integer maxRenewals,
+        Integer maxActiveReservations,
         String status,
         List<MembershipPlanPriceDTO> prices,
         LocalDateTime createdAt,

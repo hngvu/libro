@@ -91,6 +91,7 @@ public class SubscriptionService {
                 .maxActiveLoans(req.maxActiveLoans())
                 .loanDurationDays(req.loanDurationDays())
                 .maxRenewals(req.maxRenewals())
+                .maxActiveReservations(req.maxActiveReservations() != null ? req.maxActiveReservations() : 2)
                 .status(MembershipPlan.Status.ACTIVE)
                 .prices(new java.util.ArrayList<>())
                 .build();
@@ -130,6 +131,9 @@ public class SubscriptionService {
         plan.setMaxActiveLoans(req.maxActiveLoans());
         plan.setLoanDurationDays(req.loanDurationDays());
         plan.setMaxRenewals(req.maxRenewals());
+        if (req.maxActiveReservations() != null) {
+            plan.setMaxActiveReservations(req.maxActiveReservations());
+        }
         if (StringUtils.hasText(req.status())) {
             try {
                 plan.setStatus(MembershipPlan.Status.valueOf(req.status().toUpperCase()));
@@ -225,6 +229,7 @@ public class SubscriptionService {
                 .maxActiveLoans(1)
                 .loanDurationDays(7)
                 .maxRenewals(0)
+                .maxActiveReservations(1)
                 .status("FREE_TIER")
                 .build();
     }
@@ -518,6 +523,7 @@ public class SubscriptionService {
                 .maxActiveLoans(p.getMaxActiveLoans())
                 .loanDurationDays(p.getLoanDurationDays())
                 .maxRenewals(p.getMaxRenewals())
+                .maxActiveReservations(p.getMaxActiveReservations())
                 .status(p.getStatus() != null ? p.getStatus().name() : null)
                 .prices(priceDTOs)
                 .createdAt(p.getCreatedAt())
@@ -540,6 +546,8 @@ public class SubscriptionService {
                 .maxActiveLoans(s.getPlan() != null ? s.getPlan().getMaxActiveLoans() : 1)
                 .loanDurationDays(s.getPlan() != null ? s.getPlan().getLoanDurationDays() : 7)
                 .maxRenewals(s.getPlan() != null ? s.getPlan().getMaxRenewals() : 0)
+                .maxActiveReservations(s.getPlan() != null && s.getPlan().getMaxActiveReservations() != null
+                        ? s.getPlan().getMaxActiveReservations() : 1)
                 .status(s.getStatus() != null ? s.getStatus().name() : null)
                 .stripeCustomerId(s.getStripeCustomerId())
                 .stripeSubscriptionId(s.getStripeSubscriptionId())

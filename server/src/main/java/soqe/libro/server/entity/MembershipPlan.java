@@ -37,6 +37,10 @@ public class MembershipPlan extends BaseEntity {
     @Builder.Default
     private Integer maxRenewals = 1;
 
+    @Column(name = "max_active_reservations", nullable = false)
+    @Builder.Default
+    private Integer maxActiveReservations = 2;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

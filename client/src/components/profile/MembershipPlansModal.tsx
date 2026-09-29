@@ -155,6 +155,10 @@ export function MembershipPlansModal({ open, onOpenChange }: MembershipPlansModa
                         <IconCheck size={14} className="text-emerald-500 shrink-0" />
                         <span><strong>{p.maxRenewals}</strong> allowed renewals</span>
                       </li>
+                      <li className="flex items-center gap-2">
+                        <IconCheck size={14} className="text-emerald-500 shrink-0" />
+                        <span><strong>{p.maxActiveReservations ?? 2}</strong> active reservation hold{(p.maxActiveReservations ?? 2) > 1 ? 's' : ''}</span>
+                      </li>
                     </ul>
                   </div>
 

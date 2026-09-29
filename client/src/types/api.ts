@@ -355,6 +355,7 @@ export interface MembershipPlanResponse {
   maxActiveLoans: number
   loanDurationDays: number
   maxRenewals: number
+  maxActiveReservations?: number
   status: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED'
   prices: MembershipPlanPriceResponse[]
   createdAt?: string
@@ -374,6 +375,7 @@ export interface UserSubscriptionResponse {
   maxActiveLoans: number
   loanDurationDays: number
   maxRenewals: number
+  maxActiveReservations?: number
   status: string
   stripeCustomerId?: string
   stripeSubscriptionId?: string

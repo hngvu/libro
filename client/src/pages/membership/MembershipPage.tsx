@@ -385,14 +385,12 @@ export function MembershipPage({ onOpenAuth }: MembershipPageProps) {
                         </li>
                       )}
 
-                      {!isFreePlan && (
-                        <li className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
-                            <IconCheck size={11} stroke={2.5} />
-                          </div>
-                          <span>Advance reservation & hold queue</span>
-                        </li>
-                      )}
+                      <li className="flex items-center gap-2">
+                        <div className="w-4 h-4 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                          <IconCheck size={11} stroke={2.5} />
+                        </div>
+                        <span><strong>{plan.maxActiveReservations ?? (isFreePlan ? 1 : 3)}</strong> active reservation hold{((plan.maxActiveReservations ?? (isFreePlan ? 1 : 3)) > 1) ? 's' : ''}</span>
+                      </li>
                     </ul>
                   </div>
                 </div>
@@ -509,17 +507,14 @@ export function MembershipPage({ onOpenAuth }: MembershipPageProps) {
                 </tr>
                 <tr>
                   <td className="p-3 font-medium text-[#1e2320] dark:text-[#f5f3e6]">
-                    Advance Book Reservations
+                    Max Active Book Holds (Reservations)
                   </td>
                   {plans.map((p) => {
                     const isFree = p.code?.toUpperCase() === 'FREE'
+                    const holdLimit = p.maxActiveReservations ?? (isFree ? 1 : 3)
                     return (
-                      <td key={p.code} className="p-3 text-center text-emerald-600 dark:text-emerald-400">
-                        {isFree ? (
-                          <span className="text-[#6f7f64] dark:text-[#c8d0b7] font-semibold">—</span>
-                        ) : (
-                          <IconCheck size={16} className="mx-auto" />
-                        )}
+                      <td key={p.code} className="p-3 text-center font-bold text-[#3d4b3e] dark:text-[#c8d0b7]">
+                        {holdLimit} {holdLimit > 1 ? 'holds' : 'hold'}
                       </td>
                     )
                   })}

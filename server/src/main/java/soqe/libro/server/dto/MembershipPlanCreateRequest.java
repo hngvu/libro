@@ -25,6 +25,8 @@ public record MembershipPlanCreateRequest(
         @NotNull(message = "Max renewals is required")
         Integer maxRenewals,
 
+        Integer maxActiveReservations,
+
         String status,
 
         @Valid

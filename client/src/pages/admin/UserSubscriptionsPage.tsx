@@ -388,7 +388,7 @@ export function UserSubscriptionsPage() {
                   {/* Privileges Column */}
                   <td className="py-3 px-4">
                     <div className="text-xs sm:text-[13px] font-medium text-gray-900 dark:text-gray-100">
-                      {sub.maxActiveLoans} active loans
+                      {sub.maxActiveLoans} loans · {sub.maxActiveReservations ?? 2} holds
                     </div>
                     <span className={`block text-[11px] mt-0.5 ${t.mutedColor}`}>
                       {sub.loanDurationDays}d duration · {sub.maxRenewals} renewals

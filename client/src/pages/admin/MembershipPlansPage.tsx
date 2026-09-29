@@ -364,18 +364,23 @@ export function MembershipPlansPage() {
                   )}
                 </th>
 
-                {/* Column 3: Limit */}
-                <th className={`w-28 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
-                  Limit
+                {/* Column 3: Loans Limit */}
+                <th className={`w-20 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Loans
                 </th>
 
-                {/* Column 4: Duration */}
-                <th className={`w-28 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                {/* Column 4: Holds Limit */}
+                <th className={`w-20 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                  Holds
+                </th>
+
+                {/* Column 5: Duration */}
+                <th className={`w-24 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
                   Duration
                 </th>
 
-                {/* Column 5: Renewal */}
-                <th className={`w-24 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
+                {/* Column 6: Renewal */}
+                <th className={`w-20 px-4 text-xs sm:text-[13px] font-semibold align-middle whitespace-nowrap text-right ${isDark ? 'text-[#8c94a5]' : 'text-gray-600'}`}>
                   Renewal
                 </th>
               </tr>
@@ -436,10 +441,17 @@ export function MembershipPlansPage() {
                       </div>
                     </td>
 
-                    {/* Limit Column */}
+                    {/* Loans Limit Column */}
                     <td className="py-3 px-4 text-right">
                       <span className={`text-xs sm:text-[13px] font-mono font-medium ${t.titleColor}`}>
                         {p.maxActiveLoans}
+                      </span>
+                    </td>
+
+                    {/* Holds Limit Column */}
+                    <td className="py-3 px-4 text-right">
+                      <span className={`text-xs sm:text-[13px] font-mono font-medium ${t.titleColor}`}>
+                        {p.maxActiveReservations ?? 2}
                       </span>
                     </td>
 
@@ -462,7 +474,7 @@ export function MembershipPlansPage() {
 
               {sortedPlans.length === 0 && (
                 <tr>
-                  <td colSpan={5} className={`py-12 text-center text-xs sm:text-sm ${t.subTextColor}`}>
+                  <td colSpan={6} className={`py-12 text-center text-xs sm:text-sm ${t.subTextColor}`}>
                     No membership plans found matching filter.
                   </td>
                 </tr>

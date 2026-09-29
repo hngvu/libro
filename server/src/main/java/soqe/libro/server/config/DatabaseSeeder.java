@@ -1096,7 +1096,8 @@ public class DatabaseSeeder implements CommandLineRunner {
         createSettingIfAbsent("loan.default_max_active", "1", "Số sách mượn tối đa cho tài khoản Free", "CIRCULATION", SystemSetting.DataType.NUMBER);
 
         createSettingIfAbsent("reservation.default_hold_days", "3", "Thời gian giữ sách đặt trước tại quầy (ngày)", "RESERVATIONS", SystemSetting.DataType.NUMBER);
-        createSettingIfAbsent("reservation.max_active", "3", "Số lượt đặt trước tối đa mỗi độc giả", "RESERVATIONS", SystemSetting.DataType.NUMBER);
+        // Remove legacy reservation.max_active setting if present
+        systemSettingRepository.findBySettingKey("reservation.max_active").ifPresent(systemSettingRepository::delete);
     }
 
     private void createSettingIfAbsent(String key, String value, String desc, String category, SystemSetting.DataType type) {
@@ -1121,6 +1122,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .maxActiveLoans(1)
                     .loanDurationDays(7)
                     .maxRenewals(0)
+                    .maxActiveReservations(1)
                     .status(MembershipPlan.Status.ACTIVE)
                     .prices(new ArrayList<>())
                     .build();
@@ -1133,6 +1135,13 @@ public class DatabaseSeeder implements CommandLineRunner {
 
             membershipPlanRepository.save(freePlan);
             log.info("Seeded membership plan: FREE");
+        } else {
+            membershipPlanRepository.findByCode("FREE").ifPresent(p -> {
+                if (p.getMaxActiveReservations() == null) {
+                    p.setMaxActiveReservations(1);
+                    membershipPlanRepository.save(p);
+                }
+            });
         }
 
         if (membershipPlanRepository.findByCode("STANDARD").isEmpty()) {
@@ -1143,6 +1152,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .maxActiveLoans(3)
                     .loanDurationDays(14)
                     .maxRenewals(1)
+                    .maxActiveReservations(3)
                     .status(MembershipPlan.Status.ACTIVE)
                     .prices(new ArrayList<>())
                     .build();
@@ -1161,6 +1171,13 @@ public class DatabaseSeeder implements CommandLineRunner {
 
             membershipPlanRepository.save(standardPlan);
             log.info("Seeded membership plan: STANDARD");
+        } else {
+            membershipPlanRepository.findByCode("STANDARD").ifPresent(p -> {
+                if (p.getMaxActiveReservations() == null) {
+                    p.setMaxActiveReservations(3);
+                    membershipPlanRepository.save(p);
+                }
+            });
         }
 
         if (membershipPlanRepository.findByCode("VIP").isEmpty()) {
@@ -1171,6 +1188,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .maxActiveLoans(8)
                     .loanDurationDays(30)
                     .maxRenewals(3)
+                    .maxActiveReservations(8)
                     .status(MembershipPlan.Status.ACTIVE)
                     .prices(new ArrayList<>())
                     .build();
@@ -1189,6 +1207,13 @@ public class DatabaseSeeder implements CommandLineRunner {
 
             membershipPlanRepository.save(vipPlan);
             log.info("Seeded membership plan: VIP");
+        } else {
+            membershipPlanRepository.findByCode("VIP").ifPresent(p -> {
+                if (p.getMaxActiveReservations() == null) {
+                    p.setMaxActiveReservations(8);
+                    membershipPlanRepository.save(p);
+                }
+            });
         }
     }
 

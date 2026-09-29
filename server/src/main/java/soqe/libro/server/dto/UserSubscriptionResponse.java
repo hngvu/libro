@@ -18,6 +18,7 @@ public record UserSubscriptionResponse(
         Integer maxActiveLoans,
         Integer loanDurationDays,
         Integer maxRenewals,
+        Integer maxActiveReservations,
         String status,
         String stripeCustomerId,
         String stripeSubscriptionId,
